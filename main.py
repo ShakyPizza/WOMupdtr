@@ -28,35 +28,35 @@ previous_ehb = {}
 @discord_client.event
 async def on_ready():
     print(f'Logged in as {discord_client.user}')
-    check_for_rank_changes.start()
+    if not check_for_rank_changes.is_running():
+        check_for_rank_changes.start()
+    else:
+        print("Task already running, skipping start.")
+
 
 @tasks.loop(hours=CHECK_INTERVAL)  # Interval from config.ini
 async def check_for_rank_changes():
     try:
-        # Fetch group members
-        group_url = f"{BASE_URL}/groups/{GROUP_ID}/members"
-        print(f"Fetching group members from: {group_url}") # Debug til að sjá slóðina í terminal
+        # Fetch group details
+        group_url = f"{BASE_URL}/groups/{GROUP_ID}"
         response = requests.get(group_url)
         response.raise_for_status()
-        group_members = response.json()
+        group_data = response.json()
 
-        # Iterate through group members
-        for member in group_members:
-            username = member['displayName']
+        # Access the "memberships" field
+        memberships = group_data.get("memberships", [])
 
-            # Fetch player data
-            player_url = f"{BASE_URL}/players/{username}/gained"
-            player_response = requests.get(player_url)
-            player_response.raise_for_status()
-            player_data = player_response.json()
+        for member in memberships:
+            player = member.get("player", {})
+            username = player.get("displayName", "Unknown")
+            ehb = player.get("ehb", 0)
 
-            # Extract EHB from the latest snapshot
-            ehb = player_data.get('latestSnapshot', {}).get('ehb', 0)
-
+            # Check and compare EHB
             if username in previous_ehb:
                 if ehb > previous_ehb[username]:
                     await send_rank_up_message(username, ehb)
 
+            # Update previous EHB
             previous_ehb[username] = ehb
     except Exception as e:
         print(f"Error occurred during update: {e}")
