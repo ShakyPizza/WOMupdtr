@@ -1,7 +1,7 @@
 import configparser
+import requests
 import discord
 from discord.ext import tasks
-from wom import Client
 
 # Load configuration
 config = configparser.ConfigParser()
@@ -9,14 +9,18 @@ config.read('config.ini')
 
 # Discord and Wise Old Man settings
 DISCORD_TOKEN = config['discord']['token']
-CHANNEL_ID = str(config['discord']['channel_id'])
-GROUP_ID = str(config['wiseoldman']['group_id'])
-API_KEY = config['wiseoldman'].get('api_key', None)
+CHANNEL_ID = int(config['discord']['channel_id'])  # Ensure channel ID is an integer
+GROUP_ID = int(config['wiseoldman']['group_id'])
 CHECK_INTERVAL = int(config['settings']['check_interval'])
 
-# Initialize Wise Old Man and Discord clients
-wom_client = Client(api_key=API_KEY) if API_KEY else Client()
-discord_client = discord.Client()
+# API Base URL
+BASE_URL = "https://api.wiseoldman.net/v2"
+
+# Discord bot setup
+intents = discord.Intents.default()
+intents.messages = True
+intents.guilds = True
+discord_client = discord.Client(intents=intents)
 
 # Dictionary to store previous EHB values
 previous_ehb = {}
@@ -29,18 +33,31 @@ async def on_ready():
 @tasks.loop(hours=CHECK_INTERVAL)  # Interval from config.ini
 async def check_for_rank_changes():
     try:
-        group = wom_client.groups.get_group(GROUP_ID)
-        members = group.members
+        # Fetch group members
+        group_url = f"{BASE_URL}/groups/{GROUP_ID}/members"
+        print(f"Fetching group members from: {group_url}") # Debug til að sjá slóðina í terminal
+        response = requests.get(group_url)
+        response.raise_for_status()
+        group_members = response.json()
 
-        for member in members:
-            player = wom_client.players.get_player(member.username)
-            ehb = player.ehb
+        # Iterate through group members
+        for member in group_members:
+            username = member['displayName']
 
-            if member.username in previous_ehb:
-                if ehb > previous_ehb[member.username]:
-                    await send_rank_up_message(member.username, ehb)
+            # Fetch player data
+            player_url = f"{BASE_URL}/players/{username}/gained"
+            player_response = requests.get(player_url)
+            player_response.raise_for_status()
+            player_data = player_response.json()
 
-            previous_ehb[member.username] = ehb
+            # Extract EHB from the latest snapshot
+            ehb = player_data.get('latestSnapshot', {}).get('ehb', 0)
+
+            if username in previous_ehb:
+                if ehb > previous_ehb[username]:
+                    await send_rank_up_message(username, ehb)
+
+            previous_ehb[username] = ehb
     except Exception as e:
         print(f"Error occurred during update: {e}")
 
