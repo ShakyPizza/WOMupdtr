@@ -9,8 +9,8 @@ config.read('config.ini')
 
 # Discord and Wise Old Man settings
 DISCORD_TOKEN = config['discord']['token']
-CHANNEL_ID = int(config['discord']['channel_id'])
-GROUP_ID = int(config['wiseoldman']['group_id'])
+CHANNEL_ID = str(config['discord']['channel_id'])
+GROUP_ID = str(config['wiseoldman']['group_id'])
 API_KEY = config['wiseoldman'].get('api_key', None)
 CHECK_INTERVAL = int(config['settings']['check_interval'])
 
