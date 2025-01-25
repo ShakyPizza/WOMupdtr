@@ -1,12 +1,20 @@
-from wom import Client
-import asyncio
+from wom import client
 
-username = "R N G"
+
+
+client = wom.Client(user_agent="@jonxslays")
 
 async def main():
-    client = Client()
-    player = await client.players.get_player(username)
-    print(player)
+    await client.start()
 
-# Run the async function
+    result = await client.players.update_player("jonxslays")
+
+    if result.is_ok:
+        print(result.unwrap())
+    else:
+        print(result.unwrap_err())
+
+    await client.close()
+
+import asyncio
 asyncio.run(main())

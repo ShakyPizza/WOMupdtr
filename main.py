@@ -1,7 +1,8 @@
 import configparser
-import wom
+from wom import Client
 from discord.ext import tasks
 import discord
+import asyncio
 
 # Load configuration
 config = configparser.ConfigParser()
@@ -15,7 +16,7 @@ CHECK_INTERVAL = int(config['settings']['check_interval'])
 
 # Initialize Wise Old Man client
 API_KEY = config['wiseoldman'].get('api_key', None)
-wom_client = wom.Client(api_key=API_KEY)
+wom_client = Client()
 
 # Discord bot setup
 intents = discord.Intents.default()
@@ -39,7 +40,7 @@ async def on_ready():
 async def check_for_rank_changes():
     try:
         # Fetch group details
-        group = wom_client.groups.get_group(GROUP_ID)
+        group = result = await Client.groups.get_members_csv(GROUP_ID)
         members = group.members  # List of members in the group
 
         for member in members:
