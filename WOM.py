@@ -222,15 +222,17 @@ def log_ehb_to_csv(username, ehb, file_name="ehb_log.csv"):
         print(f"Error logging to CSV: {e}")
 
 
-async def send_rank_up_message(username, rank, ehb):
+async def send_rank_up_message(username, new_rank, old_rank, ehb):
     try:
-        channel = discord_client.get_channel(CHANNEL_ID)
-        if channel:
-            await channel.send(f'🎉 Congratulations {username} on achieving the rank of {rank} with {ehb} EHB! 🎉')
-        else:
-            print(f"Channel with ID {CHANNEL_ID} not found.")
+        if new_rank != old_rank:  # Only send a message if the rank has changed
+            channel = discord_client.get_channel(CHANNEL_ID)
+            if channel:
+                await channel.send(f'🎉 Congratulations {username} on moving up to the rank of {new_rank} with {ehb} EHB! 🎉')
+            else:
+                print(f"Channel with ID {CHANNEL_ID} not found.")
     except Exception as e:
         print(f"Error sending message: {e}")
+
 
 
 # Run the Discord bot
