@@ -17,6 +17,7 @@ CHANNEL_ID = int(config['discord']['channel_id'])
 GROUP_ID = int(config['wiseoldman']['group_id'])
 CHECK_INTERVAL = int(config['settings']['check_interval'])  # Check interval in seconds, directly from config
 RUN_AT_STARTUP = config['settings'].getboolean('run_at_startup', True)  # Configurable startup setting
+PRINT_CSV_CHANGES = config['settings'].getboolean('print_csv_changes', True)  # Print CSV logs setting
 
 try:
     RUN_AT_STARTUP = config['settings'].getboolean('run_at_startup')
@@ -215,7 +216,8 @@ def log_ehb_to_csv(username, ehb, file_name="ehb_log.csv"):
             writer = csv.writer(file)
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             writer.writerow([timestamp, username, ehb])
-            print(f"Logged {username} with {ehb} EHB at {timestamp} to {file_name}.")
+            if PRINT_CSV_CHANGES:
+                print(f"Logged {username} with {ehb} EHB at {timestamp} to {file_name}.")
     except Exception as e:
         print(f"Error logging to CSV: {e}")
 
