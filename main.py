@@ -10,12 +10,11 @@ config.read('config.ini')
 
 # Discord and Wise Old Man settings
 DISCORD_TOKEN = config['discord']['token']
-CHANNEL_ID = int(config['discord']['channel_id'])  # Ensure channel ID is an integer
+CHANNEL_ID = int(config['discord']['channel_id'])
 GROUP_ID = int(config['wiseoldman']['group_id'])
-CHECK_INTERVAL = int(config['settings']['check_interval'])
+CHECK_INTERVAL = int(config['settings']['check_interval'])  # Check interval in seconds, directly from config
 
 # Initialize Wise Old Man client
-API_KEY = config['wiseoldman'].get('api_key', None)
 wom_client = Client()
 
 # Discord bot setup
@@ -31,33 +30,52 @@ previous_ehb = {}
 async def on_ready():
     print(f'Logged in as {discord_client.user}')
     if not check_for_rank_changes.is_running():
+        print("Starting check_for_rank_changes task.")
+        await wom_client.start()  # Ensure WOM client is started before running the task
         check_for_rank_changes.start()
     else:
-        print("Task already running, skipping start.")
+        print("check_for_rank_changes task is already running.")
 
 
-@tasks.loop(hours=CHECK_INTERVAL)  # Interval from config.ini
+@tasks.loop(seconds=CHECK_INTERVAL)
 async def check_for_rank_changes():
     try:
         # Fetch group details
-        group = result = await Client.groups.get_members_csv(GROUP_ID)
-        members = group.members  # List of members in the group
+        result = await wom_client.groups.get_details(GROUP_ID)
 
-        for member in members:
-            # Fetch player data for each member
-            player = wom_client.players.get_player(member.username)  # Fetch player details
-            username = player.display_name
-            ehb = player.ehb  # Efficient Hours Bossed
+        # Unwrap the result to access the group details
+        if result.is_ok:
+            group = result.unwrap()
 
-            # Compare and notify if rank increases
-            if username in previous_ehb:
-                if ehb > previous_ehb[username]:
-                    await send_rank_up_message(username, ehb)
+            # Access the memberships attribute to get group members
+            memberships = group.memberships
 
-            # Update stored EHB values
-            previous_ehb[username] = ehb
+            for membership in memberships:
+                try:
+                    # Access the player object in the membership
+                    player = membership.player
+
+                    # Fetch the latest snapshot for each member
+                    snapshot = await wom_client.players.get_latest_snapshot(player.id)
+
+                    username = player.display_name
+                    ehb = snapshot.computed.ehb  # Efficient Hours Bossed
+
+                    # Compare and notify if rank increases
+                    if username in previous_ehb and ehb > previous_ehb[username]:
+                        await send_rank_up_message(username, ehb)
+
+                    # Update stored EHB values
+                    previous_ehb[username] = ehb
+                except Exception as e:
+                    print(f"Error fetching player data for {player.username}: {e}")
+        else:
+            print(f"Failed to fetch group details: {result.unwrap_err()}")
     except Exception as e:
-        print(f"Error occurred during update: {e}")
+        print(f"Error occurred during rank check: {e}")
+
+
+
 
 async def send_rank_up_message(username, ehb):
     try:
@@ -68,6 +86,7 @@ async def send_rank_up_message(username, ehb):
             print(f"Channel with ID {CHANNEL_ID} not found.")
     except Exception as e:
         print(f"Error sending message: {e}")
+
 
 # Run the Discord bot
 discord_client.run(DISCORD_TOKEN)
