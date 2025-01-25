@@ -1,5 +1,5 @@
 import configparser
-import requests
+from wom import client
 import discord
 from discord.ext import tasks
 
@@ -13,8 +13,9 @@ CHANNEL_ID = int(config['discord']['channel_id'])  # Ensure channel ID is an int
 GROUP_ID = int(config['wiseoldman']['group_id'])
 CHECK_INTERVAL = int(config['settings']['check_interval'])
 
-# API Base URL
-BASE_URL = "https://api.wiseoldman.net/v2"
+# Initialize Wise Old Man client
+API_KEY = config['wiseoldman'].get('api_key', None)
+wom_client = Client(api_key=API_KEY)
 
 # Discord bot setup
 intents = discord.Intents.default()
@@ -37,26 +38,22 @@ async def on_ready():
 @tasks.loop(hours=CHECK_INTERVAL)  # Interval from config.ini
 async def check_for_rank_changes():
     try:
-        # Fetch group details
-        group_url = f"{BASE_URL}/groups/{GROUP_ID}"
-        response = requests.get(group_url)
-        response.raise_for_status()
-        group_data = response.json()
+        # Fetch group details and members
+        group = wom_client.groups.get(GROUP_ID)
+        members = group.members
 
-        # Access the "memberships" field
-        memberships = group_data.get("memberships", [])
+        for member in members:
+            # Access player's data
+            player = member.player
+            username = player.display_name
+            ehb = player.ehb  # Efficient Hours Bossed
 
-        for member in memberships:
-            player = member.get("player", {})
-            username = player.get("displayName", "Unknown")
-            ehb = player.get("ehb", 0)
-
-            # Check and compare EHB
+            # Compare and notify if rank increases
             if username in previous_ehb:
                 if ehb > previous_ehb[username]:
                     await send_rank_up_message(username, ehb)
 
-            # Update previous EHB
+            # Update stored EHB values
             previous_ehb[username] = ehb
     except Exception as e:
         print(f"Error occurred during update: {e}")
