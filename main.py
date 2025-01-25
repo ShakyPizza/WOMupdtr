@@ -1,7 +1,7 @@
 import configparser
-from wom import client
-import discord
+import wom
 from discord.ext import tasks
+import discord
 
 # Load configuration
 config = configparser.ConfigParser()
@@ -15,7 +15,7 @@ CHECK_INTERVAL = int(config['settings']['check_interval'])
 
 # Initialize Wise Old Man client
 API_KEY = config['wiseoldman'].get('api_key', None)
-wom_client = Client(api_key=API_KEY)
+wom_client = wom.Client(api_key=API_KEY)
 
 # Discord bot setup
 intents = discord.Intents.default()
@@ -38,13 +38,13 @@ async def on_ready():
 @tasks.loop(hours=CHECK_INTERVAL)  # Interval from config.ini
 async def check_for_rank_changes():
     try:
-        # Fetch group details and members
-        group = wom_client.groups.get(GROUP_ID)
-        members = group.members
+        # Fetch group details
+        group = wom_client.groups.get_group(GROUP_ID)
+        members = group.members  # List of members in the group
 
         for member in members:
-            # Access player's data
-            player = member.player
+            # Fetch player data for each member
+            player = wom_client.players.get_player(member.username)  # Fetch player details
             username = player.display_name
             ehb = player.ehb  # Efficient Hours Bossed
 
