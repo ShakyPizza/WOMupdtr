@@ -5,21 +5,6 @@ import discord
 from datetime import datetime
 import asyncio
 
-RANK_ICONS = {
-    "Recruit": "https://oldschool.runescape.wiki/images/recruit_icon.png",
-    "Corporal": "https://oldschool.runescape.wiki/images/corporal_icon.png",
-    "Sergeant": "https://oldschool.runescape.wiki/images/sergeant_icon.png",
-    "Lieutenant": "https://oldschool.runescape.wiki/images/lieutenant_icon.png",
-    "Captain": "https://oldschool.runescape.wiki/images/captain_icon.png",
-    "General": "https://oldschool.runescape.wiki/images/general_icon.png",
-    "Admin": "https://oldschool.runescape.wiki/images/admin_icon.png",
-    "Organiser": "https://oldschool.runescape.wiki/images/organiser_icon.png",
-    "Coordinator": "https://oldschool.runescape.wiki/images/coordinator_icon.png",
-    "Overseer": "https://oldschool.runescape.wiki/images/overseer_icon.png",
-    "Deputy Owner": "https://oldschool.runescape.wiki/images/deputy_owner_icon.png",
-    "Owner": "https://oldschool.runescape.wiki/images/owner_icon.png",
-}
-
 
 # Load configuration
 config = configparser.ConfigParser()
@@ -131,24 +116,30 @@ async def list_all_members_and_ranks():
             group = result.unwrap()
             memberships = group.memberships
 
+            # Extract players and sort by EHB descending
+            players = []
+            for membership in memberships:
+                try:
+                    player = membership.player
+                    username = player.display_name
+                    ehb = round(player.ehb, 2)  # Rounded to 2 decimals
+                    rank = get_rank(ehb)  # Determine rank from the ranks.ini file
+                    players.append((username, rank, ehb))
+                except Exception as e:
+                    print(f"Error processing player data for {membership.player.username}: {e}")
+
+            # Sort players by EHB descending
+            players.sort(key=lambda x: x[2], reverse=True)
+
             # Prepare the message header
             message_lines = ["**Rich Boys Ranking**\n"]
             message_lines.append("```")
             message_lines.append(f"{'Player':<20}{'Rank':<15}{'EHB':<10}")
             message_lines.append(f"{'-'*45}")
 
-            for membership in memberships:
-                try:
-                    player = membership.player
-
-                    username = player.display_name
-                    ehb = round(player.ehb, 2)  # Rounded to 2 decimals
-                    rank = get_rank(ehb)  # Determine rank from the ranks.ini file
-
-                    # Add member's rank to the message with proper alignment
-                    message_lines.append(f"{username:<20}{rank:<15}{ehb:<10}")
-                except Exception as e:
-                    print(f"Error processing player data for {membership.player.username}: {e}")
+            for username, rank, ehb in players:
+                # Add member's rank to the message with proper alignment
+                message_lines.append(f"{username:<20}{rank:<15}{ehb:<10}")
 
             message_lines.append("```")  # End code block
 
@@ -166,6 +157,7 @@ async def list_all_members_and_ranks():
             print(f"Failed to fetch group details: {result.unwrap_err()}")
     except Exception as e:
         print(f"Error occurred while listing members and ranks: {e}")
+
 
 
 async def send_rank_up_message(username, rank, ehb):
