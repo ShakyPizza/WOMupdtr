@@ -55,11 +55,8 @@ async def check_for_rank_changes():
                     # Access the player object in the membership
                     player = membership.player
 
-                    # Fetch the latest snapshot for each member
-                    snapshot = await wom_client.players.get_latest_snapshot(player.id)
-
                     username = player.display_name
-                    ehb = snapshot.computed.ehb  # Efficient Hours Bossed
+                    ehb = player.ehb  # Efficient Hours Bossed from the player object
 
                     # Compare and notify if rank increases
                     if username in previous_ehb and ehb > previous_ehb[username]:
@@ -68,15 +65,13 @@ async def check_for_rank_changes():
                     # Update stored EHB values
                     previous_ehb[username] = ehb
                 except Exception as e:
-                    print(f"Error fetching player data for {player.username}: {e}")
+                    print(f"Error processing player data for {player.username}: {e}")
         else:
             print(f"Failed to fetch group details: {result.unwrap_err()}")
     except Exception as e:
         print(f"Error occurred during rank check: {e}")
 
-
-
-
+   
 async def send_rank_up_message(username, ehb):
     try:
         channel = discord_client.get_channel(CHANNEL_ID)
