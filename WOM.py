@@ -131,7 +131,7 @@ async def check_for_rank_changes():
                     
                     # Compare and notify if rank increases
                     if username in previous_ehb and ehb > previous_ehb[username]:
-                        await send_rank_up_message(username, f"{rank} ({ehb} EHB)")
+                        await send_rank_up_message(username, rank, ehb)
 
                     # Update stored EHB values
                     previous_ehb[username] = ehb
