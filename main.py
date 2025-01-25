@@ -182,7 +182,7 @@ async def list_all_members_and_ranks():
             for index, (username, rank, ehb) in enumerate(players, start=1):
                 line = f"{index:<4}{username:<20}{rank:<15}{ehb:<10}"
 
-                # Check if adding this line exceeds Discord's 4000 character limit
+                # Check if adding this line exceeds Discord's 2000 character limit
                 if sum(len(l) + 1 for l in chunk) + len(line) + 5 > 2000:  # +5 accounts for closing block
                     chunk.append("```")
                     message_lines.append("\n".join(chunk))
