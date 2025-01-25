@@ -132,6 +132,7 @@ async def check_for_rank_changes():
 
                     # Update stored EHB values
                     previous_ehb[username] = ehb
+                    log_ehb_to_csv(username, ehb)  # Log EHB to the CSV file
 
                 except Exception as e:
                     print(f"Error processing player data for {player.username}: {e}")
@@ -164,7 +165,6 @@ async def list_all_members_and_ranks():
                     if ehb > 0:  # Exclude members with 0 EHB
                         rank = get_rank(ehb)  # Determine rank from the ranks.ini file
                         players.append((username, rank, ehb))
-                        log_ehb_to_csv(username, ehb)  # Log EHB to the CSV file
                 except Exception as e:
                     print(f"Error processing player data for {membership.player.username}: {e}")
 
