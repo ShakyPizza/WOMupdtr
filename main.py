@@ -38,6 +38,15 @@ async def on_ready():
     else:
         print("check_for_rank_changes task is already running.")
 
+@discord_client.event
+async def on_ready():
+    print(f'Logged in as {discord_client.user}')
+    channel = discord_client.get_channel(CHANNEL_ID)
+    if channel:
+        print(f"Bot can access channel: {channel.name} ({CHANNEL_ID})")
+        ### await channel.send("Hello! I am ready to track EHB updates!")
+    else:
+        print(f"Bot cannot access channel with ID: {CHANNEL_ID}")
 
 import csv
 from datetime import datetime
