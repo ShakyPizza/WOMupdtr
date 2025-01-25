@@ -2,6 +2,8 @@ import configparser
 from wom import Client
 from discord.ext import tasks
 import discord
+import csv
+from datetime import datetime
 import asyncio
 
 # Load configuration
@@ -65,7 +67,7 @@ async def check_for_rank_changes():
 
                         username = player.username
                         display_name = player.display_name
-                        ehb = player.ehb  # Efficient Hours Bossed from the player object
+                        ehb = round(player.ehb, 2)  # Round EHB to 2 decimal places
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                         # Write player data to the CSV
@@ -83,7 +85,6 @@ async def check_for_rank_changes():
             print(f"Failed to fetch group details: {result.unwrap_err()}")
     except Exception as e:
         print(f"Error occurred during rank check: {e}")
-
 
    
 async def send_rank_up_message(username, ehb):
