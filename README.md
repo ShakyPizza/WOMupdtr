@@ -59,7 +59,7 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
 
 5. Run the bot:
    ```bash
-   python main.py
+   python WOM.py
    ```
 
 ## Usage
