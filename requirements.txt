@@ -1,5 +1,4 @@
 discord.py
 configparser
 asyncio
-csv
-wom
+wom.py
