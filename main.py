@@ -5,6 +5,22 @@ import discord
 from datetime import datetime
 import asyncio
 
+RANK_ICONS = {
+    "Recruit": "https://oldschool.runescape.wiki/images/recruit_icon.png",
+    "Corporal": "https://oldschool.runescape.wiki/images/corporal_icon.png",
+    "Sergeant": "https://oldschool.runescape.wiki/images/sergeant_icon.png",
+    "Lieutenant": "https://oldschool.runescape.wiki/images/lieutenant_icon.png",
+    "Captain": "https://oldschool.runescape.wiki/images/captain_icon.png",
+    "General": "https://oldschool.runescape.wiki/images/general_icon.png",
+    "Admin": "https://oldschool.runescape.wiki/images/admin_icon.png",
+    "Organiser": "https://oldschool.runescape.wiki/images/organiser_icon.png",
+    "Coordinator": "https://oldschool.runescape.wiki/images/coordinator_icon.png",
+    "Overseer": "https://oldschool.runescape.wiki/images/overseer_icon.png",
+    "Deputy Owner": "https://oldschool.runescape.wiki/images/deputy_owner_icon.png",
+    "Owner": "https://oldschool.runescape.wiki/images/owner_icon.png",
+}
+
+
 # Load configuration
 config = configparser.ConfigParser()
 config.read('config.ini')
@@ -117,6 +133,9 @@ async def list_all_members_and_ranks():
 
             # Prepare the message header
             message_lines = ["**Rich Boys Ranking**\n"]
+            message_lines.append("```")
+            message_lines.append(f"{'Player':<20}{'Rank':<15}{'EHB':<10}")
+            message_lines.append(f"{'-'*45}")
 
             for membership in memberships:
                 try:
@@ -126,10 +145,12 @@ async def list_all_members_and_ranks():
                     ehb = round(player.ehb, 2)  # Rounded to 2 decimals
                     rank = get_rank(ehb)  # Determine rank from the ranks.ini file
 
-                    # Add member's rank to the message
-                    message_lines.append(f"{username}: {rank} ({ehb} EHB)")
+                    # Add member's rank to the message with proper alignment
+                    message_lines.append(f"{username:<20}{rank:<15}{ehb:<10}")
                 except Exception as e:
                     print(f"Error processing player data for {membership.player.username}: {e}")
+
+            message_lines.append("```")  # End code block
 
             # Join all message lines
             final_message = "\n".join(message_lines)
@@ -147,12 +168,11 @@ async def list_all_members_and_ranks():
         print(f"Error occurred while listing members and ranks: {e}")
 
 
-
-async def send_rank_up_message(username, ehb):
+async def send_rank_up_message(username, rank, ehb):
     try:
         channel = discord_client.get_channel(CHANNEL_ID)
         if channel:
-            await channel.send(f'🎉 Congratulations {username} on achieving {ehb} EHB! 🎉')
+            await channel.send(f'🎉 Congratulations {username} on achieving the rank of {rank} with {ehb} EHB! 🎉')
         else:
             print(f"Channel with ID {CHANNEL_ID} not found.")
     except Exception as e:
