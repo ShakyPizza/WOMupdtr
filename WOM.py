@@ -6,8 +6,6 @@ import discord
 import csv
 from datetime import datetime
 
-###     DEV BRANCH      ###
-###     PRUFA   !!      ###
 
 # Load configuration
 config = configparser.ConfigParser()
