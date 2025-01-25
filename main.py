@@ -2,7 +2,6 @@ import configparser
 from wom import Client
 from discord.ext import tasks
 import discord
-import csv
 from datetime import datetime
 import asyncio
 
@@ -31,25 +30,43 @@ previous_ehb = {}
 @discord_client.event
 async def on_ready():
     print(f'Logged in as {discord_client.user}')
+
+    # Start the Wise Old Man client session
+    await wom_client.start()
+
+    # Call the one-time member and ranks listing function
+    await list_all_members_and_ranks()
+
+    # Start rank checking task if not already running
     if not check_for_rank_changes.is_running():
         print("Starting check_for_rank_changes task.")
-        await wom_client.start()  # Ensure WOM client is started before running the task
         check_for_rank_changes.start()
     else:
         print("check_for_rank_changes task is already running.")
 
-@discord_client.event
-async def on_ready():
-    print(f'Logged in as {discord_client.user}')
-    channel = discord_client.get_channel(CHANNEL_ID)
-    if channel:
-        print(f"Bot can access channel: {channel.name} ({CHANNEL_ID})")
-        ### await channel.send("Hello! I am ready to track EHB updates!")
-    else:
-        print(f"Bot cannot access channel with ID: {CHANNEL_ID}")
 
-import csv
-from datetime import datetime
+
+
+def get_rank(ehb, ranks_file='ranks.ini'):
+    try:
+        config = configparser.ConfigParser()
+        config.read(ranks_file)
+
+        # Parse ranks from the INI file
+        for range_key, rank_name in config['Rich Boys Ranking'].items():
+            if '+' in range_key:  # Handle ranges like '1500+'
+                lower_bound = int(range_key.replace('+', ''))
+                if ehb >= lower_bound:
+                    return rank_name
+            else:
+                # Handle ranges like '0-10'
+                lower_bound, upper_bound = map(int, range_key.split('-'))
+                if lower_bound <= ehb < upper_bound:
+                    return rank_name
+    except Exception as e:
+        print(f"Error reading ranks.ini: {e}")
+    return "Unknown"  # Default if no rank matches
+
 
 @tasks.loop(seconds=CHECK_INTERVAL)
 async def check_for_rank_changes():
@@ -57,45 +74,80 @@ async def check_for_rank_changes():
         # Fetch group details
         result = await wom_client.groups.get_details(GROUP_ID)
 
-        # Unwrap the result to access the group details
         if result.is_ok:
             group = result.unwrap()
-
-            # Access the memberships attribute to get group members
             memberships = group.memberships
 
-            # Open the CSV file for writing
-            with open('ehb_log.csv', mode='w', newline='') as file:
-                writer = csv.writer(file)
-                writer.writerow(["Username", "Display Name", "EHB", "Timestamp"])  # Write header
+            for membership in memberships:
+                try:
+                    player = membership.player
 
-                for membership in memberships:
-                    try:
-                        # Access the player object in the membership
-                        player = membership.player
+                    username = player.display_name
+                    ehb = round(player.ehb, 2)  # Rounded to 2 decimals
+                    rank = get_rank(ehb)  # Determine rank
 
-                        username = player.username
-                        display_name = player.display_name
-                        ehb = round(player.ehb, 2)  # Round EHB to 2 decimal places
-                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    print(f"Processing {username}: Current EHB = {ehb}, Rank = {rank}")
 
-                        # Write player data to the CSV
-                        writer.writerow([username, display_name, ehb, timestamp])
+                    # Compare and notify if rank increases
+                    if username in previous_ehb and ehb > previous_ehb[username]:
+                        await send_rank_up_message(username, f"{rank} ({ehb} EHB)")
 
-                        # Compare and notify if rank increases
-                        if username in previous_ehb and ehb > previous_ehb[username]:
-                            await send_rank_up_message(display_name, ehb)
+                    # Update stored EHB values
+                    previous_ehb[username] = ehb
 
-                        # Update stored EHB values
-                        previous_ehb[username] = ehb
-                    except Exception as e:
-                        print(f"Error processing player data for {player.username}: {e}")
+                except Exception as e:
+                    print(f"Error processing player data for {player.username}: {e}")
         else:
             print(f"Failed to fetch group details: {result.unwrap_err()}")
+
     except Exception as e:
         print(f"Error occurred during rank check: {e}")
 
-   
+async def list_all_members_and_ranks():
+    try:
+        # Ensure the Wise Old Man client's HTTP session is started
+        await wom_client.start()
+
+        # Fetch group details
+        result = await wom_client.groups.get_details(GROUP_ID)
+
+        if result.is_ok:
+            group = result.unwrap()
+            memberships = group.memberships
+
+            # Prepare the message header
+            message_lines = ["**Rich Boys Ranking**\n"]
+
+            for membership in memberships:
+                try:
+                    player = membership.player
+
+                    username = player.display_name
+                    ehb = round(player.ehb, 2)  # Rounded to 2 decimals
+                    rank = get_rank(ehb)  # Determine rank from the ranks.ini file
+
+                    # Add member's rank to the message
+                    message_lines.append(f"{username}: {rank} ({ehb} EHB)")
+                except Exception as e:
+                    print(f"Error processing player data for {membership.player.username}: {e}")
+
+            # Join all message lines
+            final_message = "\n".join(message_lines)
+
+            # Check and send the message to the Discord channel
+            channel = discord_client.get_channel(CHANNEL_ID)
+            if channel:
+                print(f"Sending message to channel: {channel.name}")
+                await channel.send(final_message)  # Send the message
+            else:
+                print(f"Channel with ID {CHANNEL_ID} not found.")
+        else:
+            print(f"Failed to fetch group details: {result.unwrap_err()}")
+    except Exception as e:
+        print(f"Error occurred while listing members and ranks: {e}")
+
+
+
 async def send_rank_up_message(username, ehb):
     try:
         channel = discord_client.get_channel(CHANNEL_ID)
