@@ -17,6 +17,13 @@ DISCORD_TOKEN = config['discord']['token']
 CHANNEL_ID = int(config['discord']['channel_id'])
 GROUP_ID = int(config['wiseoldman']['group_id'])
 CHECK_INTERVAL = int(config['settings']['check_interval'])  # Check interval in seconds, directly from config
+RUN_AT_STARTUP = config['settings'].getboolean('run_at_startup', True)  # Configurable startup setting
+
+try:
+    RUN_AT_STARTUP = config['settings'].getboolean('run_at_startup')
+except (ValueError, KeyError):
+    RUN_AT_STARTUP = True  # Default to True if the value is missing or invalid
+    print("Invalid or missing 'run_at_startup' setting. Defaulting to True.")
 
 # Set up the bot with a command prefix
 intents = discord.Intents.default()
@@ -38,8 +45,10 @@ async def on_ready():
     # Start the Wise Old Man client session
     await wom_client.start()
 
-    # Call the one-time member and ranks listing function
-    await list_all_members_and_ranks()
+    # Call the one-time member and ranks listing function if enabled
+    if RUN_AT_STARTUP:
+        print("Running list_all_members_and_ranks at startup.")
+        await list_all_members_and_ranks()
 
     # Start rank checking task if not already running
     if not check_for_rank_changes.is_running():
@@ -47,6 +56,7 @@ async def on_ready():
         check_for_rank_changes.start()
     else:
         print("check_for_rank_changes task is already running.")
+
 
 
 def get_rank(ehb, ranks_file='ranks.ini'):
@@ -103,6 +113,7 @@ async def update(ctx, username: str):
 @tasks.loop(seconds=CHECK_INTERVAL)
 async def check_for_rank_changes():
     try:
+        print("Starting player comparison...")
         # Fetch group details
         result = await wom_client.groups.get_details(GROUP_ID)
 
@@ -117,7 +128,7 @@ async def check_for_rank_changes():
                     username = player.display_name
                     ehb = round(player.ehb, 2)  # Rounded to 2 decimals
                     rank = get_rank(ehb)  # Determine rank
-
+                    
                     # Compare and notify if rank increases
                     if username in previous_ehb and ehb > previous_ehb[username]:
                         await send_rank_up_message(username, f"{rank} ({ehb} EHB)")
@@ -201,12 +212,13 @@ async def list_all_members_and_ranks():
 
 
 def log_ehb_to_csv(username, ehb, file_name="ehb_log.csv"):
-    """Logs the username and EHB value to a CSV file."""
+    """Logs the username, EHB value, and timestamp to a CSV file."""
     try:
         with open(file_name, mode="a", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
-            writer.writerow([username, ehb])
-            print(f"Logged {username} with {ehb} EHB to {file_name}.")
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            writer.writerow([timestamp, username, ehb])
+            print(f"Logged {username} with {ehb} EHB at {timestamp} to {file_name}.")
     except Exception as e:
         print(f"Error logging to CSV: {e}")
 
