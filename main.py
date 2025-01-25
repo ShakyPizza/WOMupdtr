@@ -5,7 +5,6 @@ from discord.ext import commands
 import discord
 import csv
 from datetime import datetime
-import asyncio
 
 
 # Load configuration
@@ -58,7 +57,6 @@ async def on_ready():
         print("check_for_rank_changes task is already running.")
 
 
-
 def get_rank(ehb, ranks_file='ranks.ini'):
     try:
         config = configparser.ConfigParser()
@@ -107,7 +105,6 @@ async def update(ctx, username: str):
             await ctx.send(f"❌ Could not find a player with username '{username}'.")
     except Exception as e:
         await ctx.send(f"❌ Error updating {username}: {e}")
-
 
 
 @tasks.loop(seconds=CHECK_INTERVAL)
@@ -221,9 +218,6 @@ def log_ehb_to_csv(username, ehb, file_name="ehb_log.csv"):
             print(f"Logged {username} with {ehb} EHB at {timestamp} to {file_name}.")
     except Exception as e:
         print(f"Error logging to CSV: {e}")
-
-
-
 
 
 async def send_rank_up_message(username, rank, ehb):
