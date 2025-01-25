@@ -1,7 +1,9 @@
 import configparser
 from wom import Client
 from discord.ext import tasks
+from discord.ext import commands
 import discord
+import csv
 from datetime import datetime
 import asyncio
 
@@ -16,17 +18,18 @@ CHANNEL_ID = int(config['discord']['channel_id'])
 GROUP_ID = int(config['wiseoldman']['group_id'])
 CHECK_INTERVAL = int(config['settings']['check_interval'])  # Check interval in seconds, directly from config
 
-# Initialize Wise Old Man client
-wom_client = Client()
-
-# Discord bot setup
+# Set up the bot with a command prefix
 intents = discord.Intents.default()
 intents.messages = True
 intents.guilds = True
-discord_client = discord.Client(intents=intents)
+discord_client = commands.Bot(command_prefix="/", intents=intents)  # Use commands.Bot
+
+# Initialize Wise Old Man client
+wom_client = Client()
 
 # Dictionary to store previous EHB values
 previous_ehb = {}
+
 
 @discord_client.event
 async def on_ready():
@@ -44,8 +47,6 @@ async def on_ready():
         check_for_rank_changes.start()
     else:
         print("check_for_rank_changes task is already running.")
-
-
 
 
 def get_rank(ehb, ranks_file='ranks.ini'):
@@ -69,6 +70,36 @@ def get_rank(ehb, ranks_file='ranks.ini'):
     return "Unknown"  # Default if no rank matches
 
 
+# Command: Refresh Rankings
+@discord_client.command(name="refresh")
+async def refresh(ctx):
+    """Refreshes and posts the updated Rich Boys Rankings."""
+    try:
+        await list_all_members_and_ranks(ctx)
+    except Exception as e:
+        await ctx.send(f"❌ Error refreshing rankings: {e}")
+
+
+# Command: Update a specific user
+@discord_client.command(name="update")
+async def update(ctx, username: str):
+    """Fetches and updates the rank for a specific user."""
+    try:
+        await wom_client.start()
+        result = await wom_client.players.search(username)
+
+        if result.is_ok:
+            player = result.unwrap()
+            ehb = round(player.ehb, 2)
+            rank = get_rank(ehb)
+            await ctx.send(f"✅ {player.display_name}: {rank} ({ehb} EHB)")
+        else:
+            await ctx.send(f"❌ Could not find a player with username '{username}'.")
+    except Exception as e:
+        await ctx.send(f"❌ Error updating {username}: {e}")
+
+
+
 @tasks.loop(seconds=CHECK_INTERVAL)
 async def check_for_rank_changes():
     try:
@@ -78,7 +109,7 @@ async def check_for_rank_changes():
         if result.is_ok:
             group = result.unwrap()
             memberships = group.memberships
-
+              
             for membership in memberships:
                 try:
                     player = membership.player
@@ -86,8 +117,6 @@ async def check_for_rank_changes():
                     username = player.display_name
                     ehb = round(player.ehb, 2)  # Rounded to 2 decimals
                     rank = get_rank(ehb)  # Determine rank
-
-                    print(f"Processing {username}: Current EHB = {ehb}, Rank = {rank}")
 
                     # Compare and notify if rank increases
                     if username in previous_ehb and ehb > previous_ehb[username]:
@@ -103,6 +132,7 @@ async def check_for_rank_changes():
 
     except Exception as e:
         print(f"Error occurred during rank check: {e}")
+
 
 async def list_all_members_and_ranks():
     try:
@@ -123,8 +153,10 @@ async def list_all_members_and_ranks():
                     player = membership.player
                     username = player.display_name
                     ehb = round(player.ehb, 2)  # Rounded to 2 decimals
-                    rank = get_rank(ehb)  # Determine rank from the ranks.ini file
-                    players.append((username, rank, ehb))
+                    if ehb > 0:  # Exclude members with 0 EHB
+                        rank = get_rank(ehb)  # Determine rank from the ranks.ini file
+                        players.append((username, rank, ehb))
+                        log_ehb_to_csv(username, ehb)  # Log EHB to the CSV file
                 except Exception as e:
                     print(f"Error processing player data for {membership.player.username}: {e}")
 
@@ -132,31 +164,53 @@ async def list_all_members_and_ranks():
             players.sort(key=lambda x: x[2], reverse=True)
 
             # Prepare the message header
-            message_lines = ["**Rich Boys Ranking**\n"]
-            message_lines.append("```")
-            message_lines.append(f"{'Player':<20}{'Rank':<15}{'EHB':<10}")
-            message_lines.append(f"{'-'*45}")
+            message_lines = []
+            chunk = ["**Rich Boys Ranking**\n"]
+            chunk.append("```")
+            chunk.append(f"{'#':<4}{'Player':<20}{'Rank':<15}{'EHB':<10}")
+            chunk.append(f"{'-'*50}")
 
-            for username, rank, ehb in players:
-                # Add member's rank to the message with proper alignment
-                message_lines.append(f"{username:<20}{rank:<15}{ehb:<10}")
+            for index, (username, rank, ehb) in enumerate(players, start=1):
+                line = f"{index:<4}{username:<20}{rank:<15}{ehb:<10}"
 
-            message_lines.append("```")  # End code block
+                # Check if adding this line exceeds Discord's 4000 character limit
+                if sum(len(l) + 1 for l in chunk) + len(line) + 5 > 2000:  # +5 accounts for closing block
+                    chunk.append("```")
+                    message_lines.append("\n".join(chunk))
+                    chunk = ["```"]  # Start a new block
 
-            # Join all message lines
-            final_message = "\n".join(message_lines)
+                chunk.append(line)
 
-            # Check and send the message to the Discord channel
+            # Add the final chunk
+            if len(chunk) > 1:
+                chunk.append("```")
+                message_lines.append("\n".join(chunk))
+
+            # Send each chunk as a separate message
             channel = discord_client.get_channel(CHANNEL_ID)
             if channel:
                 print(f"Sending message to channel: {channel.name}")
-                await channel.send(final_message)  # Send the message
+                for message in message_lines:
+                    await channel.send(message)
             else:
                 print(f"Channel with ID {CHANNEL_ID} not found.")
         else:
             print(f"Failed to fetch group details: {result.unwrap_err()}")
     except Exception as e:
         print(f"Error occurred while listing members and ranks: {e}")
+
+
+def log_ehb_to_csv(username, ehb, file_name="ehb_log.csv"):
+    """Logs the username and EHB value to a CSV file."""
+    try:
+        with open(file_name, mode="a", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            writer.writerow([username, ehb])
+            print(f"Logged {username} with {ehb} EHB to {file_name}.")
+    except Exception as e:
+        print(f"Error logging to CSV: {e}")
+
+
 
 
 
