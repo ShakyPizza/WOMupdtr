@@ -105,6 +105,7 @@ async def refresh(ctx):
     """Refreshes and posts the updated Rich Boys Rankings."""
     try:
         await list_all_members_and_ranks()
+        print(f"Refreshed rankings.")
     except Exception as e:
         await ctx.send(f"❌ Error refreshing rankings: {e}")
 
@@ -131,6 +132,7 @@ async def update(ctx, username: str):
                 ehb = round(player.ehb, 2)
                 rank = get_rank(ehb)
                 await ctx.send(f"✅ {player.display_name}: {rank} ({ehb} EHB)")
+                print(f"Updated {player.display_name}: {rank} ({ehb} EHB)")
             else:
                 await ctx.send(f"❌ Could not find a player with username '{username}' in the group.")
         else:
