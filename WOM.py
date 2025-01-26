@@ -17,7 +17,9 @@ CHANNEL_ID = int(config['discord']['channel_id'])
 GROUP_ID = int(config['wiseoldman']['group_id'])
 CHECK_INTERVAL = int(config['settings']['check_interval'])  # Check interval in seconds, directly from config
 RUN_AT_STARTUP = config['settings'].getboolean('run_at_startup', True)  # Configurable startup setting
+PRINT_TO_CSV = config['settings'].getboolean('print_to_csv', True)  # Print to CSV setting
 PRINT_CSV_CHANGES = config['settings'].getboolean('print_csv_changes', True)  # Print CSV logs setting
+
 
 try:
     RUN_AT_STARTUP = config['settings'].getboolean('run_at_startup')
@@ -211,15 +213,16 @@ async def list_all_members_and_ranks():
 
 def log_ehb_to_csv(username, ehb, file_name="ehb_log.csv"):
     """Logs the username, EHB value, and timestamp to a CSV file."""
-    try:
-        with open(file_name, mode="a", newline="", encoding="utf-8") as file:
-            writer = csv.writer(file)
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            writer.writerow([timestamp, username, ehb])
-            if PRINT_CSV_CHANGES:
-                print(f"Logged {username} with {ehb} EHB at {timestamp} to {file_name}.")
-    except Exception as e:
-        print(f"Error logging to CSV: {e}")
+    if PRINT_TO_CSV:
+        try:
+            with open(file_name, mode="a", newline="", encoding="utf-8") as file:
+                writer = csv.writer(file)
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                writer.writerow([timestamp, username, ehb])
+                if PRINT_CSV_CHANGES:
+                    print(f"Logged {username} with {ehb} EHB at {timestamp} to {file_name}.")
+        except Exception as e:
+            print(f"Error logging to CSV: {e}")
 
 
 async def send_rank_up_message(username, new_rank, old_rank, ehb):
