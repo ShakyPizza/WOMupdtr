@@ -254,6 +254,7 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
             if channel:
                 if POST_TO_DISCORD:
                     await channel.send(f'🎉 Congratulations {username} on moving up to the rank of {new_rank} with {ehb} EHB! 🎉')
+                    print(f"Sent rank up message for {username} to channel: {channel.name}")
             else:
                 print(f"Channel with ID {CHANNEL_ID} not found.")
     except Exception as e:
