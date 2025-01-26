@@ -5,6 +5,8 @@ from discord.ext import commands
 import discord
 import csv
 from datetime import datetime
+import json
+import os
 
 
 # Load configuration
@@ -19,6 +21,7 @@ CHECK_INTERVAL = int(config['settings']['check_interval'])  # Check interval in 
 RUN_AT_STARTUP = config['settings'].getboolean('run_at_startup', True)  # Configurable startup setting
 PRINT_TO_CSV = config['settings'].getboolean('print_to_csv', True)  # Print to CSV setting
 PRINT_CSV_CHANGES = config['settings'].getboolean('print_csv_changes', True)  # Print CSV logs setting
+POST_TO_DISCORD = config['settings'].getboolean('post_to_discord', True)  # Post to Discord setting
 
 
 try:
@@ -36,9 +39,25 @@ discord_client = commands.Bot(command_prefix="/", intents=intents)  # Use comman
 # Initialize Wise Old Man client
 wom_client = Client()
 
-# Dictionary to store previous EHB values
-previous_ehb = {}
+# JSON file for storing player ranks
+RANKS_FILE = "player_ranks.json"
 
+def load_ranks():
+    """Load ranks from a JSON file."""
+    if os.path.exists(RANKS_FILE):
+        try:
+            with open(RANKS_FILE, 'r') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, ValueError):
+            print(f"Error: {RANKS_FILE} is empty or corrupted. Resetting data.")
+            return {}
+    return {}
+
+
+def save_ranks(data):
+    """Save ranks to a JSON file."""
+    with open(RANKS_FILE, 'w') as f:
+        json.dump(data, f, indent=4)
 
 @discord_client.event
 async def on_ready():
@@ -58,7 +77,6 @@ async def on_ready():
         check_for_rank_changes.start()
     else:
         print("check_for_rank_changes task is already running.")
-
 
 def get_rank(ehb, ranks_file='ranks.ini'):
     try:
@@ -80,7 +98,6 @@ def get_rank(ehb, ranks_file='ranks.ini'):
         print(f"Error reading ranks.ini: {e}")
     return "Unknown"  # Default if no rank matches
 
-
 # Command: Refresh Rankings
 @discord_client.command(name="refresh")
 async def refresh(ctx):
@@ -89,7 +106,6 @@ async def refresh(ctx):
         await list_all_members_and_ranks(ctx)
     except Exception as e:
         await ctx.send(f"❌ Error refreshing rankings: {e}")
-
 
 # Command: Update a specific user
 @discord_client.command(name="update")
@@ -109,42 +125,50 @@ async def update(ctx, username: str):
     except Exception as e:
         await ctx.send(f"❌ Error updating {username}: {e}")
 
-
 @tasks.loop(seconds=CHECK_INTERVAL)
 async def check_for_rank_changes():
     try:
         print("Starting player comparison...")
+        ranks_data = load_ranks()  # Load the existing ranks data
+
         # Fetch group details
         result = await wom_client.groups.get_details(GROUP_ID)
 
         if result.is_ok:
             group = result.unwrap()
             memberships = group.memberships
-              
+
             for membership in memberships:
                 try:
                     player = membership.player
-
                     username = player.display_name
                     ehb = round(player.ehb, 2)  # Rounded to 2 decimals
                     rank = get_rank(ehb)  # Determine rank
-                    
-                    # Compare and notify if rank increases
-                    if username in previous_ehb and ehb > previous_ehb[username]:
-                        await send_rank_up_message(username, rank, ehb)
 
-                    # Update stored EHB values
-                    previous_ehb[username] = ehb
+                    # Fetch the last known rank and EHB
+                    last_data = ranks_data.get(username, {})
+                    last_ehb = last_data.get("last_ehb", 0)
+                    last_rank = last_data.get("rank", "Unknown")
+
+                    # Compare and notify if rank increases
+                    if ehb > last_ehb:
+                        await send_rank_up_message(username, rank, last_rank, ehb)
+
+                    # Update the ranks data
+                    ranks_data[username] = {"last_ehb": ehb, "rank": rank}
                     log_ehb_to_csv(username, ehb)  # Log EHB to the CSV file
 
                 except Exception as e:
                     print(f"Error processing player data for {player.username}: {e}")
+
+            # Save the updated ranks data
+            save_ranks(ranks_data)
+
         else:
             print(f"Failed to fetch group details: {result.unwrap_err()}")
 
     except Exception as e:
         print(f"Error occurred during rank check: {e}")
-
 
 async def list_all_members_and_ranks():
     try:
@@ -210,7 +234,6 @@ async def list_all_members_and_ranks():
     except Exception as e:
         print(f"Error occurred while listing members and ranks: {e}")
 
-
 def log_ehb_to_csv(username, ehb, file_name="ehb_log.csv"):
     """Logs the username, EHB value, and timestamp to a CSV file."""
     if PRINT_TO_CSV:
@@ -224,13 +247,13 @@ def log_ehb_to_csv(username, ehb, file_name="ehb_log.csv"):
         except Exception as e:
             print(f"Error logging to CSV: {e}")
 
-
 async def send_rank_up_message(username, new_rank, old_rank, ehb):
     try:
         if new_rank != old_rank:  # Only send a message if the rank has changed
             channel = discord_client.get_channel(CHANNEL_ID)
             if channel:
-                await channel.send(f'🎉 Congratulations {username} on moving up to the rank of {new_rank} with {ehb} EHB! 🎉')
+                if POST_TO_DISCORD:
+                    await channel.send(f'🎉 Congratulations {username} on moving up to the rank of {new_rank} with {ehb} EHB! 🎉')
             else:
                 print(f"Channel with ID {CHANNEL_ID} not found.")
     except Exception as e:
