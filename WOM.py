@@ -104,7 +104,7 @@ def get_rank(ehb, ranks_file='ranks.ini'):
 async def refresh(ctx):
     """Refreshes and posts the updated Rich Boys Rankings."""
     try:
-        await list_all_members_and_ranks(ctx)
+        await list_all_members_and_ranks()
     except Exception as e:
         await ctx.send(f"❌ Error refreshing rankings: {e}")
 
