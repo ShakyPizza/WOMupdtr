@@ -9,8 +9,6 @@ from datetime import datetime
 from utils.commands import setup_commands
 
 
-
-
 # Load configuration
 config = configparser.ConfigParser()
 config.read('config.ini')
