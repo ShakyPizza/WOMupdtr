@@ -105,7 +105,7 @@ async def check_for_rank_changes():
         if result.is_ok:
             group = result.unwrap()
             memberships = group.memberships
-            print("Fetched group details successfully.")
+            print(f"Fetched group details successfully.", " Next comparison in", CHECK_INTERVAL, "seconds.")
             for membership in memberships:
                 try:
                     player = membership.player
