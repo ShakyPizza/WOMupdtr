@@ -3,9 +3,8 @@ from wom import Client
 from discord.ext import tasks
 from discord.ext import commands
 import discord
-import csv
-from datetime import datetime
 from rank_utils import load_ranks, save_ranks
+from log_csv import log_ehb_to_csv
 
 # Load configuration
 config = configparser.ConfigParser()
@@ -153,7 +152,8 @@ async def check_for_rank_changes():
 
                     # Update the ranks data
                     ranks_data[username] = {"last_ehb": ehb, "rank": rank}
-                    log_ehb_to_csv(username, ehb)  # Log EHB to the CSV file
+                    if PRINT_TO_CSV:
+                        log_ehb_to_csv(username, ehb)  # Log EHB to the CSV file
 
                 except Exception as e:
                     print(f"Error processing player data for {player.username}: {e}")
@@ -231,18 +231,7 @@ async def list_all_members_and_ranks():
     except Exception as e:
         print(f"Error occurred while listing members and ranks: {e}")
 
-def log_ehb_to_csv(username, ehb, file_name="ehb_log.csv"):
-    """Logs the username, EHB value, and timestamp to a CSV file."""
-    if PRINT_TO_CSV:
-        try:
-            with open(file_name, mode="a", newline="", encoding="utf-8") as file:
-                writer = csv.writer(file)
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                writer.writerow([timestamp, username, ehb])
-                if PRINT_CSV_CHANGES:
-                    print(f"Logged {username} with {ehb} EHB at {timestamp} to {file_name}.")
-        except Exception as e:
-            print(f"Error logging to CSV: {e}")
+
 
 async def send_rank_up_message(username, new_rank, old_rank, ehb):
     try:
