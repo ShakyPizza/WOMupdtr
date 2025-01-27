@@ -22,9 +22,9 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
    cd rich-boys-ranking-bot
    ```
 
-2. Install dependencies:
+2. Install dependencies for WOMupdtr bot:
    ```bash
-   pip install -r requirements.txt
+   pip install -r bot_reqs.txt
    ```
 
 3. Create a `config.ini` file in the project root directory:
