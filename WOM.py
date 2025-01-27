@@ -3,8 +3,8 @@ from wom import Client
 from discord.ext import tasks
 from discord.ext import commands
 import discord
-from rank_utils import load_ranks, save_ranks
-from log_csv import log_ehb_to_csv
+from utils.rank_utils import load_ranks, save_ranks
+from utils.log_csv import log_ehb_to_csv
 from datetime import datetime
 
 # Load configuration
@@ -65,7 +65,7 @@ def get_rank(ehb, ranks_file='ranks.ini'):
         config.read(ranks_file)
 
         # Parse ranks from the INI file
-        for range_key, rank_name in config['Rich Boys Ranking'].items():
+        for range_key, rank_name in config['Group Ranking'].items():
             if '+' in range_key:  # Handle ranges like '1500+'
                 lower_bound = int(range_key.replace('+', ''))
                 if ehb >= lower_bound:
@@ -82,7 +82,7 @@ def get_rank(ehb, ranks_file='ranks.ini'):
 # Command: Refresh Rankings
 @discord_client.command(name="refresh")
 async def refresh(ctx):
-    """Refreshes and posts the updated Rich Boys Rankings."""
+    # Refreshes and posts the updated group rankings."""
     try:
         await list_all_members_and_ranks()
         print(f"Refreshed rankings.")
