@@ -11,7 +11,7 @@ from utils.commands import setup_commands
 
 # Load configuration
 config = configparser.ConfigParser()
-config.read('config.ini')
+config.read('bot/config.ini')
 
 # Discord and Wise Old Man settings
 DISCORD_TOKEN = config['discord']['token']
@@ -66,7 +66,7 @@ async def on_ready():
     else:
         print("check_for_rank_changes task is already running.")
 
-def get_rank(ehb, ranks_file='ranks.ini'):
+def get_rank(ehb, ranks_file='bot/ranks.ini'):
     try:
         config = configparser.ConfigParser()
         config.read(ranks_file)
