@@ -5,6 +5,7 @@ from discord.ext import commands
 import discord
 from rank_utils import load_ranks, save_ranks
 from log_csv import log_ehb_to_csv
+from datetime import datetime
 
 # Load configuration
 config = configparser.ConfigParser()
@@ -178,6 +179,7 @@ async def list_all_members_and_ranks():
         if result.is_ok:
             group = result.unwrap()
             memberships = group.memberships
+            group_name = group.name
 
             # Extract players and sort by EHB descending
             players = []
@@ -197,7 +199,7 @@ async def list_all_members_and_ranks():
 
             # Prepare the message header
             message_lines = []
-            chunk = ["**Rich Boys Ranking**\n"]
+            chunk = [f"**{group_name} Ranking on {datetime.now().strftime('%Y-%m-%d %H:%M')}**\n"]
             chunk.append("```")
             chunk.append(f"{'#':<4}{'Player':<20}{'Rank':<15}{'EHB':<10}")
             chunk.append(f"{'-'*50}")
