@@ -89,4 +89,26 @@ This project is licensed under the MIT License. See `LICENSE` for details.
 
 ---
 
+## Requirements
+
+### Plugin Requirements (`plugin_reqs.txt`)
+- Java 11+
+- Gradle 8.12+
+- Runelite API dependencies (documented in `build.gradle`)
+
+### Bot Requirements (`bot_reqs.txt`)
+Install Python dependencies using:
+```bash
+pip install -r bot_reqs.txt
+
+
+---
+
+### 5. **Install the Requirements**
+To install the dependencies:
+- For the bot:
+  ```bash
+  pip install -r bot_reqs.txt
+
+
 Happy Bossing!
