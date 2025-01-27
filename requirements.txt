@@ -1,3 +1,5 @@
 discord.py
 configparser
+wom.py
+asyncio
 git+https://github.com/jonxslays/wom.py.git
