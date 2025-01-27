@@ -6,6 +6,10 @@ import discord
 from utils.rank_utils import load_ranks, save_ranks
 from utils.log_csv import log_ehb_to_csv
 from datetime import datetime
+from utils.commands import setup_commands
+
+
+
 
 # Load configuration
 config = configparser.ConfigParser()
@@ -35,8 +39,13 @@ intents.guilds = True
 intents.message_content = True  # Enable message content intent
 discord_client = commands.Bot(command_prefix="/", intents=intents)  # Use commands.Bot
 
+
+
 # Initialize Wise Old Man client
 wom_client = Client()
+
+
+
 
 #rank_utils.py
 
@@ -79,46 +88,8 @@ def get_rank(ehb, ranks_file='ranks.ini'):
         print(f"Error reading ranks.ini: {e}")
     return "Unknown"  # Default if no rank matches
 
-# Command: Refresh Rankings
-@discord_client.command(name="refresh")
-async def refresh(ctx):
-    # Refreshes and posts the updated group rankings."""
-    try:
-        await list_all_members_and_ranks()
-        print(f"Refreshed rankings.")
-    except Exception as e:
-        await ctx.send(f"❌ Error refreshing rankings: {e}")
 
-# Command: Update a specific user
-@discord_client.command(name="update")
-async def update(ctx, username: str):
-    """Fetches and updates the rank for a specific user by searching the group data."""
-    try:
-        # Ensure the Wise Old Man client's session is started
-        await wom_client.start()
-
-        # Fetch group details
-        result = await wom_client.groups.get_details(GROUP_ID)
-
-        if result.is_ok:
-            group = result.unwrap()
-            # Search for the player in the group memberships
-            player = next(
-                (member.player for member in group.memberships if member.player.display_name.lower() == username.lower()),
-                None
-            )
-
-            if player:
-                ehb = round(player.ehb, 2)
-                rank = get_rank(ehb)
-                await ctx.send(f"✅ {player.display_name}: {rank} ({ehb} EHB)")
-                print(f"Updated {player.display_name}: {rank} ({ehb} EHB)")
-            else:
-                await ctx.send(f"❌ Could not find a player with username '{username}' in the group.")
-        else:
-            await ctx.send(f"❌ Failed to fetch group details: {result.unwrap_err()}")
-    except Exception as e:
-        await ctx.send(f"❌ Error updating {username}: {e}")
+# commands voru hér
 
 
 
@@ -249,6 +220,8 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
         print(f"Error sending message: {e}")
 
 
+# Initialize commands
+setup_commands(discord_client, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks)
 
 # Run the Discord bot
 discord_client.run(DISCORD_TOKEN)
