@@ -7,11 +7,13 @@ from utils.rank_utils import load_ranks, save_ranks
 from utils.log_csv import log_ehb_to_csv
 from datetime import datetime
 from utils.commands import setup_commands
+import os
 
 
 # Load configuration
 config = configparser.ConfigParser()
-config.read('bot/config.ini')
+config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
+config.read(config_file)
 
 # Discord and Wise Old Man settings
 DISCORD_TOKEN = config['discord']['token']
@@ -66,7 +68,7 @@ async def on_ready():
     else:
         print("check_for_rank_changes task is already running.")
 
-def get_rank(ehb, ranks_file='bot/ranks.ini'):
+def get_rank(ehb, ranks_file=os.path.join(os.path.dirname(__file__), 'ranks.ini')):
     try:
         config = configparser.ConfigParser()
         config.read(ranks_file)
