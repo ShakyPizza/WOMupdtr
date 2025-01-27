@@ -29,44 +29,44 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
 
 3. Create a `config.ini` file in the project root directory:
    ```ini
-   [discord]
-# Discord bot token
-token = 
+     [discord]
+    # Discord bot token
+    token = 
 
-# ID of the Discord channel where rank-up messages will be sent
-channel_id = 
+    # ID of the Discord channel where rank-up messages will be sent
+    channel_id = 
 
-[wiseoldman]
-# Wise Old Man group ID
-group_id = 
+    [wiseoldman]
+    # Wise Old Man group ID
+    group_id = 
+  
+    # Optional: Wise Old Man API key if you have one.
+    api_key = 
 
-# Optional: Wise Old Man API key if you have one.
-api_key = 
+    [settings]
+    # Frequency for checking rank updates (in seconds)
+    check_interval = 600
 
-[settings]
-# Frequency for checking rank updates (in seconds)
-check_interval = 600
+    # Set to true if you want the bot to send the initial message on startup into the discord channel.
+    run_at_startup = false 
 
-# Set to true if you want the bot to send the initial message on startup into the discord channel.
-run_at_startup = false 
+    # Set to true if you want the bot to print the rank changes to ehb_log.csv file.
+    PRINT_TO_CSV = false
 
-# Set to true if you want the bot to print the rank changes to ehb_log.csv file.
-PRINT_TO_CSV = false
+    # Set to true if you want the .csv changes to be printed in the console.
+    print_csv_changes = false
 
-# Set to true if you want the .csv changes to be printed in the console.
-print_csv_changes = false
+    # Set to true if you want the bot to post the rank changes to the discord channel.
+    POST_TO_DISCORD = true
 
-# Set to true if you want the bot to post the rank changes to the discord channel.
-POST_TO_DISCORD = true
-
-[Other info]
-# Updating group on WOM to be added soon.
-WOM_group_passcode =  
+    [Other info]
+    # Updating group on WOM to be added soon.
+    WOM_group_passcode =  
    ```
 
 4. Create a `ranks.ini` file to define rank thresholds, example shown here:
    ```ini
-   [Rich Boys Ranking]
+   [Group Ranking]
    0-10 = Goblin
    10-50 = Opal
    50-120 = Sapphire
