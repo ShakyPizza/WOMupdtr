@@ -2,7 +2,7 @@ import json
 import os
 
 # JSON file for storing player ranks
-RANKS_FILE = "player_ranks.json"
+RANKS_FILE = "bot/player_ranks.json"
 
 def load_ranks():
     """Load ranks from a JSON file."""
