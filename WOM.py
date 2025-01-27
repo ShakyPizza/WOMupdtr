@@ -38,9 +38,6 @@ discord_client = commands.Bot(command_prefix="/", intents=intents)  # Use comman
 # Initialize Wise Old Man client
 wom_client = Client()
 
-# JSON file for storing player ranks
-RANKS_FILE = "player_ranks.json"
-
 #rank_utils.py
 
 @discord_client.event
