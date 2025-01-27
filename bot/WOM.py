@@ -103,7 +103,7 @@ async def check_for_rank_changes():
         if result.is_ok:
             group = result.unwrap()
             memberships = group.memberships
-
+            print("Fetched group details successfully.")
             for membership in memberships:
                 try:
                     player = membership.player
