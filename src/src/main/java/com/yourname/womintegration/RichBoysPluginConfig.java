@@ -1,16 +1,16 @@
-package com.yourname.womintegration;
+package com.yourname.richboys;
 
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 
-@ConfigGroup("womintegration")
-public interface WomPluginConfig extends Config
+@ConfigGroup("richboys")
+public interface RichBoysPluginConfig extends Config
 {
     @ConfigItem(
         keyName = "groupId",
-        name = "WOM Group ID",
-        description = "The Wise Old Man group ID to fetch data for"
+        name = "Group ID",
+        description = "The Wise Old Man group ID for the Rich Boys"
     )
     default String groupId()
     {

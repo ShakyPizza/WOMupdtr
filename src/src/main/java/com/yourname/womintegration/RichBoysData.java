@@ -1,11 +1,11 @@
-package com.yourname.womintegration;
+package com.yourname.richboys;
 
 import java.util.List;
 
 /**
  * Represents the JSON response for a Wise Old Man group.
  */
-public class WomData
+public class RichBoysData
 {
     private int id;
     private String name;
