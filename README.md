@@ -42,7 +42,7 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
    print_csv_changes = true  # Set to false to disable terminal logging of CSV updates
    ```
 
-4. Create a `ranks.ini` file to define rank thresholds:
+4. Create a `ranks.ini` file to define rank thresholds, example shown here:
    ```ini
    [Rich Boys Ranking]
    0-10 = Goblin
@@ -65,10 +65,11 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
 ## Usage
 - The bot will automatically start tracking ranks based on your configuration.
 - Use the `/refresh` command to manually refresh rankings.
-- Use the `/update <username>` command to get updated rank information for a specific user.
+- Use the `/update <username>` command to get updated rank information for a specific user, if username has spaces use "<username>".
 
 ## Logging
 - EHB values are logged to `ehb_log.csv` for tracking purposes.
+- Logging to CSV can be toggled with via `print_to_csv` setting in `config.ini`.
 - Terminal logging of CSV updates can be toggled via the `print_csv_changes` setting in `config.ini`.
 
 ## Development
