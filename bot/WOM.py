@@ -20,11 +20,12 @@ config.read(config_file)
 DISCORD_TOKEN = config['discord']['token']
 CHANNEL_ID = int(config['discord']['channel_id'])
 GROUP_ID = int(config['wiseoldman']['group_id'])
-CHECK_INTERVAL = int(config['settings']['check_interval'])  # Check interval in seconds, directly from config
-RUN_AT_STARTUP = config['settings'].getboolean('run_at_startup', True)  # Configurable startup setting
-PRINT_TO_CSV = config['settings'].getboolean('print_to_csv', True)  # Print to CSV setting
-PRINT_CSV_CHANGES = config['settings'].getboolean('print_csv_changes', True)  # Print CSV logs setting
-POST_TO_DISCORD = config['settings'].getboolean('post_to_discord', True)  # Post to Discord setting
+CHECK_INTERVAL = int(config['settings']['check_interval'])  
+RUN_AT_STARTUP = config['settings'].getboolean('run_at_startup', True)  
+PRINT_TO_CSV = config['settings'].getboolean('print_to_csv', True)  
+PRINT_CSV_CHANGES = config['settings'].getboolean('print_csv_changes', True)  
+POST_TO_DISCORD = config['settings'].getboolean('post_to_discord', True)  
+GROUP_PASSCODE = config['wiseoldman']['GROUP_PASSCODE'] 
 
 
 try:
@@ -212,7 +213,7 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
 
 
 # Initialize commands
-setup_commands(discord_client, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks)
+setup_commands(discord_client, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE)
 
 # Run the Discord bot
 discord_client.run(DISCORD_TOKEN)
