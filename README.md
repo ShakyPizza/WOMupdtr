@@ -1,4 +1,5 @@
 # WOMupdtr
+
 # Rich Boys Ranking Bot
 
 A Discord bot that integrates with the Wise Old Man API to track, rank, and notify group members based on their EHB (Efficient Hours Bossed). This bot features rank-up notifications, detailed rankings, and CSV logging for group member statistics.
@@ -111,7 +112,7 @@ This project is licensed under the MIT License. See `LICENSE` for details.
 
 ---
 
-## Requirements
+# Plugin:
 
 ### Plugin Requirements (`plugin_reqs.txt`)
 - Java 11+
@@ -122,15 +123,6 @@ This project is licensed under the MIT License. See `LICENSE` for details.
 Install Python dependencies using:
 ```bash
 pip install -r bot_reqs.txt
-
-
----
-
-### 5. **Install the Requirements**
-To install the dependencies:
-- For the bot:
-  ```bash
-  pip install -r bot_reqs.txt
-
+```
 
 Happy Bossing!
