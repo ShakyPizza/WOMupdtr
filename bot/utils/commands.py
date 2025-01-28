@@ -1,6 +1,6 @@
 from discord.ext import commands
 
-def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks):
+def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE):
     
     @bot.command(name="refresh")
     async def refresh(ctx):
@@ -40,3 +40,22 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
                 await ctx.send(f"❌ Failed to fetch group details: {result.unwrap_err()}")
         except Exception as e:
             await ctx.send(f"❌ Error updating {username}: {e}")
+
+    @bot.command(name="refreshwom")
+    async def refreshwom(ctx):
+        """Refreshes the WiseOldMan group details and updates all member data."""
+        try:
+            # Ensure the Wise Old Man client's session is started
+            await wom_client.start()
+
+            # Trigger a group update
+            result = await wom_client.groups.update(GROUP_ID, GROUP_PASSCODE)
+
+            if result.is_ok:
+                group_update = result.unwrap()
+                await ctx.send(f"✅ Successfully refreshed group data. {len(group_update.updated)} members updated.")
+                print(f"Group update complete: {len(group_update.updated)} members updated.")
+            else:
+                await ctx.send(f"❌ Failed to refresh group: {result.unwrap_err()}")
+        except Exception as e:
+            await ctx.send(f"❌ Error refreshing WiseOldMan group: {e}")
