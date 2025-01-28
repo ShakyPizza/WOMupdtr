@@ -1,4 +1,5 @@
 from discord.ext import commands
+import aiohttp
 
 def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE):
     
@@ -10,6 +11,7 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
             print(f"Refreshed rankings.")
         except Exception as e:
             await ctx.send(f"❌ Error refreshing rankings: {e}")
+
 
     @bot.command(name="update")
     async def update(ctx, username: str):
@@ -40,3 +42,31 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
                 await ctx.send(f"❌ Failed to fetch group details: {result.unwrap_err()}")
         except Exception as e:
             await ctx.send(f"❌ Error updating {username}: {e}")
+
+    @bot.command(name="refreshwom")
+    async def refreshwom(ctx):
+        """Updates the group's data using the WiseOldMan API."""
+        url = f"https://api.wiseoldman.net/v2/groups/{GROUP_ID}"
+        headers = {"Content-Type": "application/json"}
+        payload = {"verificationCode": GROUP_PASSCODE}  # The passcode for the group
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.put(url, headers=headers, json=payload) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        updated_count = len(data.get("updated", []))
+
+                        if updated_count > 0:
+                            await ctx.send(f"✅ Successfully refreshed group data. {updated_count} members updated.")
+                            print(f"Group update complete: {updated_count} members updated.")
+                        else:
+                            await ctx.send("ℹ️ Group is already up to date. No members needed updating.")
+                            print("Group is already up to date.")
+                    else:
+                        error_message = await response.text()
+                        await ctx.send(f"❌ Failed to refresh group: {error_message}")
+        except Exception as e:
+            await ctx.send(f"❌ Error refreshing WiseOldMan group: {e}")
+            
+        
