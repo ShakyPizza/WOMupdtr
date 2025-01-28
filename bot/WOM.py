@@ -15,6 +15,7 @@ config = configparser.ConfigParser()
 config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
 config.read(config_file)
 
+
 # Discord and Wise Old Man settings
 DISCORD_TOKEN = config['discord']['token']
 CHANNEL_ID = int(config['discord']['channel_id'])
@@ -40,14 +41,9 @@ intents.message_content = True  # Enable message content intent
 discord_client = commands.Bot(command_prefix="/", intents=intents)  # Use commands.Bot
 
 
-
 # Initialize Wise Old Man client
 wom_client = Client()
 
-
-
-
-#rank_utils.py
 
 @discord_client.event
 async def on_ready():
@@ -87,10 +83,6 @@ def get_rank(ehb, ranks_file=os.path.join(os.path.dirname(__file__), 'ranks.ini'
     except Exception as e:
         print(f"Error reading ranks.ini: {e}")
     return "Unknown"  # Default if no rank matches
-
-
-# commands voru hér
-
 
 
 @tasks.loop(seconds=CHECK_INTERVAL)
@@ -203,7 +195,6 @@ async def list_all_members_and_ranks():
             print(f"Failed to fetch group details: {result.unwrap_err()}")
     except Exception as e:
         print(f"Error occurred while listing members and ranks: {e}")
-
 
 
 async def send_rank_up_message(username, new_rank, old_rank, ehb):
