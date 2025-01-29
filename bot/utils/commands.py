@@ -40,3 +40,77 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
                 await ctx.send(f"❌ Failed to fetch group details: {result.unwrap_err()}")
         except Exception as e:
             await ctx.send(f"❌ Error updating {username}: {e}")
+
+
+
+    @bot.command(name="refreshgroup")
+    async def refreshgroup(ctx):
+        """Forces a full update for the group's data using the WiseOldMan API."""
+        url = f"https://api.wiseoldman.net/v2/groups/{GROUP_ID}/update-all"
+        headers = {"Content-Type": "application/json"}
+        payload = {"verificationCode": GROUP_PASSCODE}  # The passcode for the group
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, headers=headers, json=payload) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        print(response.status, data)
+                        updated_count = (data.get("count", []))
+
+                        if updated_count > 0:
+                            await ctx.send(f"✅ Successfully refreshed group data. {updated_count} members updated. Please allow a few minutes for the changes to reflect.")
+                            print(f"Group update complete: {updated_count} members updated.")
+                        else:
+                            await ctx.send("ℹ️ Group data is already up to date. No members required updating.")
+                            print("Group data is already up to date.")
+                    elif response.status == 400:
+                        error_message = await response.json()
+                        if error_message.get("message") == "Nothing to update.":
+                            await ctx.send("ℹ️ The API reported 'Nothing to update'. The group data is already current.")
+                            print("The API reported 'Nothing to update'.")
+                        else:
+                            await ctx.send(f"❌ Failed to refresh group: {error_message}")
+                    else:
+                        error_message = await response.text()
+                        await ctx.send(f"❌ Failed to refresh group: {error_message}")
+        except Exception as e:
+            await ctx.send(f"❌ Error refreshing WiseOldMan group: {e}")
+
+
+    @bot.command(name="commands")
+    async def commands(ctx):
+        """Lists all available commands."""
+        command_list = [
+            "/refresh - Refreshes and posts the updated group rankings.",
+            "/update <username> - Fetches and updates the rank for a specific user.",
+            "/refreshgroup - Forces a full update for the group's data.",
+            "/debug_group - Debugs and inspects group response.",
+            "/commands - Lists all available commands."
+        ]
+        await ctx.send("**Available Commands:**\n" + "\n".join(command_list))
+
+
+    @bot.command(name="debug_group")
+    async def debug_group(ctx):
+        """Debugging command to inspect the group response."""
+        url = f"https://api.wiseoldman.net/v2/groups/{GROUP_ID}"
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        group_data = await response.json()                                   
+                        group_name = group_data.get("name", "Unknown")
+                        member_count = len(group_data.get("memberships", []))
+                        await ctx.send(f"Group Name: {group_name}\nMembers: {member_count}")
+                        
+                        # Log the full group data for manual inspection
+                        print(group_data)
+                    else:
+                        error_message = await response.text()
+                        await ctx.send(f"Failed to fetch group details: {error_message}")
+        except Exception as e:
+            await ctx.send(f"Error fetching group details: {e}")
+
+                    
