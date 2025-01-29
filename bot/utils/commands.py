@@ -1,6 +1,6 @@
 from discord.ext import commands
 import aiohttp
-from rank_utils import load_ranks, save_ranks
+from .rank_utils import load_ranks, save_ranks
 
 def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE):
     
