@@ -87,9 +87,14 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
             "/update <username> - Fetches and updates the rank for a specific user.",
             "/refreshgroup - Forces a full update for the group's data.",
             "/debug_group - Debugs and inspects group response.",
-            "/commands - Lists all available commands."
+            "/commands - Lists all available commands.",
+            "/goodnight - Sends a good night message."
         ]
         await ctx.send("**Available Commands:**\n" + "\n".join(command_list))
+
+    @bot.command(name="goodnight")
+    async def goodnight(ctx):
+        await ctx.send("Good night, king 👑")
 
 
     @bot.command(name="debug_group")
