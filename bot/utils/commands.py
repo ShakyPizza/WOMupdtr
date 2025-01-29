@@ -1,5 +1,6 @@
 from discord.ext import commands
 import aiohttp
+from utils.rank_utils import load_ranks, save_ranks
 
 def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE):
     
@@ -96,7 +97,6 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
     async def goodnight(ctx):
         await ctx.send("Good night, king 👑")
 
-
     @bot.command(name="debug_group")
     async def debug_group(ctx):
         """Debugging command to inspect the group response."""
@@ -119,4 +119,10 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
         except Exception as e:
             await ctx.send(f"Error fetching group details: {e}")
 
-                    
+    @bot.command(name="link")
+    async def update(ctx, username: str, discord_name: str):
+        """Links a discord user to a WiseOldMan username."""
+
+        try:
+
+
