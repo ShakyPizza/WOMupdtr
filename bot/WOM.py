@@ -218,7 +218,7 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb, discord_name):
 
 
 # Initialize commands
-setup_commands(discord_client, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE)
+setup_commands(discord_client, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE, send_rank_up_message)
 
 # Run the Discord bot
 discord_client.run(DISCORD_TOKEN)
