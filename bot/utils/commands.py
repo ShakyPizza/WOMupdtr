@@ -122,6 +122,8 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
     @bot.command(name="link")
     async def update(ctx, username: str, discord_name: str):
         """Links a discord user to a WiseOldMan username."""
+
+       
         try:
             ranks_data = load_ranks()
             if username in ranks_data:
