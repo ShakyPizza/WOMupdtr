@@ -238,14 +238,13 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
             print(f"Error in /subscribeall command: {e}")
 
     @bot.command(name="sendrankup_debug")
-    async def sendrankup_debug(ctx):
+    async def sendrankup_debug(ctx, username: str):
         """Debugging command to simulate a rank up message."""
         try:
             username = "Zezima"
             new_rank = "Legend"
             old_rank = "Hero"
             ehb = 1000000000
-            discord_name = "DiscordUser#1234"
 
             await send_rank_up_message(username, new_rank, old_rank, ehb)
             print(f"✅ Successfully sent a rank up message to the channel.")
