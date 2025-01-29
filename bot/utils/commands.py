@@ -43,40 +43,62 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
         except Exception as e:
             await ctx.send(f"❌ Error updating {username}: {e}")
 
-    @bot.command(name="refreshwom")
-    async def refreshwom(ctx):
-        """Forces updates for all members in the group using the WiseOldMan API."""
-        group_url = f"https://api.wiseoldman.net/v2/groups/{GROUP_ID}"
-        player_update_url = "https://api.wiseoldman.net/v2/players/track"
+
+    @bot.command(name="refreshgroup")
+    async def refreshgroup(ctx):
+        """Forces a full update for the group's data using the WiseOldMan API."""
+        url = f"https://api.wiseoldman.net/v2/groups/{GROUP_ID}/update-all"
         headers = {"Content-Type": "application/json"}
-        payload = {"verificationCode": GROUP_PASSCODE}  # The group passcode
+        payload = {"verificationCode": GROUP_PASSCODE}  # The passcode for the group
 
         try:
             async with aiohttp.ClientSession() as session:
-                # Fetch group details to get the members
-                async with session.get(group_url) as response:
+                async with session.post(url, headers=headers, json=payload) as response:
                     if response.status == 200:
-                        group_data = await response.json()
-                        members = group_data.get("members", [])
-                        if not members:
-                            await ctx.send("❌ No members found in the group.")
-                            return
-                        
-                        # Update each member individually
-                        updated_count = 0
-                        for member in members:
-                            member_name = member.get("displayName")
-                            if not member_name:
-                                continue
-                            player_payload = {"username": member_name}
-                            async with session.post(player_update_url, headers=headers, json=player_payload) as player_response:
-                                if player_response.status == 200:
-                                    updated_count += 1
-                        
-                        await ctx.send(f"✅ Successfully refreshed {updated_count} members.")
+                        data = await response.json()
+                        updated_count = len(data.get("updated", []))
+
+                        if updated_count > 0:
+                            await ctx.send(f"✅ Successfully refreshed group data. {updated_count} members updated.")
+                            print(f"Group update complete: {updated_count} members updated.")
+                        else:
+                            await ctx.send("ℹ️ Group data is already up to date. No members required updating.")
+                            print("Group data is already up to date.")
+                    elif response.status == 400:
+                        error_message = await response.json()
+                        if error_message.get("message") == "Nothing to update.":
+                            await ctx.send("ℹ️ The API reported 'Nothing to update'. The group data is already current.")
+                            print("The API reported 'Nothing to update'.")
+                        else:
+                            await ctx.send(f"❌ Failed to refresh group: {error_message}")
                     else:
                         error_message = await response.text()
-                        await ctx.send(f"❌ Failed to fetch group details: {error_message}")
+                        await ctx.send(f"❌ Failed to refresh group: {error_message}")
         except Exception as e:
             await ctx.send(f"❌ Error refreshing WiseOldMan group: {e}")
-            
+
+
+
+    @bot.command(name="debug_group")
+    async def debug_group(ctx):
+        """Debugging command to inspect the group response."""
+        url = f"https://api.wiseoldman.net/v2/groups/{GROUP_ID}"
+
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url) as response:
+                    if response.status == 200:
+                        group_data = await response.json()                                   
+                        group_name = group_data.get("name", "Unknown")
+                        member_count = len(group_data.get("memberships", []))
+                        await ctx.send(f"Group Name: {group_name}\nMembers: {member_count}")
+                        
+                        # Log the full group data for manual inspection
+                        print(group_data)
+                    else:
+                        error_message = await response.text()
+                        await ctx.send(f"Failed to fetch group details: {error_message}")
+        except Exception as e:
+            await ctx.send(f"Error fetching group details: {e}")
+
+                    
