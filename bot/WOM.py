@@ -105,12 +105,13 @@ async def check_for_rank_changes():
                     username = player.display_name
                     ehb = round(player.ehb, 2)  # Rounded to 2 decimals
                     rank = get_rank(ehb)  # Determine rank
-                    discord_name = ""
+                    
 
                     # Fetch the last known rank and EHB
                     last_data = ranks_data.get(username, {})
                     last_ehb = last_data.get("last_ehb", 0)
                     last_rank = last_data.get("rank", "Unknown")
+                    discord_name = last_data.get("discord_name", "")
 
                     # Compare and notify if rank increases
                     if ehb > last_ehb:
