@@ -56,10 +56,11 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
                 async with session.post(url, headers=headers, json=payload) as response:
                     if response.status == 200:
                         data = await response.json()
-                        updated_count = len(data.get("updated", []))
+                        print(response.status, data)
+                        updated_count = (data.get("count", []))
 
                         if updated_count > 0:
-                            await ctx.send(f"✅ Successfully refreshed group data. {updated_count} members updated.")
+                            await ctx.send(f"✅ Successfully refreshed group data. {updated_count} members updated. Please allow a few minutes for the changes to reflect.")
                             print(f"Group update complete: {updated_count} members updated.")
                         else:
                             await ctx.send("ℹ️ Group data is already up to date. No members required updating.")
@@ -76,7 +77,6 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
                         await ctx.send(f"❌ Failed to refresh group: {error_message}")
         except Exception as e:
             await ctx.send(f"❌ Error refreshing WiseOldMan group: {e}")
-
 
 
     @bot.command(name="debug_group")
