@@ -55,7 +55,7 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
                     save_ranks(ranks_data)
 
                     # Send formatted message to Discord
-                    await ctx.send(f"✅ **{player.display_name}** - {rank} ({ehb} EHB)\n**Fans:** {fans_display}")
+                    await ctx.send(f"✅ **{player.display_name}** \n**Rank:** {rank} ({ehb} EHB)\n**Fans:** {fans_display}")
                     print(f"Updated {player.display_name}: {rank} ({ehb} EHB), Fans: {fans_display}")
                 else:
                     await ctx.send(f"❌ Could not find a player with username '{username}' in the group.")
@@ -172,6 +172,8 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
         try:
             ranks_data = load_ranks()
             removed = False  # Track if any entry was removed
+            count = 0
+            print(f"Unsubscribing {discord_name} from all users...")
 
             # Iterate through all usernames in ranks_data
             for username, data in ranks_data.items():
@@ -179,6 +181,7 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
                     if discord_name in data["discord_name"]:
                         data["discord_name"].remove(discord_name)
                         removed = True
+                        count = count + 1
 
                         # If the list becomes empty, remove the key entirely
                         if not data["discord_name"]:
@@ -189,9 +192,11 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
 
             # Send response
             if removed:
-                await ctx.send(f"✅ **{discord_name}** has been unsubscribed from all users.")
+                await ctx.send(f"✅ **{discord_name}** has been unsubscribed from {count} users.")
+                print(f"✅ {discord_name} has been unsubscribed from {count} users.")
             else:
                 await ctx.send(f"⚠️ **{discord_name}** was not found in any subscriptions.")
+                print(f"⚠️ {discord_name} was not found in any subscriptions.")
 
         except Exception as e:
             await ctx.send(f"❌ An error occurred while unsubscribing: {e}")
