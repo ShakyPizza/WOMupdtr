@@ -105,20 +105,22 @@ async def check_for_rank_changes():
                     username = player.display_name
                     ehb = round(player.ehb, 2)  # Rounded to 2 decimals
                     rank = get_rank(ehb)  # Determine rank
+                    
 
                     # Fetch the last known rank and EHB
                     last_data = ranks_data.get(username, {})
                     last_ehb = last_data.get("last_ehb", 0)
                     last_rank = last_data.get("rank", "Unknown")
+                    discord_name = last_data.get("discord_name", "")
 
                     # Compare and notify if rank increases
                     if ehb > last_ehb:
                         await send_rank_up_message(username, rank, last_rank, ehb)
 
                     # Update the ranks data
-                    ranks_data[username] = {"last_ehb": ehb, "rank": rank}
+                    ranks_data[username] = {"last_ehb": ehb, "rank": rank, "discord_name": discord_name}
                     if PRINT_TO_CSV:
-                        log_ehb_to_csv(username, ehb)  # Log EHB to the CSV file
+                        log_ehb_to_csv(username, ehb, discord_name)  # Log EHB to the CSV file
 
                 except Exception as e:
                     print(f"Error processing player data for {player.username}: {e}")
@@ -200,11 +202,25 @@ async def list_all_members_and_ranks():
 
 async def send_rank_up_message(username, new_rank, old_rank, ehb):
     try:
+        ranks_data = load_ranks()
+        discord_names = ranks_data.get(username, {}).get("discord_name", [])
+
+        # Ensure discord_names is always a list
+        if not isinstance(discord_names, list):
+            discord_names = [discord_names] if discord_names else []
+
+        # Format fans display
+        fans_display = "  ".join(discord_names) if discord_names else "0 😭😭😭"
+
         if new_rank != old_rank:  # Only send a message if the rank has changed
             channel = discord_client.get_channel(CHANNEL_ID)
             if channel:
                 if POST_TO_DISCORD:
-                    await channel.send(f'🎉 Congratulations {username} on moving up to the rank of {new_rank} with {ehb} EHB! 🎉')
+                    await channel.send(
+                        f'🎉 Congratulations **{username}** on moving up to the rank of **{new_rank}** '
+                        f'with **{ehb}** EHB! 🎉\n'
+                        f'**Fans:** {fans_display}'
+                    )
                     print(f"Sent rank up message for {username} to channel: {channel.name}")
             else:
                 print(f"Channel with ID {CHANNEL_ID} not found.")
@@ -213,7 +229,7 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
 
 
 # Initialize commands
-setup_commands(discord_client, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE)
+setup_commands(discord_client, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE, send_rank_up_message)
 
 # Run the Discord bot
 discord_client.run(DISCORD_TOKEN)
