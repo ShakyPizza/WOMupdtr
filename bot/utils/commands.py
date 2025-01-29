@@ -228,6 +228,7 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
             # Send response
             if subscribed_count > 0:
                 await ctx.send(f"✅ **{discord_name}** has been subscribed to **{subscribed_count}** players.")
+                print(f"✅ **{discord_name}** has been subscribed to **{subscribed_count}** players.")
             else:
                 await ctx.send(f"⚠️ **{discord_name}** is already subscribed to all players.")
 
