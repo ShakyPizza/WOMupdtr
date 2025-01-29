@@ -45,28 +45,38 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
 
     @bot.command(name="refreshwom")
     async def refreshwom(ctx):
-        """Updates the group's data using the WiseOldMan API."""
-        url = f"https://api.wiseoldman.net/v2/groups/{GROUP_ID}"
+        """Forces updates for all members in the group using the WiseOldMan API."""
+        group_url = f"https://api.wiseoldman.net/v2/groups/{GROUP_ID}"
+        player_update_url = "https://api.wiseoldman.net/v2/players/track"
         headers = {"Content-Type": "application/json"}
-        payload = {"verificationCode": GROUP_PASSCODE}  # The passcode for the group
+        payload = {"verificationCode": GROUP_PASSCODE}  # The group passcode
 
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.put(url, headers=headers, json=payload) as response:
+                # Fetch group details to get the members
+                async with session.get(group_url) as response:
                     if response.status == 200:
-                        data = await response.json()
-                        updated_count = len(data.get("updated", []))
-
-                        if updated_count > 0:
-                            await ctx.send(f"✅ Successfully refreshed group data. {updated_count} members updated.")
-                            print(f"Group update complete: {updated_count} members updated.")
-                        else:
-                            await ctx.send("ℹ️ Group is already up to date. No members needed updating.")
-                            print("Group is already up to date.")
+                        group_data = await response.json()
+                        members = group_data.get("members", [])
+                        if not members:
+                            await ctx.send("❌ No members found in the group.")
+                            return
+                        
+                        # Update each member individually
+                        updated_count = 0
+                        for member in members:
+                            member_name = member.get("displayName")
+                            if not member_name:
+                                continue
+                            player_payload = {"username": member_name}
+                            async with session.post(player_update_url, headers=headers, json=player_payload) as player_response:
+                                if player_response.status == 200:
+                                    updated_count += 1
+                        
+                        await ctx.send(f"✅ Successfully refreshed {updated_count} members.")
                     else:
                         error_message = await response.text()
-                        await ctx.send(f"❌ Failed to refresh group: {error_message}")
+                        await ctx.send(f"❌ Failed to fetch group details: {error_message}")
         except Exception as e:
             await ctx.send(f"❌ Error refreshing WiseOldMan group: {e}")
             
-        
