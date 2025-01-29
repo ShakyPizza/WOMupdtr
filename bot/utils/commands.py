@@ -37,7 +37,7 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
                     ehb = round(player.ehb, 2)
                     discord_name = ranks_data[username]["discord_name"]
                     rank = get_rank(ehb)
-                    await ctx.send(f"✅ {player.display_name}: {rank} ({ehb} EHB) {discord_name}")
+                    await ctx.send(f"✅ {player.display_name}: {rank} ({ehb} EHB) Fans: {discord_name}")
                     print(f"Updated {player.display_name}: {rank} ({ehb} EHB) Fans:{discord_name}")
                 else:
                     await ctx.send(f"❌ Could not find a player with username '{username}' in the group.")
@@ -127,8 +127,6 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
         """Links a Discord user to a WiseOldMan username."""
         try:
             ranks_data = load_ranks()
-            #if discord_name.startswith("<@") and discord_name.endswith(">"):
-            #    discord_name = discord_name.strip("<!>")
 
             if username in ranks_data:
                 # Update the discord_name for the username in ranks_data
