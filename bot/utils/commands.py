@@ -165,3 +165,34 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
         except Exception as e:
             await ctx.send(f"❌ An error occurred while linking: {e}")
             print(f"Error in /link command: {e}")
+
+    @bot.command(name="unsubscribeall")
+    async def unsubscribeall(ctx, discord_name: str):
+        """Removes a Discord user from all linked usernames in player_ranks.json."""
+        try:
+            ranks_data = load_ranks()
+            removed = False  # Track if any entry was removed
+
+            # Iterate through all usernames in ranks_data
+            for username, data in ranks_data.items():
+                if "discord_name" in data and isinstance(data["discord_name"], list):
+                    if discord_name in data["discord_name"]:
+                        data["discord_name"].remove(discord_name)
+                        removed = True
+
+                        # If the list becomes empty, remove the key entirely
+                        if not data["discord_name"]:
+                            del data["discord_name"]
+
+            # Save updated data
+            save_ranks(ranks_data)
+
+            # Send response
+            if removed:
+                await ctx.send(f"✅ **{discord_name}** has been unsubscribed from all users.")
+            else:
+                await ctx.send(f"⚠️ **{discord_name}** was not found in any subscriptions.")
+
+        except Exception as e:
+            await ctx.send(f"❌ An error occurred while unsubscribing: {e}")
+            print(f"Error in /unsubscribeall command: {e}")
