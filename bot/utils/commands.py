@@ -35,16 +35,35 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
                 if player:
                     ranks_data = load_ranks()
                     ehb = round(player.ehb, 2)
-                    discord_name = ranks_data[username]["discord_name"]
                     rank = get_rank(ehb)
-                    await ctx.send(f"✅ {player.display_name}: {rank} ({ehb} EHB) Fans: {discord_name}")
-                    print(f"Updated {player.display_name}: {rank} ({ehb} EHB) Fans:{discord_name}")
+
+                    # Fetch discord fans (linked Discord users)
+                    discord_fans = ranks_data.get(username, {}).get("discord_name", [])
+
+                    # Ensure it is displayed properly
+                    if isinstance(discord_fans, list):
+                        fans_display = " + ".join(discord_fans) if discord_fans else "0 😭"
+                    else:
+                        fans_display = discord_fans if discord_fans else "0 😭"
+
+                    # Update ranks_data
+                    ranks_data[username] = {
+                        "last_ehb": ehb,
+                        "rank": rank,
+                        "discord_name": discord_fans
+                    }
+                    save_ranks(ranks_data)
+
+                    # Send formatted message to Discord
+                    await ctx.send(f"✅ **{player.display_name}** - {rank} ({ehb} EHB)\n**Fans:** {fans_display}")
+                    print(f"Updated {player.display_name}: {rank} ({ehb} EHB), Fans: {fans_display}")
                 else:
                     await ctx.send(f"❌ Could not find a player with username '{username}' in the group.")
             else:
                 await ctx.send(f"❌ Failed to fetch group details: {result.unwrap_err()}")
         except Exception as e:
             await ctx.send(f"❌ Error updating {username}: {e}")
+            print(f"Error in /update command: {e}")
 
 
     @bot.command(name="refreshgroup")
@@ -124,19 +143,25 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
 
     @bot.command(name="link")
     async def link(ctx, username: str, discord_name: str):
-        """Links a Discord user to a WiseOldMan username."""
+        """Links multiple Discord users to a WiseOldMan username."""
         try:
             ranks_data = load_ranks()
 
             if username in ranks_data:
-                # Update the discord_name for the username in ranks_data
-                ranks_data[username]["discord_name"] = discord_name
-                save_ranks(ranks_data)
-                await ctx.send(f"✅ Linked {discord_name} to {username} :)")
-                print((f"✅ Linked {discord_name} to {username}."))
+                # Convert discord_name to a list if it's stored as a string
+                if not isinstance(ranks_data[username].get("discord_name"), list):
+                    ranks_data[username]["discord_name"] = [ranks_data[username]["discord_name"]]
+
+                # Prevent duplicate entries
+                if discord_name not in ranks_data[username]["discord_name"]:
+                    ranks_data[username]["discord_name"].append(discord_name)
+                    save_ranks(ranks_data)
+                    await ctx.send(f"✅ Linked {discord_name} to {username} :)")
+                    print(f"✅ Linked {discord_name} to {username}.")
+                else:
+                    await ctx.send(f"⚠️ {discord_name} is already linked to {username}.")
             else:
                 await ctx.send(f"❌ Username '{username}' not found in the ranks data.")
         except Exception as e:
             await ctx.send(f"❌ An error occurred while linking: {e}")
             print(f"Error in /link command: {e}")
-
