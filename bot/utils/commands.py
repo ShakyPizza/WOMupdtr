@@ -2,7 +2,8 @@ from discord.ext import commands
 import aiohttp
 from .rank_utils import load_ranks, save_ranks
 
-def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE):
+
+def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE, send_rank_up_message):
     
     @bot.command(name="refresh")
     async def refresh(ctx):
@@ -228,11 +229,19 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
             # Send response
             if subscribed_count > 0:
                 await ctx.send(f"✅ **{discord_name}** has been subscribed to **{subscribed_count}** players.")
-                print(f"✅ **{discord_name}** has been subscribed to **{subscribed_count}** players.")
+                print(f"✅ {discord_name} has been subscribed to {subscribed_count} players.")
             else:
                 await ctx.send(f"⚠️ **{discord_name}** is already subscribed to all players.")
 
         except Exception as e:
             await ctx.send(f"❌ An error occurred while subscribing: {e}")
             print(f"Error in /subscribeall command: {e}")
-                
+
+    @bot.command(name="sendrankup_debug")
+    async def sendrankup_debug(ctx):
+        """Debugging command to simulate a rank up message."""
+        try:
+            await send_rank_up_message()
+            print(f"✅ Successfully sent a rank up message to the channel.")
+        except Exception as e:
+            await ctx.send(f"❌ Error sending a rank up message to the channel: {e}")
