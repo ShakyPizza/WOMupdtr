@@ -33,10 +33,12 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
                 )
 
                 if player:
+                    ranks_data = load_ranks()
                     ehb = round(player.ehb, 2)
+                    discord_name = ranks_data[username]["discord_name"]
                     rank = get_rank(ehb)
-                    await ctx.send(f"✅ {player.display_name}: {rank} ({ehb} EHB)")
-                    print(f"Updated {player.display_name}: {rank} ({ehb} EHB)")
+                    await ctx.send(f"✅ {player.display_name}: {rank} ({ehb} EHB) {discord_name}")
+                    print(f"Updated {player.display_name}: {rank} ({ehb} EHB) Fans:{discord_name}")
                 else:
                     await ctx.send(f"❌ Could not find a player with username '{username}' in the group.")
             else:
@@ -87,6 +89,7 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
             "/refresh - Refreshes and posts the updated group rankings.",
             "/update '""username""' - Fetches and updates the rank for a specific user.",
             "/refreshgroup - Forces a full update for the group's data.",
+            "/link '""username""' '""discord_name""' - Links a Discord user to a WiseOldMan username for mentions when ranking up.",
             "/debug_group - Debugs and inspects group response.",
             "/commands - Lists all available commands.",
             "/goodnight - Sends a good night message."
@@ -120,19 +123,22 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
             await ctx.send(f"Error fetching group details: {e}")
 
     @bot.command(name="link")
-    async def update(ctx, username: str, discord_name: str):
-        """Links a discord user to a WiseOldMan username."""
-
-       
+    async def link(ctx, username: str, discord_name: str):
+        """Links a Discord user to a WiseOldMan username."""
         try:
             ranks_data = load_ranks()
+            #if discord_name.startswith("<@") and discord_name.endswith(">"):
+            #    discord_name = discord_name.strip("<!>")
+
             if username in ranks_data:
-                get_rank[username]["discord_name"] = discord_name
+                # Update the discord_name for the username in ranks_data
+                ranks_data[username]["discord_name"] = discord_name
                 save_ranks(ranks_data)
-                await ctx.send(f"✅ Linked {discord_name} to {username}")
-
+                await ctx.send(f"✅ Linked {discord_name} to {username} :)")
+                print((f"✅ Linked {discord_name} to {username}."))
+            else:
+                await ctx.send(f"❌ Username '{username}' not found in the ranks data.")
         except Exception as e:
-            print(f"Error processing player data for {player.username}: {e}")
-       
-
+            await ctx.send(f"❌ An error occurred while linking: {e}")
+            print(f"Error in /link command: {e}")
 
