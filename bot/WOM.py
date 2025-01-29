@@ -105,6 +105,7 @@ async def check_for_rank_changes():
                     username = player.display_name
                     ehb = round(player.ehb, 2)  # Rounded to 2 decimals
                     rank = get_rank(ehb)  # Determine rank
+                    discord_name = ""
 
                     # Fetch the last known rank and EHB
                     last_data = ranks_data.get(username, {})
@@ -116,9 +117,9 @@ async def check_for_rank_changes():
                         await send_rank_up_message(username, rank, last_rank, ehb)
 
                     # Update the ranks data
-                    ranks_data[username] = {"last_ehb": ehb, "rank": rank}
+                    ranks_data[username] = {"last_ehb": ehb, "rank": rank, "discord_name": discord_name}
                     if PRINT_TO_CSV:
-                        log_ehb_to_csv(username, ehb)  # Log EHB to the CSV file
+                        log_ehb_to_csv(username, ehb, discord_name)  # Log EHB to the CSV file
 
                 except Exception as e:
                     print(f"Error processing player data for {player.username}: {e}")
