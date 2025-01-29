@@ -109,6 +109,8 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
             "/update '""username""' - Fetches and updates the rank for a specific user.",
             "/refreshgroup - Forces a full update for the group's data.",
             "/link '""username""' '""discord_name""' - Links a Discord user to a WiseOldMan username for mentions when ranking up.",
+            "/unsubscribeall '""discord_name""' - Removes a Discord user from ALL linked usernames.",
+            "/subscribeall '""discord_name""' - Subscribes a Discord user to ALL usernames.",
             "/debug_group - Debugs and inspects group response.",
             "/commands - Lists all available commands.",
             "/goodnight - Sends a good night message."
@@ -201,3 +203,35 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
         except Exception as e:
             await ctx.send(f"❌ An error occurred while unsubscribing: {e}")
             print(f"Error in /unsubscribeall command: {e}")
+
+    @bot.command(name="subscribeall")
+    async def subscribeall(ctx, discord_name: str):
+        """Subscribes a Discord user to all usernames in player_ranks.json."""
+        try:
+            ranks_data = load_ranks()
+            subscribed_count = 0  # Track how many users were updated
+
+            # Iterate through all players in ranks_data
+            for username, data in ranks_data.items():
+                # Ensure discord_name field is initialized as a list
+                if "discord_name" not in data or not isinstance(data["discord_name"], list):
+                    data["discord_name"] = []
+
+                # Add discord_name if it's not already present
+                if discord_name not in data["discord_name"]:
+                    data["discord_name"].append(discord_name)
+                    subscribed_count += 1
+
+            # Save updated data
+            save_ranks(ranks_data)
+
+            # Send response
+            if subscribed_count > 0:
+                await ctx.send(f"✅ **{discord_name}** has been subscribed to **{subscribed_count}** players.")
+            else:
+                await ctx.send(f"⚠️ **{discord_name}** is already subscribed to all players.")
+
+        except Exception as e:
+            await ctx.send(f"❌ An error occurred while subscribing: {e}")
+            print(f"Error in /subscribeall command: {e}")
+                
