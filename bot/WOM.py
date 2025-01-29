@@ -200,16 +200,27 @@ async def list_all_members_and_ranks():
         print(f"Error occurred while listing members and ranks: {e}")
 
 
-async def send_rank_up_message(username, new_rank, old_rank, ehb, discord_name):
+async def send_rank_up_message(username, new_rank, old_rank, ehb):
     try:
         ranks_data = load_ranks()
-        discord_name = ranks_data.get("discord_name", "")
+        discord_names = ranks_data.get(username, {}).get("discord_name", [])
+
+        # Ensure discord_names is always a list
+        if not isinstance(discord_names, list):
+            discord_names = [discord_names] if discord_names else []
+
+        # Format fans display
+        fans_display = "  ".join(discord_names) if discord_names else "0 😭😭😭"
 
         if new_rank != old_rank:  # Only send a message if the rank has changed
             channel = discord_client.get_channel(CHANNEL_ID)
             if channel:
                 if POST_TO_DISCORD:
-                    await channel.send(f'🎉 Congratulations {username} on moving up to the rank of {new_rank} with {ehb} EHB! 🎉 {discord_name}')
+                    await channel.send(
+                        f'🎉 Congratulations **{username}** on moving up to the rank of **{new_rank}** '
+                        f'with **{ehb}** EHB! 🎉\n'
+                        f'**Fans:** {fans_display}'
+                    )
                     print(f"Sent rank up message for {username} to channel: {channel.name}")
             else:
                 print(f"Channel with ID {CHANNEL_ID} not found.")
