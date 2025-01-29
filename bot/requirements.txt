@@ -2,4 +2,4 @@ discord.py
 configparser
 wom.py
 asyncio
-
+aiohttp
