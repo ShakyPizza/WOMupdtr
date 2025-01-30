@@ -4,6 +4,34 @@ from .rank_utils import load_ranks, save_ranks
 
 
 def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE, send_rank_up_message):
+
+    @bot.command(name="lookup")
+    async def lookup(ctx, username: str,):
+        """Lists the rank and EHB for a specific user."""
+        try:
+            ranks_data = load_ranks()
+
+            if username in ranks_data:            
+                ehb = ranks_data[username]["last_ehb"]
+                rank = ranks_data[username]["rank"]
+                discord_fans = ranks_data[username]["discord_name"]
+
+
+                # Ensure it is displayed properly
+                if isinstance(discord_fans, list):
+                    fans_display = " + ".join(discord_fans) if discord_fans else "0 😭"
+                else:
+                    fans_display = discord_fans if discord_fans else "0 😭"
+                
+                await ctx.send(f"**{username}**\n**Rank:** {rank} ({ehb} EHB)\n**Fans:** {fans_display}")
+                print(f"Listed {username}: {rank} ({ehb} EHB), Fans: {fans_display}")
+            else:
+                await ctx.send(f"❌ Username '{username}' not found in the ranks data.")
+                print(f"Username '{username}' not found in the ranks data.")
+        except Exception as e:
+            await ctx.send(f"❌ An error occurred while linking: {e}")
+            print(f"Error in /link command: {e}")
+
     
     @bot.command(name="refresh")
     async def refresh(ctx):
