@@ -96,7 +96,6 @@ async def check_for_rank_changes():
         if DEBUG:
             await send_rank_up_message("TestUser", "TestRank1", "TestRank2", 1000)  # Test rank up message
 
-
         # Fetch group details
         result = await wom_client.groups.get_details(GROUP_ID)
         print("Debug mode on")
