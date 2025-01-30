@@ -94,11 +94,12 @@ async def check_for_rank_changes():
         ranks_data = load_ranks()  # Load the existing ranks data
 
         if DEBUG:
-            await send_rank_up_message("TestUser", "TestRank", "TestRank", 1000)  # Test rank up message
+            await send_rank_up_message("TestUser", "TestRank1", "TestRank2", 1000)  # Test rank up message
 
 
         # Fetch group details
         result = await wom_client.groups.get_details(GROUP_ID)
+        print("Debug mode on")
 
         if result.is_ok:
             group = result.unwrap()
@@ -207,6 +208,8 @@ async def list_all_members_and_ranks():
 
 async def send_rank_up_message(username, new_rank, old_rank, ehb):
     try:
+        if DEBUG:
+            print(f"Debug mode: Sending rank up message for {username} to Discord.")
         ranks_data = load_ranks()
         discord_names = ranks_data.get(username, {}).get("discord_name", [])
 
