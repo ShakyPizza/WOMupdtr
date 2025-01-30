@@ -26,8 +26,8 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
                 await ctx.send(f"**{username}**\n**Rank:** {rank} ({ehb} EHB)\n**Fans:** {fans_display}")
                 print(f"Listed {username}: {rank} ({ehb} EHB), Fans: {fans_display}")
             else:
-                await ctx.send(f"❌ Username '{username}' not found in the ranks data.")
-                print(f"Username '{username}' not found in the ranks data.")
+                await ctx.send(f"❌ Username **'{username}'** not found in the ranks data.")
+                print(f"Username **{username}** not found in the ranks data.")
         except Exception as e:
             await ctx.send(f"❌ An error occurred while linking: {e}")
             print(f"Error in /link command: {e}")
@@ -87,7 +87,7 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
                     await ctx.send(f"✅ **{player.display_name}** \n**Rank:** {rank} ({ehb} EHB)\n**Fans:** {fans_display}")
                     print(f"Updated {player.display_name}: {rank} ({ehb} EHB), Fans: {fans_display}")
                 else:
-                    await ctx.send(f"❌ Could not find a player with username '{username}' in the group.")
+                    await ctx.send(f"❌ Could not find a player with username **{username}** in the group.")
             else:
                 await ctx.send(f"❌ Failed to fetch group details: {result.unwrap_err()}")
         except Exception as e:
@@ -111,7 +111,7 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
                         updated_count = (data.get("count", []))
 
                         if updated_count > 0:
-                            await ctx.send(f"✅ Successfully refreshed group data. {updated_count} members updated. Please allow a few minutes for the changes to reflect.")
+                            await ctx.send(f"✅ Successfully refreshed group data. **{updated_count}** members updated. Please allow a few minutes for the changes to reflect.")
                             print(f"Group update complete: {updated_count} members updated.")
                         else:
                             await ctx.send("ℹ️ Group data is already up to date. No members required updating.")
@@ -223,7 +223,7 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
 
             # Send response
             if removed:
-                await ctx.send(f"✅ **{discord_name}** has been unsubscribed from {count} users.")
+                await ctx.send(f"✅ **{discord_name}** has been unsubscribed from **{count}** users.")
                 print(f"✅ {discord_name} has been unsubscribed from {count} users.")
             else:
                 await ctx.send(f"⚠️ **{discord_name}** was not found in any subscriptions.")
