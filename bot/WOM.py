@@ -25,7 +25,8 @@ RUN_AT_STARTUP = config['settings'].getboolean('run_at_startup', True)
 PRINT_TO_CSV = config['settings'].getboolean('print_to_csv', True)  
 PRINT_CSV_CHANGES = config['settings'].getboolean('print_csv_changes', True)  
 POST_TO_DISCORD = config['settings'].getboolean('post_to_discord', True)  
-GROUP_PASSCODE = config['wiseoldman']['GROUP_PASSCODE'] 
+GROUP_PASSCODE = config['wiseoldman']['GROUP_PASSCODE']
+DEBUG = config['settings'].getboolean('debug', False) 
 
 
 try:
@@ -92,6 +93,10 @@ async def check_for_rank_changes():
         print("Starting player comparison...")
         ranks_data = load_ranks()  # Load the existing ranks data
 
+        if DEBUG:
+            await send_rank_up_message("TestUser", "TestRank", "TestRank", 1000)  # Test rank up message
+
+
         # Fetch group details
         result = await wom_client.groups.get_details(GROUP_ID)
 
@@ -116,7 +121,7 @@ async def check_for_rank_changes():
                     # Compare and notify if rank increases
                     if ehb > last_ehb:
                         await send_rank_up_message(username, rank, last_rank, ehb)
-
+#### print(f"Checked group details successfully.", " Next comparison in", CHECK_INTERVAL, "seconds.")
                     # Update the ranks data
                     ranks_data[username] = {"last_ehb": ehb, "rank": rank, "discord_name": discord_name}
                     if PRINT_TO_CSV:
