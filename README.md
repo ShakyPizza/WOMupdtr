@@ -65,7 +65,7 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
     WOM_group_passcode =
 
     #Debug mode
-     DEBUG = false
+    DEBUG = false
    ```
 
 4. Create a `ranks.ini` file to define rank thresholds, example shown here:
