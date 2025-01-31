@@ -278,3 +278,33 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
             print(f"✅ Successfully sent a rank up message to the channel.")
         except Exception as e:
             await ctx.send(f"❌ Error sending a rank up message to the channel: {e}")
+
+    @bot.command(name="rankup")
+    async def rankup(ctx, username: str):
+        """Displays the current rank, EHB, and next rank for a given player."""
+        try:
+            ranks_data = load_ranks()
+            
+            if username not in ranks_data:
+                await ctx.send(f"❌ Username '{username}' not found in the ranks data.")
+                return
+
+            # Fetch current rank & EHB
+            user_data = ranks_data[username]
+            current_rank = user_data.get("rank", "Unknown")
+            current_ehb = user_data.get("last_ehb", 0)
+
+            # Fetch next rank info
+            next_rank_info = next_rank(username)
+
+            # Send formatted response to Discord
+            await ctx.send(
+                f"🔹 **Player:** {username}\n"
+                f"🏅 **Current Rank:** {current_rank} ({current_ehb} EHB)\n"
+                f"📈 **Next Rank:** {next_rank_info}"
+            )
+
+        except Exception as e:
+            await ctx.send(f"❌ An error occurred: {e}")
+            print(f"Error in /rankup command: {e}")
+    
