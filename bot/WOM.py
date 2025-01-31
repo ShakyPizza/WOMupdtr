@@ -95,10 +95,9 @@ async def check_for_rank_changes():
 
         if DEBUG:
             await send_rank_up_message("TestUser", "TestRank1", "TestRank2", 1000)  # Test rank up message
-
+            print("Debug mode on")
         # Fetch group details
         result = await wom_client.groups.get_details(GROUP_ID)
-        print("Debug mode on")
 
         if result.is_ok:
             group = result.unwrap()
@@ -121,7 +120,7 @@ async def check_for_rank_changes():
                     # Compare and notify if rank increases
                     if ehb > last_ehb:
                         await send_rank_up_message(username, rank, last_rank, ehb)
-#### print(f"Checked group details successfully.", " Next comparison in", CHECK_INTERVAL, "seconds.")
+                        print(f"DEBUG: Send_rank_up_message for {username} with {ehb} EHB sent.")
                     # Update the ranks data
                     ranks_data[username] = {"last_ehb": ehb, "rank": rank, "discord_name": discord_name}
                     if PRINT_TO_CSV:
