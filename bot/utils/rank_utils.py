@@ -1,5 +1,6 @@
 import json
 import os
+import configparser
 
 # JSON file for storing player ranks
 RANKS_FILE = os.path.join(os.path.dirname(__file__), 'player_ranks.json')
@@ -44,7 +45,7 @@ def next_rank(username):
 
         # Load rank thresholds from ranks.ini
         config = configparser.ConfigParser()
-        config.read(os.path.join(os.path.dirname(__file__), 'ranks.ini'))
+        config.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ranks.ini'))
 
         rank_thresholds = []
         for range_key, rank_name in config['Group Ranking'].items():
@@ -63,9 +64,9 @@ def next_rank(username):
             if current_rank == rank_name and i + 1 < len(rank_thresholds):
                 next_rank_name = rank_thresholds[i + 1][1]
                 next_ehb_threshold = rank_thresholds[i + 1][0]
-                return  f"Next Rank: {next_rank_name} at {next_ehb_threshold} EHB"
+                return  f"{next_rank_name} at {next_ehb_threshold} EHB"
         
-        return "Max Rank Achieved"  # If they are at the highest rank
+        return "Max Rank Achieved 👑"  # If they are at the highest rank
 
     except Exception as e:
         print(f"Error in next_rank function: {e}")
