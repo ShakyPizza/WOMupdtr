@@ -136,7 +136,7 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
         command_list = [
             "/refresh - Refreshes and posts the updated group rankings.",
             "/update '""username""' - Fetches and updates the rank for a specific user.",
-            "/nextrank '""username""' - Displays the current rank, EHB, and next rank for a given player.",
+            "/rankup '""username""' - Displays the current rank, EHB, and next rank for a given player.",
             "/refreshgroup - Forces a full update for the group's data.",
             "/link '""username""' '""discord_name""' - Links a Discord user to a WiseOldMan username for mentions when ranking up.",
             "/unsubscribeall '""discord_name""' - Removes a Discord user from ALL linked usernames.",
