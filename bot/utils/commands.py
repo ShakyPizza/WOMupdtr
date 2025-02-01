@@ -4,6 +4,9 @@ from datetime import datetime
 from .rank_utils import load_ranks, save_ranks, next_rank
 
 
+# ------------------------------------------------------------------------------
+# Helper Functions
+# ------------------------------------------------------------------------------
 def format_discord_fans(discord_fans):
     """
     Formats the Discord fans for display.
@@ -16,9 +19,16 @@ def format_discord_fans(discord_fans):
     return discord_fans if discord_fans else "0 😭"
 
 
+# ------------------------------------------------------------------------------
+# Setup Commands Function
+# ------------------------------------------------------------------------------
 def setup_commands(
     bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE, send_rank_up_message, check_for_rank_changes
 ):
+
+    # ------------------------------------------------------------------------------
+    # Command: /lookup
+    # ------------------------------------------------------------------------------
     @bot.command(name="lookup")
     async def lookup(ctx, username: str):
         """Lists the rank and EHB for a specific user."""
@@ -42,6 +52,9 @@ def setup_commands(
             await ctx.send(f"❌ An error occurred while linking: {e}")
             print(f"Error in /lookup command: {e}")
 
+    # ------------------------------------------------------------------------------
+    # Command: /refresh
+    # ------------------------------------------------------------------------------
     @bot.command(name="refresh")
     async def refresh(ctx):
         """Refreshes and posts the updated group rankings."""
@@ -52,6 +65,9 @@ def setup_commands(
         except Exception as e:
             await ctx.send(f"❌ Error refreshing rankings: {e}")
 
+    # ------------------------------------------------------------------------------
+    # Command: /forcecheck
+    # ------------------------------------------------------------------------------
     @bot.command(name="forcecheck")
     async def forcecheck(ctx):
         """Forces check_for_rank_changes to run."""
@@ -62,6 +78,9 @@ def setup_commands(
         except Exception as e:
             await ctx.send(f"❌ Error refreshing rankings: {e}")
 
+    # ------------------------------------------------------------------------------
+    # Command: /update
+    # ------------------------------------------------------------------------------
     @bot.command(name="update")
     async def update(ctx, username: str):
         """
@@ -116,6 +135,9 @@ def setup_commands(
             await ctx.send(f"❌ Error updating {username}: {e}")
             print(f"Error in /update command: {e}")
 
+    # ------------------------------------------------------------------------------
+    # Command: /refreshgroup
+    # ------------------------------------------------------------------------------
     @bot.command(name="refreshgroup")
     async def refreshgroup(ctx):
         """Forces a full update for the group's data using the WiseOldMan API."""
@@ -152,6 +174,9 @@ def setup_commands(
         except Exception as e:
             await ctx.send(f"❌ Error refreshing WiseOldMan group: {e}")
 
+    # ------------------------------------------------------------------------------
+    # Command: /commands
+    # ------------------------------------------------------------------------------
     @bot.command(name="commands")
     async def commands_list(ctx):
         """Lists all available commands."""
@@ -169,10 +194,16 @@ def setup_commands(
         ]
         await ctx.send("**Available Commands:**\n" + "\n".join(command_list))
 
+    # ------------------------------------------------------------------------------
+    # Command: /goodnight
+    # ------------------------------------------------------------------------------
     @bot.command(name="goodnight")
     async def goodnight(ctx):
         await ctx.send("Good night, king 👑")
 
+    # ------------------------------------------------------------------------------
+    # Command: /debug_group
+    # ------------------------------------------------------------------------------
     @bot.command(name="debug_group")
     async def debug_group(ctx):
         """Debugging command to inspect the group response."""
@@ -193,6 +224,9 @@ def setup_commands(
         except Exception as e:
             await ctx.send(f"Error fetching group details: {e}")
 
+    # ------------------------------------------------------------------------------
+    # Command: /link
+    # ------------------------------------------------------------------------------
     @bot.command(name="link")
     async def link(ctx, username: str, discord_name: str):
         """Links a Discord user to a WiseOldMan username for mentions when ranking up."""
@@ -217,6 +251,9 @@ def setup_commands(
             await ctx.send(f"❌ An error occurred while linking: {e}")
             print(f"Error in /link command: {e}")
 
+    # ------------------------------------------------------------------------------
+    # Command: /unsubscribeall
+    # ------------------------------------------------------------------------------
     @bot.command(name="unsubscribeall")
     async def unsubscribeall(ctx, discord_name: str):
         """
@@ -252,6 +289,9 @@ def setup_commands(
             await ctx.send(f"❌ An error occurred while unsubscribing: {e}")
             print(f"Error in /unsubscribeall command: {e}")
 
+    # ------------------------------------------------------------------------------
+    # Command: /subscribeall
+    # ------------------------------------------------------------------------------
     @bot.command(name="subscribeall")
     async def subscribeall(ctx, discord_name: str):
         """
@@ -281,6 +321,9 @@ def setup_commands(
             await ctx.send(f"❌ An error occurred while subscribing: {e}")
             print(f"Error in /subscribeall command: {e}")
 
+    # ------------------------------------------------------------------------------
+    # Command: /sendrankup_debug
+    # ------------------------------------------------------------------------------
     @bot.command(name="sendrankup_debug")
     async def sendrankup_debug(ctx, username: str):
         """Debugging command to simulate a rank up message."""
@@ -295,6 +338,9 @@ def setup_commands(
         except Exception as e:
             await ctx.send(f"❌ Error sending a rank up message to the channel: {e}")
 
+    # ------------------------------------------------------------------------------
+    # Command: /rankup
+    # ------------------------------------------------------------------------------
     @bot.command(name="rankup")
     async def rankup(ctx, username: str):
         """Displays the current rank, EHB, and next rank for a given player."""
