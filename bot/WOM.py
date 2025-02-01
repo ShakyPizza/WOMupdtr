@@ -94,7 +94,7 @@ async def check_for_rank_changes():
         ranks_data = load_ranks()  # Load the existing ranks data
 
         if DEBUG:
-            await send_rank_up_message("TestUser", "TestRank1", "TestRank2", 1000)  # Test rank up message
+            ##await send_rank_up_message("TestUser", "TestRank1", "TestRank2", 1000)  # Test rank up message
             print("Debug mode on")
         # Fetch group details
         result = await wom_client.groups.get_details(GROUP_ID)
@@ -115,16 +115,15 @@ async def check_for_rank_changes():
                     last_data = ranks_data.get(username, {})
                     last_ehb = last_data.get("last_ehb", 0)
                     last_rank = last_data.get("rank", "Unknown")
-                    discord_name = last_data.get("discord_name", "")
 
                     # Compare and notify if rank increases
                     if ehb > last_ehb:
                         await send_rank_up_message(username, rank, last_rank, ehb)
                         print(f"DEBUG: Send_rank_up_message for {username} with {ehb} EHB sent.")
                     # Update the ranks data
-                        ranks_data[username] = {"last_ehb": ehb, "rank": rank, "discord_name": discord_name}
+                        ranks_data[username] = {"last_ehb": ehb, "rank": rank}
                         if PRINT_TO_CSV:
-                            log_ehb_to_csv(username, ehb, discord_name)  # Log EHB to the CSV file
+                            log_ehb_to_csv(username, ehb)  # Log EHB to the CSV file
 
                 except Exception as e:
                     print(f"Error processing player data for {player.username}: {e}")
