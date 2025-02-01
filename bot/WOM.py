@@ -50,7 +50,7 @@ wom_client = Client()
 
 @discord_client.event
 async def on_ready():
-    print(f'Logged in as {discord_client.user}')
+    print(f"{timestamp} - Logged in as {discord_client.user}")
 
     # Start the Wise Old Man client session
     await wom_client.start()
