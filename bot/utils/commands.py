@@ -1,9 +1,12 @@
 from discord.ext import commands
 import aiohttp
 from .rank_utils import load_ranks, save_ranks, next_rank
+from datetime import datetime
 
 
-def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE, send_rank_up_message):
+timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE, send_rank_up_message, check_for_rank_changes):
 
     @bot.command(name="lookup")
     async def lookup(ctx, username: str,):
@@ -38,7 +41,17 @@ def setup_commands(bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ran
         """Refreshes and posts the updated group rankings."""
         try:
             await list_all_members_and_ranks()
-            print(f"Refreshed rankings.")
+            print(f"{timestamp} - Refreshed rankings via Discord Command.")
+        except Exception as e:
+            await ctx.send(f"❌ Error refreshing rankings: {e}")
+
+
+    @bot.command(name="forcecheck")
+    async def forcecheck(ctx):
+        """Forces check_for_rank_changes to run."""
+        try:
+            await check_for_rank_changes()
+            print(f"{timestamp} - Forced check_for_rank function.")
         except Exception as e:
             await ctx.send(f"❌ Error refreshing rankings: {e}")
 
