@@ -122,9 +122,9 @@ async def check_for_rank_changes():
                         await send_rank_up_message(username, rank, last_rank, ehb)
                         print(f"DEBUG: Send_rank_up_message for {username} with {ehb} EHB sent.")
                     # Update the ranks data
-                    ranks_data[username] = {"last_ehb": ehb, "rank": rank, "discord_name": discord_name}
-                    if PRINT_TO_CSV:
-                        log_ehb_to_csv(username, ehb, discord_name)  # Log EHB to the CSV file
+                        ranks_data[username] = {"last_ehb": ehb, "rank": rank, "discord_name": discord_name}
+                        if PRINT_TO_CSV:
+                            log_ehb_to_csv(username, ehb, discord_name)  # Log EHB to the CSV file
 
                 except Exception as e:
                     print(f"Error processing player data for {player.username}: {e}")
