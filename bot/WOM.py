@@ -112,7 +112,7 @@ async def check_for_rank_changes():
             group = result.unwrap()
             memberships = group.memberships
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            print(f"{timestamp} - Fetched group details successfully.", " Next comparison in", CHECK_INTERVAL, "seconds.")
+            print(f"{timestamp} - Fetched group details successfully. Next comparison in {CHECK_INTERVAL / 60:.2f} minutes.")
             for membership in memberships:
                 try:
                     player = membership.player
