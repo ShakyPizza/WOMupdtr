@@ -15,7 +15,7 @@ config = configparser.ConfigParser()
 config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
 config.read(config_file)
 
-timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
 
 # Discord and Wise Old Man settings
 DISCORD_TOKEN = config['discord']['token']
@@ -50,6 +50,8 @@ wom_client = Client()
 
 @discord_client.event
 async def on_ready():
+
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"{timestamp} - Logged in as {discord_client.user}")
 
     # Start the Wise Old Man client session
@@ -57,14 +59,17 @@ async def on_ready():
 
     # Call the one-time member and ranks listing function if enabled
     if RUN_AT_STARTUP:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"{timestamp} - Running list_all_members_and_ranks at startup.")
         await list_all_members_and_ranks()
 
     # Start rank checking task if not already running
     if not check_for_rank_changes.is_running():
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"{timestamp} - Starting check_for_rank_changes task.")
         check_for_rank_changes.start()
     else:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"{timestamp} - check_for_rank_changes task is already running.")
 
 def get_rank(ehb, ranks_file=os.path.join(os.path.dirname(__file__), 'ranks.ini')):
@@ -84,6 +89,7 @@ def get_rank(ehb, ranks_file=os.path.join(os.path.dirname(__file__), 'ranks.ini'
                 if lower_bound <= ehb < upper_bound:
                     return rank_name
     except Exception as e:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"{timestamp} - Error reading ranks.ini: {e}")
     return "Unknown"  # Default if no rank matches
 
@@ -91,11 +97,13 @@ def get_rank(ehb, ranks_file=os.path.join(os.path.dirname(__file__), 'ranks.ini'
 @tasks.loop(seconds=CHECK_INTERVAL)
 async def check_for_rank_changes():
     try:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"{timestamp} - Starting player comparison...")
         ranks_data = load_ranks()  # Load the existing ranks data
 
         if DEBUG:
             ##await send_rank_up_message("TestUser", "TestRank1", "TestRank2", 1000)  # Test rank up message
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             print(f"{timestamp} - Debug mode on")
         # Fetch group details
         result = await wom_client.groups.get_details(GROUP_ID)
@@ -103,6 +111,7 @@ async def check_for_rank_changes():
         if result.is_ok:
             group = result.unwrap()
             memberships = group.memberships
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             print(f"{timestamp} - Fetched group details successfully.", " Next comparison in", CHECK_INTERVAL, "seconds.")
             for membership in memberships:
                 try:
@@ -120,6 +129,7 @@ async def check_for_rank_changes():
                     # Compare and notify if rank increases
                     if ehb > last_ehb:
                         await send_rank_up_message(username, rank, last_rank, ehb)
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         print(f"{timestamp} - DEBUG: Send_rank_up_message for {username} with {ehb} EHB sent to comparison.")
                     # Update the ranks data
                         ranks_data[username] = {"last_ehb": ehb, "rank": rank}
@@ -127,15 +137,18 @@ async def check_for_rank_changes():
                             log_ehb_to_csv(username, ehb)  # Log EHB to the CSV file
 
                 except Exception as e:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     print(f"{timestamp} - Error processing player data for {player.username}: {e}")
 
             # Save the updated ranks data
             save_ranks(ranks_data)
 
         else:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             print(f"{timestamp} - Failed to fetch group details: {result.unwrap_err()}")
 
     except Exception as e:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"{timestamp} - Error occurred during rank check: {e}")
 
 async def list_all_members_and_ranks():
@@ -162,6 +175,7 @@ async def list_all_members_and_ranks():
                         rank = get_rank(ehb)  # Determine rank from the ranks.ini file
                         players.append((username, rank, ehb))
                 except Exception as e:
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     print(f"{timestamp} - Error processing player data for {membership.player.username}: {e}")
 
             # Sort players by EHB descending
@@ -193,20 +207,25 @@ async def list_all_members_and_ranks():
             # Send each chunk as a separate message
             channel = discord_client.get_channel(CHANNEL_ID)
             if channel:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 print(f"{timestamp} - Sending message to channel: {channel.name}")
                 for message in message_lines:
                     await channel.send(message)
             else:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 print(f"{timestamp} - Channel with ID {CHANNEL_ID} not found.")
         else:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             print(f"{timestamp} - Failed to fetch group details: {result.unwrap_err()}")
     except Exception as e:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"{timestamp} - Error occurred while listing members and ranks: {e}")
 
 
 async def send_rank_up_message(username, new_rank, old_rank, ehb):
     try:
         if DEBUG:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             print(f"{timestamp} - Debug mode: Sending rank up message for {username} to Discord.")
         ranks_data = load_ranks()
         discord_names = ranks_data.get(username, {}).get("discord_name", [])
@@ -227,10 +246,13 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
                         f'with **{ehb}** EHB! 🎉\n'
                         f'**Fans:** {fans_display}'
                     )
+                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     print(f"{timestamp} - Sent rank up message for {username} to channel: {channel.name}")
             else:
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 print(f"{timestamp} - Channel with ID {CHANNEL_ID} not found.")
     except Exception as e:
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"{timestamp} - Error sending message: {e}")
 
 
