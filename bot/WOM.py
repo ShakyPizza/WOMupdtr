@@ -119,7 +119,7 @@ async def check_for_rank_changes():
                     # Compare and notify if rank increases
                     if ehb > last_ehb:
                         await send_rank_up_message(username, rank, last_rank, ehb)
-                        print(f"DEBUG: Send_rank_up_message for {username} with {ehb} EHB sent.")
+                        print(f"DEBUG: Send_rank_up_message for {username} with {ehb} EHB sent to comparison.")
                     # Update the ranks data
                         ranks_data[username] = {"last_ehb": ehb, "rank": rank}
                         if PRINT_TO_CSV:
