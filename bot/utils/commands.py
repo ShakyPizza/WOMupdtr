@@ -186,6 +186,7 @@ def setup_commands(
             "/rankup 'username' - Displays the current rank, EHB, and next rank for a given player.",
             "/refreshgroup - Forces a full update for the group's data.",
             "/link 'username' 'discord_name' - Links a Discord user to a WiseOldMan username for mentions when ranking up.",
+            "/lookup 'username' - Lists the rank and EHB for a specific user.",
             "/unsubscribeall 'discord_name' - Removes a Discord user from ALL linked usernames.",
             "/subscribeall 'discord_name' - Subscribes a Discord user to ALL usernames.",
             "/debug_group - Debugs and inspects group response.",
