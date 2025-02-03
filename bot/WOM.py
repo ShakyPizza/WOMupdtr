@@ -125,7 +125,7 @@ async def check_for_rank_changes():
                     # Compare and notify if rank has increased
                     if ehb > last_ehb:
                         await send_rank_up_message(username, rank, last_rank, ehb)
-                        log(f"Sent rank up message for {username} with {ehb} EHB.")
+                        log(f"Sent rank up message for {username} with {ehb} EHB for comparison in function.")
                         
                         # Update ranks data and log to CSV if enabled
                         ranks_data[username] = {"last_ehb": ehb, "rank": rank}
