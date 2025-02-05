@@ -23,15 +23,14 @@ def format_discord_fans(discord_fans):
 # Setup Commands Function
 # ------------------------------------------------------------------------------
 def setup_commands(
-    bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE, send_rank_up_message, check_for_rank_changes
+    bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE, send_rank_up_message, check_for_rank_changes, debug
 ):
 
     # ------------------------------------------------------------------------------
-    # Command: /lookup
+    # Command: /lookup --- Lists the rank and EHB for a specific user.
     # ------------------------------------------------------------------------------
     @bot.command(name="lookup")
     async def lookup(ctx, username: str):
-        """Lists the rank and EHB for a specific user."""
         try:
             ranks_data = load_ranks()
 
@@ -53,11 +52,10 @@ def setup_commands(
             print(f"Error in /lookup command: {e}")
 
     # ------------------------------------------------------------------------------
-    # Command: /refresh
+    # Command: /refresh --- Refreshes and posts the updated group rankings.
     # ------------------------------------------------------------------------------
     @bot.command(name="refresh")
     async def refresh(ctx):
-        """Refreshes and posts the updated group rankings."""
         try:
             await list_all_members_and_ranks()
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -66,11 +64,10 @@ def setup_commands(
             await ctx.send(f"❌ Error refreshing rankings: {e}")
 
     # ------------------------------------------------------------------------------
-    # Command: /forcecheck
+    # Command: /forcecheck --- Forces check_for_rank_changes to run.
     # ------------------------------------------------------------------------------
     @bot.command(name="forcecheck")
     async def forcecheck(ctx):
-        """Forces check_for_rank_changes to run."""
         try:
             await check_for_rank_changes()
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -79,13 +76,10 @@ def setup_commands(
             await ctx.send(f"❌ Error refreshing rankings: {e}")
 
     # ------------------------------------------------------------------------------
-    # Command: /update
+    # Command: /update --- Fetches and updates the rank for a specific user by searching the group data.
     # ------------------------------------------------------------------------------
     @bot.command(name="update")
     async def update(ctx, username: str):
-        """
-        Fetches and updates the rank for a specific user by searching the group data.
-        """
         try:
             # Ensure the Wise Old Man client's session is started
             await wom_client.start()
@@ -136,11 +130,10 @@ def setup_commands(
             print(f"Error in /update command: {e}")
 
     # ------------------------------------------------------------------------------
-    # Command: /refreshgroup
+    # Command: /refreshgroup --- Forces a full update for the group's data using the WiseOldMan API.
     # ------------------------------------------------------------------------------
     @bot.command(name="refreshgroup")
     async def refreshgroup(ctx):
-        """Forces a full update for the group's data using the WiseOldMan API."""
         url = f"https://api.wiseoldman.net/v2/groups/{GROUP_ID}/update-all"
         headers = {"Content-Type": "application/json"}
         payload = {"verificationCode": GROUP_PASSCODE}  # The passcode for the group
@@ -175,39 +168,41 @@ def setup_commands(
             await ctx.send(f"❌ Error refreshing WiseOldMan group: {e}")
 
     # ------------------------------------------------------------------------------
-    # Command: /commands
+    # Command: /commands --- Lists all available commands.
     # ------------------------------------------------------------------------------
     @bot.command(name="commands")
     async def commands_list(ctx):
-        """Lists all available commands."""
         command_list = [
-            "/refresh - Refreshes and posts the updated group rankings.",
-            "/update 'username' - Fetches and updates the rank for a specific user.",
-            "/rankup 'username' - Displays the current rank, EHB, and next rank for a given player.",
-            "/refreshgroup - Forces a full update for the group's data.",
-            "/link 'username' 'discord_name' - Links a Discord user to a WiseOldMan username for mentions when ranking up.",
-            "/lookup 'username' - Lists the rank and EHB for a specific user.",
-            "/unsubscribeall 'discord_name' - Removes a Discord user from ALL linked usernames.",
-            "/subscribeall 'discord_name' - Subscribes a Discord user to ALL usernames.",
-            "/debug_group - Debugs and inspects group response.",
-            "/commands - Lists all available commands.",
-            "/goodnight - Sends a good night message.",
+            "**Usernames with spaces in them need to be enclosed in quotes.**",
+            "Usernames are case-sensitive except for **/update** command",
+            "/refresh ➡️ Refreshes and posts the updated group rankings.",
+            "/update 'username' ➡️ Fetches and updates the rank for a specific user.",
+            "/rankup 'username' ➡️ Displays the current rank, EHB, and next rank for a given player.",
+            "/refreshgroup ➡️ Forces a full update for the group's data.",
+            "/link 'username' 'discord_name' ➡️ Links a Discord user to a WiseOldMan username for mentions when ranking up.",
+            "/lookup 'username' ➡️ Lists the rank and EHB for a specific user.",
+            "/subscribeall 'discord_name' ➡️ Subscribes a Discord user to ALL usernames.",
+            "/unsubscribeall 'discord_name' ➡️ Removes a Discord user from ALL linked usernames.",
+            "/commands ➡️ Lists all available commands.",
+            "/goodnight ➡️ Sends a good night message.",
+            "/forcecheck ➡️ Forces check_for_rank_changes task to run.",
+            "/sendrankup_debug ➡️ Debugging command to simulate a rank up message.",
+            "/debug_group --- Debugs and inspects group response.",
         ]
         await ctx.send("**Available Commands:**\n" + "\n".join(command_list))
 
     # ------------------------------------------------------------------------------
-    # Command: /goodnight
+    # Command: /goodnight --- Sends a good night message.
     # ------------------------------------------------------------------------------
     @bot.command(name="goodnight")
     async def goodnight(ctx):
         await ctx.send("Good night, king 👑")
 
     # ------------------------------------------------------------------------------
-    # Command: /debug_group
+    # Command: /debug_group --- Debugging command to inspect the group response.
     # ------------------------------------------------------------------------------
     @bot.command(name="debug_group")
     async def debug_group(ctx):
-        """Debugging command to inspect the group response."""
         url = f"https://api.wiseoldman.net/v2/groups/{GROUP_ID}"
         try:
             async with aiohttp.ClientSession() as session:
@@ -226,11 +221,10 @@ def setup_commands(
             await ctx.send(f"Error fetching group details: {e}")
 
     # ------------------------------------------------------------------------------
-    # Command: /link
+    # Command: /link --- Links a Discord user to a WiseOldMan username for mentions when ranking up.
     # ------------------------------------------------------------------------------
     @bot.command(name="link")
     async def link(ctx, username: str, discord_name: str):
-        """Links a Discord user to a WiseOldMan username for mentions when ranking up."""
         try:
             ranks_data = load_ranks()
 
@@ -253,13 +247,10 @@ def setup_commands(
             print(f"Error in /link command: {e}")
 
     # ------------------------------------------------------------------------------
-    # Command: /unsubscribeall
+    # Command: /unsubscribeall --- Removes a Discord user from all linked usernames in player_ranks.json.
     # ------------------------------------------------------------------------------
     @bot.command(name="unsubscribeall")
     async def unsubscribeall(ctx, discord_name: str):
-        """
-        Removes a Discord user from all linked usernames in player_ranks.json.
-        """
         try:
             ranks_data = load_ranks()
             removed = False
@@ -291,13 +282,10 @@ def setup_commands(
             print(f"Error in /unsubscribeall command: {e}")
 
     # ------------------------------------------------------------------------------
-    # Command: /subscribeall
+    # Command: /subscribeall --- Subscribes a Discord user to all usernames in player_ranks.json.
     # ------------------------------------------------------------------------------
     @bot.command(name="subscribeall")
     async def subscribeall(ctx, discord_name: str):
-        """
-        Subscribes a Discord user to all usernames in player_ranks.json.
-        """
         try:
             ranks_data = load_ranks()
             subscribed_count = 0
@@ -323,11 +311,10 @@ def setup_commands(
             print(f"Error in /subscribeall command: {e}")
 
     # ------------------------------------------------------------------------------
-    # Command: /sendrankup_debug
+    # Command: /sendrankup_debug --- Debugging command to simulate a rank up message.
     # ------------------------------------------------------------------------------
     @bot.command(name="sendrankup_debug")
-    async def sendrankup_debug(ctx, username: str):
-        """Debugging command to simulate a rank up message."""
+    async def sendrankup_debug(ctx):
         try:
             # Using fixed test values for debugging
             test_username = "Zezima"
@@ -340,11 +327,10 @@ def setup_commands(
             await ctx.send(f"❌ Error sending a rank up message to the channel: {e}")
 
     # ------------------------------------------------------------------------------
-    # Command: /rankup
+    # Command: /rankup --- Displays the current rank, EHB, and next rank for a given player.
     # ------------------------------------------------------------------------------
     @bot.command(name="rankup")
     async def rankup(ctx, username: str):
-        """Displays the current rank, EHB, and next rank for a given player."""
         try:
             ranks_data = load_ranks()
             if username not in ranks_data:
