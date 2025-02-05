@@ -187,7 +187,7 @@ def setup_commands(
             "/goodnight ➡️ Sends a good night message.",
             "/forcecheck ➡️ Forces check_for_rank_changes task to run.",
             "/sendrankup_debug ➡️ Debugging command to simulate a rank up message.",
-            "/debug_group --- Debugs and inspects group response.",
+            "/debug_group ➡️ Debugs and inspects group response.",
         ]
         await ctx.send("**Available Commands:**\n" + "\n".join(command_list))
 
