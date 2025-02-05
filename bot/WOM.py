@@ -92,7 +92,8 @@ async def on_ready():
 
     # Start the periodic rank-checking task if not already running
     if not check_for_rank_changes.is_running():
-        log("Starting check_for_rank_changes task.")
+        if debug:
+            log("Starting check_for_rank_changes task.")
         check_for_rank_changes.start()
     else:
         log("check_for_rank_changes task is already running.")
@@ -100,12 +101,10 @@ async def on_ready():
 @tasks.loop(seconds=check_interval)
 async def check_for_rank_changes():
     try:
-        log("Starting player comparison...")
-        ranks_data = load_ranks()
-
         if debug:
             log("debug mode on ")
-
+            log("Starting player comparison...")
+        ranks_data = load_ranks()
         result = await wom_client.groups.get_details(group_id
     )
         if result.is_ok:
@@ -126,7 +125,8 @@ async def check_for_rank_changes():
                     # Compare and notify if rank has increased
                     if ehb > last_ehb:
                         await send_rank_up_message(username, rank, last_rank, ehb)
-                        log(f"Sent rank up message for {username} with {ehb} EHB for comparison in function.")
+                        if debug:
+                            log(f"Sent rank up message for {username} with {ehb} EHB for comparison in function.")
                         
                         # Update ranks data and log to CSV if enabled
                         ranks_data[username] = {"last_ehb": ehb, "rank": rank}
