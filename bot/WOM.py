@@ -104,7 +104,7 @@ async def check_for_rank_changes():
         ranks_data = load_ranks()
 
         if DEBUG:
-            log("Debug mode on")
+            log("Debug mode on ")
 
         result = await wom_client.groups.get_details(GROUP_ID)
         if result.is_ok:
