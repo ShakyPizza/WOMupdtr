@@ -113,19 +113,5 @@ This project is licensed under the MIT License. See `LICENSE` for details.
 - [Wise Old Man API](https://wiseoldman.net/) for providing player data.
 - [Discord.py](https://discordpy.readthedocs.io/) for enabling Discord bot functionality.
 
----
-
-# Plugin:
-
-### Plugin Requirements (`plugin_reqs.txt`)
-- Java 11+
-- Gradle 8.12+
-- Runelite API dependencies (documented in `build.gradle`)
-
-### Bot Requirements (`bot_reqs.txt`)
-Install Python dependencies using:
-```bash
-pip install -r bot_reqs.txt
-```
 
 Happy Bossing!
