@@ -175,19 +175,20 @@ def setup_commands(
         command_list = [
             "**Usernames with spaces in them need to be enclosed in quotes.**",
             "Usernames are case-sensitive except for **/update** command",
-            "/refresh ➡️ Refreshes and posts the updated group rankings.",
-            "/update 'username' ➡️ Fetches and updates the rank for a specific user.",
-            "/rankup 'username' ➡️ Displays the current rank, EHB, and next rank for a given player.",
-            "/refreshgroup ➡️ Forces a full update for the group's data.",
-            "/link 'username' 'discord_name' ➡️ Links a Discord user to a WiseOldMan username for mentions when ranking up.",
-            "/lookup 'username' ➡️ Lists the rank and EHB for a specific user.",
-            "/subscribeall 'discord_name' ➡️ Subscribes a Discord user to ALL usernames.",
-            "/unsubscribeall 'discord_name' ➡️ Removes a Discord user from ALL linked usernames.",
-            "/commands ➡️ Lists all available commands.",
-            "/goodnight ➡️ Sends a good night message.",
-            "/forcecheck ➡️ Forces check_for_rank_changes task to run.",
-            "/sendrankup_debug ➡️ Debugging command to simulate a rank up message.",
-            "/debug_group ➡️ Debugs and inspects group response.",
+            "\n"
+            "/refresh ➡️    Refreshes and posts the updated group rankings.",
+            "/update 'username' ➡️  Fetches and updates the rank for a specific user.",
+            "/rankup 'username' ➡️  Displays the current rank, EHB, and next rank for a given player.",
+            "/refreshgroup ➡️   Forces a full update for the group's data.",
+            "/link 'username' 'discord_name' ➡️     Links a Discord user to a WiseOldMan username for mentions when ranking up.",
+            "/lookup 'username' ➡️  Lists the rank and EHB for a specific user.",
+            "/subscribeall 'discord_name' ➡️    Subscribes a Discord user to ALL usernames.",
+            "/unsubscribeall 'discord_name' ➡️  Removes a Discord user from ALL linked usernames.",
+            "/commands ➡️   Lists all available commands.",
+            "/goodnight ➡️  Sends a good night message.",
+            "/forcecheck ➡️     Forces check_for_rank_changes task to run.",
+            "/sendrankup_debug ➡️   Debugging command to simulate a rank up message.",
+            "/debug_group ➡️    Debugs and inspects group response.",
         ]
         await ctx.send("**Available Commands:**\n" + "\n".join(command_list))
 
