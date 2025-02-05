@@ -237,13 +237,13 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
 setup_commands(
     discord_client,
     wom_client,
-    group_id
-,
+    group_id,
     get_rank,
     list_all_members_and_ranks,
     group_passcode,
     send_rank_up_message,
-    check_for_rank_changes
+    check_for_rank_changes,
+    debug
 )
 
 discord_client.run(discord_token)
