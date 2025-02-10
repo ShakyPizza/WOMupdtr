@@ -36,6 +36,7 @@ run_at_startup      = config['settings'].getboolean('run_at_startup', True)
 print_to_csv        = config['settings'].getboolean('print_to_csv', True)
 print_csv_changes   = config['settings'].getboolean('print_csv_changes', True)
 post_to_discord     = config['settings'].getboolean('post_to_discord', True)
+silent              = config['settings'].getboolean('silent', False)
 debug               = config['settings'].getboolean('debug', False)
 
 # ------------------------------------------------------------------------------
@@ -109,7 +110,8 @@ async def check_for_rank_changes():
     )
         if result.is_ok:
             group = result.unwrap()
-            log(f"Fetched group details successfully. Next comparison in {check_interval / 60:.0f} minutes.")
+            if not silent:
+                log(f"Fetched group details successfully. Next comparison in {check_interval / 60:.0f} minutes.")
             for membership in group.memberships:
                 try:
                     player = membership.player
