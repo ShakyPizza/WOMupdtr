@@ -5,15 +5,9 @@ from .rank_utils import load_ranks, save_ranks, next_rank
 
 
 # ------------------------------------------------------------------------------
-# Helper Functions
+# Helper Functions --- Formats the Discord fans for display.
 # ------------------------------------------------------------------------------
 def format_discord_fans(discord_fans):
-    """
-    Formats the Discord fans for display.
-    
-    If discord_fans is a list, join its items with " + ". Otherwise, return the string.
-    If no fans exist, return "0 😭".
-    """
     if isinstance(discord_fans, list):
         return " + ".join(discord_fans) if discord_fans else "0 😭"
     return discord_fans if discord_fans else "0 😭"
@@ -31,6 +25,7 @@ def setup_commands(
     # ------------------------------------------------------------------------------
     @bot.command(name="lookup")
     async def lookup(ctx, username: str):
+        
         try:
             ranks_data = load_ranks()
 
