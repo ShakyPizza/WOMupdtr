@@ -15,6 +15,7 @@
 *.json
 *.log
 *.DS_Store
+*.venv
 
 # Python
 # Byte-compiled / optimized / DLL files
