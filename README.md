@@ -30,7 +30,7 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
 
 3. Create a `config.ini` file in the project root directory:
    ```ini
-     [discord]
+    [discord]
     # Discord bot token
     token = 
 
@@ -40,13 +40,14 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
     [wiseoldman]
     # Wise Old Man group ID
     group_id = 
-  
+    group_passcode = 
+
     # Optional: Wise Old Man API key if you have one.
     api_key = 
 
     [settings]
     # Frequency for checking rank updates (in seconds)
-    check_interval = 600
+    check_interval = 3600
 
     # Set to true if you want the bot to send the initial message on startup into the discord channel.
     run_at_startup = false 
@@ -113,19 +114,5 @@ This project is licensed under the MIT License. See `LICENSE` for details.
 - [Wise Old Man API](https://wiseoldman.net/) for providing player data.
 - [Discord.py](https://discordpy.readthedocs.io/) for enabling Discord bot functionality.
 
----
-
-# Plugin:
-
-### Plugin Requirements (`plugin_reqs.txt`)
-- Java 11+
-- Gradle 8.12+
-- Runelite API dependencies (documented in `build.gradle`)
-
-### Bot Requirements (`bot_reqs.txt`)
-Install Python dependencies using:
-```bash
-pip install -r bot_reqs.txt
-```
 
 Happy Bossing!
