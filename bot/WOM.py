@@ -27,16 +27,17 @@ config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
 config.read(config_file)
 
 # Discord and Wise Old Man settings
-DISCORD_TOKEN       = config['discord']['token']
-CHANNEL_ID          = int(config['discord']['channel_id'])
-GROUP_ID            = int(config['wiseoldman']['group_id'])
-GROUP_PASSCODE      = config['wiseoldman']['GROUP_PASSCODE']
-CHECK_INTERVAL      = int(config['settings']['check_interval'])
-RUN_AT_STARTUP      = config['settings'].getboolean('run_at_startup', True)
-PRINT_TO_CSV        = config['settings'].getboolean('print_to_csv', True)
-PRINT_CSV_CHANGES   = config['settings'].getboolean('print_csv_changes', True)
-POST_TO_DISCORD     = config['settings'].getboolean('post_to_discord', True)
-DEBUG               = config['settings'].getboolean('debug', False)
+discord_token       = config['discord']['token']
+channel_id          = int(config['discord']['channel_id'])
+group_id            = int(config['wiseoldman']['group_id'])
+group_passcode      = config['wiseoldman']['group_passcode']
+check_interval      = int(config['settings']['check_interval'])
+run_at_startup      = config['settings'].getboolean('run_at_startup', True)
+print_to_csv        = config['settings'].getboolean('print_to_csv', True)
+print_csv_changes   = config['settings'].getboolean('print_csv_changes', True)
+post_to_discord     = config['settings'].getboolean('post_to_discord', True)
+silent              = config['settings'].getboolean('silent', False)
+debug               = config['settings'].getboolean('debug', False)
 
 # ------------------------------------------------------------------------------
 # Discord Client and Wise Old Man Client Initialization
@@ -86,30 +87,31 @@ async def on_ready():
     await wom_client.start()
 
     # Run initial member and ranks listing if enabled
-    if RUN_AT_STARTUP:
+    if run_at_startup:
         log("Running list_all_members_and_ranks at startup.")
         await list_all_members_and_ranks()
 
     # Start the periodic rank-checking task if not already running
     if not check_for_rank_changes.is_running():
-        log("Starting check_for_rank_changes task.")
+        if debug:
+            log("Starting check_for_rank_changes task.")
         check_for_rank_changes.start()
     else:
         log("check_for_rank_changes task is already running.")
 
-@tasks.loop(seconds=CHECK_INTERVAL)
+@tasks.loop(seconds=check_interval)
 async def check_for_rank_changes():
     try:
-        log("Starting player comparison...")
+        if debug:
+            log("debug mode on ")
+            log("Starting player comparison...")
         ranks_data = load_ranks()
-
-        if DEBUG:
-            log("Debug mode on")
-
-        result = await wom_client.groups.get_details(GROUP_ID)
+        result = await wom_client.groups.get_details(group_id
+    )
         if result.is_ok:
             group = result.unwrap()
-            log(f"Fetched group details successfully. Next comparison in {CHECK_INTERVAL / 60:.0f} minutes.")
+            if not silent:
+                log(f"Fetched group details successfully. Next comparison in {check_interval / 60:.0f} minutes.")
             for membership in group.memberships:
                 try:
                     player = membership.player
@@ -125,11 +127,12 @@ async def check_for_rank_changes():
                     # Compare and notify if rank has increased
                     if ehb > last_ehb:
                         await send_rank_up_message(username, rank, last_rank, ehb)
-                        log(f"Sent rank up message for {username} with {ehb} EHB.")
+                        if debug:
+                            log(f"Sent rank up message for {username} with {ehb} EHB for comparison in function.")
                         
                         # Update ranks data and log to CSV if enabled
                         ranks_data[username] = {"last_ehb": ehb, "rank": rank}
-                        if PRINT_TO_CSV:
+                        if print_to_csv:
                             log_ehb_to_csv(username, ehb)
                 except Exception as e:
                     player_name = getattr(membership.player, "display_name", "Unknown")
@@ -144,7 +147,8 @@ async def check_for_rank_changes():
 async def list_all_members_and_ranks():
     try:
         await wom_client.start()
-        result = await wom_client.groups.get_details(GROUP_ID)
+        result = await wom_client.groups.get_details(group_id
+    )
         if result.is_ok:
             group = result.unwrap()
             memberships = group.memberships
@@ -187,13 +191,13 @@ async def list_all_members_and_ranks():
                 message_lines.append("\n".join(chunk))
 
             # Send all message chunks to the configured Discord channel
-            channel = discord_client.get_channel(CHANNEL_ID)
+            channel = discord_client.get_channel(channel_id)
             if channel:
                 log(f"Sending message to channel: {channel.name}")
                 for message in message_lines:
                     await channel.send(message)
             else:
-                log(f"Channel with ID {CHANNEL_ID} not found.")
+                log(f"Channel with ID {channel_id} not found.")
         else:
             log(f"Failed to fetch group details: {result.unwrap_err()}")
     except Exception as e:
@@ -201,8 +205,8 @@ async def list_all_members_and_ranks():
 
 async def send_rank_up_message(username, new_rank, old_rank, ehb):
     try:
-        if DEBUG:
-            log(f"Debug mode: Sending rank up message for {username}.")
+        if debug:
+            log(f"debug mode: Sending rank up message for {username}.")
             
         ranks_data = load_ranks()
         discord_names = ranks_data.get(username, {}).get("discord_name", [])
@@ -214,9 +218,9 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
 
         # Only send message if the rank has changed
         if new_rank != old_rank:
-            channel = discord_client.get_channel(CHANNEL_ID)
+            channel = discord_client.get_channel(channel_id)
             if channel:
-                if POST_TO_DISCORD:
+                if post_to_discord:
                     await channel.send(
                         f'🎉 Congratulations **{username}** on moving up to the rank of **{new_rank}** '
                         f'with **{ehb}** EHB! 🎉\n'
@@ -224,7 +228,7 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
                     )
                     log(f"Sent rank up message for {username} to channel: {channel.name}")
             else:
-                log(f"Channel with ID {CHANNEL_ID} not found.")
+                log(f"Channel with ID {channel_id} not found.")
     except Exception as e:
         log(f"Error sending message: {e}")
 
@@ -235,12 +239,13 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
 setup_commands(
     discord_client,
     wom_client,
-    GROUP_ID,
+    group_id,
     get_rank,
     list_all_members_and_ranks,
-    GROUP_PASSCODE,
+    group_passcode,
     send_rank_up_message,
-    check_for_rank_changes
+    check_for_rank_changes,
+    debug
 )
 
-discord_client.run(DISCORD_TOKEN)
+discord_client.run(discord_token)
