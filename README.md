@@ -62,7 +62,7 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
     POST_TO_DISCORD = true
 
     [Other info]
-    # Updating group on WOM to be added soon.
+    # For updating the whole group at once.                         
     WOM_group_passcode =
 
     #Debug mode
