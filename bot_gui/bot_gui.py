@@ -61,7 +61,7 @@ class BotGUI(QWidget):
         self.logText.append(output)
     
     def load_csv(self):
-        options = QFileDialog.options()
+        options = QFileDialog.Options()
         filePath, _ = QFileDialog.getOpenFileName(self, "Open CSV File", "", "CSV Files (*.csv)", options=options)
         
         if filePath:
