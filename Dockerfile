@@ -5,6 +5,8 @@ FROM python:3.10
 WORKDIR /app
 
 # Copy project files
+COPY config.ini /app/config.ini
+COPY ranks.ini /app/ranks.ini
 COPY . .
 
 # Upgrade pip
