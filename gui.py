@@ -207,18 +207,23 @@ class BotGUI:
         """Log a message to both the GUI and the message queue."""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         formatted_message = f"{timestamp} - {message}"
-        self.log_text.insert(tk.END, f"{formatted_message}\n")
-        self.log_text.see(tk.END)
         self.msg_queue.put(formatted_message)
         
     def check_queue(self):
+        """Check for new messages in the queue and update the GUI."""
         try:
+            # Process all available messages
             while True:
-                message = self.msg_queue.get_nowait()
-                self.log_message(message)
-        except queue.Empty:
-            pass
+                try:
+                    message = self.msg_queue.get_nowait()
+                    self.log_text.insert(tk.END, f"{message}\n")
+                    self.log_text.see(tk.END)
+                except queue.Empty:
+                    break
+        except Exception as e:
+            print(f"Error processing queue: {e}")
         finally:
+            # Schedule the next check
             self.root.after(100, self.check_queue)
             
     def start_bot(self):
@@ -489,6 +494,9 @@ class BotGUI:
             
             # Run the event loop until the bot task is complete
             loop.run_until_complete(bot_task)
+            
+            # Keep the event loop running
+            loop.run_forever()
         except Exception as e:
             self.log_message(f"Error running bot: {e}")
             self.bot_running = False
@@ -503,10 +511,16 @@ class BotGUI:
                     task.cancel()
                 # Run until all tasks are cancelled
                 loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                
+                # Close the client session
+                if hasattr(wom_client, '_session') and wom_client._session:
+                    loop.run_until_complete(wom_client._session.close())
+                
                 # Close the event loop
                 loop.close()
-            except:
-                pass
+            except Exception as e:
+                self.log_message(f"Error during cleanup: {e}")
+            
 
 def main():
     root = tk.Tk()
