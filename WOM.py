@@ -4,19 +4,12 @@ import threading  # <--- for separate Discord bot thread
 from datetime import datetime
 from discord.ext import tasks, commands
 import discord
+import asyncio
 
 from wom import Client
 from utils.rank_utils import load_ranks, save_ranks
 from utils.log_csv import log_ehb_to_csv
 from utils.commands import setup_commands
-from flask import Flask
-
-# Initialize Flask for Cloud Run
-app = Flask(__name__)
-
-@app.route("/")
-def home():
-    return "Bot is running!"
 
 # ------------------------------------------------------------------------------
 # Helper Functions
@@ -25,7 +18,15 @@ def home():
 def log(message: str):
     """Logs a message with the current timestamp."""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"{timestamp} - {message}")
+    formatted_message = f"{timestamp} - {message}"
+    print(formatted_message)  # Print to terminal
+    
+    # Send to GUI if it's running
+    try:
+        from gui import BotGUI
+        BotGUI.msg_queue.put(formatted_message)
+    except Exception as e:
+        print(f"Failed to send message to GUI: {e}")  # Log the error but don't crash
 
 # ------------------------------------------------------------------------------
 # Configuration Loading
@@ -134,6 +135,7 @@ async def check_for_rank_changes():
 
                     # Compare and notify if rank has increased
                     if ehb > last_ehb:
+                        log(f"Player {username} EHB increased from {last_ehb:.2f} to {ehb:.2f}")
                         await send_rank_up_message(username, rank, last_rank, ehb)
                         if debug:
                             log(f"Sent rank up message for {username} with {ehb} EHB for comparison in function.")
@@ -147,6 +149,7 @@ async def check_for_rank_changes():
                     log(f"Error processing player data for {player_name}: {e}")
 
             save_ranks(ranks_data)
+            log("Rank check completed successfully!")
         else:
             log(f"Failed to fetch group details: {result.unwrap_err()}")
     except Exception as e:
@@ -256,15 +259,20 @@ setup_commands(
 )
 
 # ------------------------------------------------------------------------------
-# Run the Bot + Flask for Cloud Run
+# Run the Bot
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    def run_discord_bot():
-        discord_client.run(discord_token)
-
-    bot_thread = threading.Thread(target=run_discord_bot, daemon=True)
-    bot_thread.start()
-
-    # Start Flask app for Cloud Run
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8080)))
+    try:
+        # Create event loop for the main thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Run the Discord client
+        loop.run_until_complete(discord_client.start(discord_token))
+        loop.run_forever()
+    except KeyboardInterrupt:
+        # Handle graceful shutdown
+        loop.run_until_complete(discord_client.close())
+    finally:
+        loop.close()
