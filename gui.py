@@ -54,9 +54,6 @@ class BotGUI:
         # Start message checking
         self.check_queue()
         
-        # Apply theme
-        self.apply_theme()
-        
     def create_sidebar(self):
         sidebar = ttk.Frame(self.main_container, padding="5")
         sidebar.grid(row=0, column=0, rowspan=2, sticky=(tk.W, tk.E, tk.N, tk.S))
@@ -81,9 +78,45 @@ class BotGUI:
         ttk.Button(actions_frame, text="Force Rank Check", command=self.force_check).grid(row=1, column=0, sticky=(tk.W, tk.E), pady=2)
         ttk.Button(actions_frame, text="Edit Config", command=self.edit_config).grid(row=2, column=0, sticky=(tk.W, tk.E), pady=2)
         
+        # Commands Section
+        commands_frame = ttk.LabelFrame(sidebar, text="Available Commands", padding="5")
+        commands_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=5)
+        
+        # Create a canvas with scrollbar for commands
+        canvas = tk.Canvas(commands_frame, height=150)
+        scrollbar = ttk.Scrollbar(commands_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Add command buttons
+        commands = [
+            ("Lookup Player", self.show_lookup_dialog),
+            ("Update Player", self.show_update_dialog),
+            ("Check Next Rank", self.show_rankup_dialog),
+            ("Link Discord User", self.show_link_dialog),
+            ("Subscribe All", self.show_subscribe_all_dialog),
+            ("Unsubscribe All", self.show_unsubscribe_all_dialog),
+            ("Refresh Group", self.update_group),
+            ("Force Check", self.force_check),
+            ("Debug Group", self.debug_group)
+        ]
+        
+        for i, (text, command) in enumerate(commands):
+            ttk.Button(scrollable_frame, text=text, command=command).grid(row=i, column=0, sticky=(tk.W, tk.E), pady=2)
+        
+        canvas.grid(row=0, column=0, sticky=(tk.W, tk.E))
+        scrollbar.grid(row=0, column=1, sticky=(tk.N, tk.S))
+        
         # Settings Section
         settings_frame = ttk.LabelFrame(sidebar, text="Settings", padding="5")
-        settings_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=5)
+        settings_frame.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=5)
         
         # Checkbox for auto-refresh
         self.auto_refresh_var = tk.BooleanVar(value=self.config['settings'].getboolean('run_at_startup', True))
@@ -93,9 +126,9 @@ class BotGUI:
         self.csv_logging_var = tk.BooleanVar(value=self.config['settings'].getboolean('print_to_csv', True))
         ttk.Checkbutton(settings_frame, text="Log to CSV", variable=self.csv_logging_var).grid(row=1, column=0, sticky=(tk.W), pady=2)
         
-        # Checkbox for Discord notifications
+        # Checkbox for Post to Discord channel
         self.discord_notify_var = tk.BooleanVar(value=self.config['settings'].getboolean('post_to_discord', True))
-        ttk.Checkbutton(settings_frame, text="Discord notifications", variable=self.discord_notify_var).grid(row=2, column=0, sticky=(tk.W), pady=2)
+        ttk.Checkbutton(settings_frame, text="Post to Discord channel", variable=self.discord_notify_var).grid(row=2, column=0, sticky=(tk.W), pady=2)
         
         # Check interval setting
         interval_frame = ttk.Frame(settings_frame)
@@ -104,10 +137,6 @@ class BotGUI:
         self.check_interval_var = tk.StringVar(value=str(int(self.config['settings']['check_interval']) // 60))
         interval_spinbox = ttk.Spinbox(interval_frame, from_=1, to=1440, width=5, textvariable=self.check_interval_var)
         interval_spinbox.pack(side=tk.LEFT, padx=5)
-        
-        # Theme toggle
-        self.theme_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(settings_frame, text="Dark Theme", variable=self.theme_var, command=self.toggle_theme).grid(row=4, column=0, sticky=(tk.W), pady=2)
         
     def create_main_content(self):
         # Create notebook for tabs
@@ -257,9 +286,36 @@ class BotGUI:
     def refresh_rankings(self):
         self.log_message("Refreshing rankings...")
         try:
-            asyncio.run(list_all_members_and_ranks())
-            self.refresh_rankings_display()
-            self.log_message("Rankings refreshed successfully!")
+            # Create a new event loop for this operation
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
+            try:
+                # Initialize the client session
+                async def init_and_refresh():
+                    async with aiohttp.ClientSession() as session:
+                        # Set a timeout for the entire operation
+                        try:
+                            async with asyncio.timeout(30):  # 30 second timeout
+                                await list_all_members_and_ranks(session)
+                        except asyncio.TimeoutError:
+                            self.log_message("Operation timed out after 30 seconds")
+                            raise
+                
+                # Run the async operation in the new event loop
+                loop.run_until_complete(init_and_refresh())
+                self.refresh_rankings_display()
+                self.log_message("Rankings refreshed successfully!")
+            finally:
+                try:
+                    # Clean up any pending tasks
+                    pending = asyncio.all_tasks(loop)
+                    for task in pending:
+                        task.cancel()
+                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    loop.close()
+                except Exception as cleanup_error:
+                    self.log_message(f"Error during cleanup: {cleanup_error}")
         except Exception as e:
             self.log_message(f"Error refreshing rankings: {e}")
         
@@ -287,29 +343,40 @@ class BotGUI:
     def force_check(self):
         self.log_message("Forcing rank check...")
         try:
-            # Create a new event loop for this thread
+            # Create a new event loop for this operation
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
             
-            # Run the check_for_rank_changes task
-            loop.run_until_complete(check_for_rank_changes())
-            
-            # Refresh the rankings display
-            self.refresh_rankings_display()
-            self.log_message("Rank check completed!")
+            try:
+                # Initialize the client session and run check
+                async def init_and_check():
+                    async with aiohttp.ClientSession() as session:
+                        # Set a timeout for the entire operation
+                        try:
+                            async with asyncio.timeout(30):  # 30 second timeout
+                                await check_for_rank_changes(session)
+                        except asyncio.TimeoutError:
+                            self.log_message("Operation timed out after 30 seconds")
+                            raise
+                
+                # Run the check_for_rank_changes in the new event loop
+                loop.run_until_complete(init_and_check())
+                
+                self.log_message("Rank check completed!")
+                self.refresh_rankings_display()  # Refresh the display after check
+            finally:
+                try:
+                    # Clean up any pending tasks
+                    pending = asyncio.all_tasks(loop)
+                    for task in pending:
+                        task.cancel()
+                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                    loop.close()
+                except Exception as e:
+                    self.log_message(f"Error during cleanup: {e}")
         except Exception as e:
             self.log_message(f"Error during rank check: {e}")
-        finally:
-            try:
-                # Clean up the event loop
-                pending = asyncio.all_tasks(loop)
-                for task in pending:
-                    task.cancel()
-                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-                loop.close()
-            except:
-                pass
-            
+        
     def refresh_rankings_display(self):
         # Clear existing items
         for item in self.rankings_tree.get_children():
@@ -439,50 +506,6 @@ class BotGUI:
                 
         ttk.Button(config_window, text="Save", command=save_config).pack(pady=10)
         
-    def toggle_theme(self):
-        if self.theme_var.get():
-            self.apply_dark_theme()
-        else:
-            self.apply_light_theme()
-            
-    def apply_dark_theme(self):
-        style = ttk.Style()
-        style.configure(".", background="#2b2b2b", foreground="white")
-        style.configure("TFrame", background="#2b2b2b")
-        style.configure("TLabel", background="#2b2b2b", foreground="white")
-        style.configure("TButton", background="#3c3f41", foreground="white")
-        style.configure("TEntry", fieldbackground="#3c3f41", foreground="white")
-        style.configure("Treeview", background="#3c3f41", foreground="white", fieldbackground="#3c3f41")
-        style.configure("Treeview.Heading", background="#2b2b2b", foreground="white")
-        style.configure("TNotebook", background="#2b2b2b")
-        style.configure("TNotebook.Tab", background="#3c3f41", foreground="white")
-        style.configure("TLabelframe", background="#2b2b2b", foreground="white")
-        style.configure("TLabelframe.Label", background="#2b2b2b", foreground="white")
-        
-        self.log_text.configure(bg="#3c3f41", fg="white")
-        
-    def apply_light_theme(self):
-        style = ttk.Style()
-        style.configure(".", background="SystemButtonFace", foreground="SystemButtonText")
-        style.configure("TFrame", background="SystemButtonFace")
-        style.configure("TLabel", background="SystemButtonFace", foreground="SystemButtonText")
-        style.configure("TButton", background="SystemButtonFace", foreground="SystemButtonText")
-        style.configure("TEntry", fieldbackground="SystemWindow", foreground="SystemWindowText")
-        style.configure("Treeview", background="SystemWindow", foreground="SystemWindowText", fieldbackground="SystemWindow")
-        style.configure("Treeview.Heading", background="SystemButtonFace", foreground="SystemButtonText")
-        style.configure("TNotebook", background="SystemButtonFace")
-        style.configure("TNotebook.Tab", background="SystemButtonFace", foreground="SystemButtonText")
-        style.configure("TLabelframe", background="SystemButtonFace", foreground="SystemButtonText")
-        style.configure("TLabelframe.Label", background="SystemButtonFace", foreground="SystemButtonText")
-        
-        self.log_text.configure(bg="SystemWindow", fg="SystemWindowText")
-        
-    def apply_theme(self):
-        if self.theme_var.get():
-            self.apply_dark_theme()
-        else:
-            self.apply_light_theme()
-            
     def run_bot(self):
         try:
             # Create a new event loop for this thread
@@ -521,6 +544,122 @@ class BotGUI:
             except Exception as e:
                 self.log_message(f"Error during cleanup: {e}")
             
+    def show_lookup_dialog(self):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Lookup Player")
+        dialog.geometry("300x100")
+        
+        ttk.Label(dialog, text="Username:").grid(row=0, column=0, padx=5, pady=5)
+        username_entry = ttk.Entry(dialog)
+        username_entry.grid(row=0, column=1, padx=5, pady=5)
+        
+        def lookup():
+            username = username_entry.get()
+            if username:
+                self.log_message(f"Looking up player: {username}")
+                # Add lookup logic here
+                dialog.destroy()
+        
+        ttk.Button(dialog, text="Lookup", command=lookup).grid(row=1, column=0, columnspan=2, pady=10)
+        
+    def show_update_dialog(self):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Update Player")
+        dialog.geometry("300x100")
+        
+        ttk.Label(dialog, text="Username:").grid(row=0, column=0, padx=5, pady=5)
+        username_entry = ttk.Entry(dialog)
+        username_entry.grid(row=0, column=1, padx=5, pady=5)
+        
+        def update():
+            username = username_entry.get()
+            if username:
+                self.log_message(f"Updating player: {username}")
+                # Add update logic here
+                dialog.destroy()
+        
+        ttk.Button(dialog, text="Update", command=update).grid(row=1, column=0, columnspan=2, pady=10)
+        
+    def show_rankup_dialog(self):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Check Next Rank")
+        dialog.geometry("300x100")
+        
+        ttk.Label(dialog, text="Username:").grid(row=0, column=0, padx=5, pady=5)
+        username_entry = ttk.Entry(dialog)
+        username_entry.grid(row=0, column=1, padx=5, pady=5)
+        
+        def check_rank():
+            username = username_entry.get()
+            if username:
+                self.log_message(f"Checking next rank for: {username}")
+                # Add rank check logic here
+                dialog.destroy()
+        
+        ttk.Button(dialog, text="Check", command=check_rank).grid(row=1, column=0, columnspan=2, pady=10)
+        
+    def show_link_dialog(self):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Link Discord User")
+        dialog.geometry("300x150")
+        
+        ttk.Label(dialog, text="Username:").grid(row=0, column=0, padx=5, pady=5)
+        username_entry = ttk.Entry(dialog)
+        username_entry.grid(row=0, column=1, padx=5, pady=5)
+        
+        ttk.Label(dialog, text="Discord Name:").grid(row=1, column=0, padx=5, pady=5)
+        discord_entry = ttk.Entry(dialog)
+        discord_entry.grid(row=1, column=1, padx=5, pady=5)
+        
+        def link():
+            username = username_entry.get()
+            discord_name = discord_entry.get()
+            if username and discord_name:
+                self.log_message(f"Linking {discord_name} to {username}")
+                # Add link logic here
+                dialog.destroy()
+        
+        ttk.Button(dialog, text="Link", command=link).grid(row=2, column=0, columnspan=2, pady=10)
+        
+    def show_subscribe_all_dialog(self):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Subscribe All")
+        dialog.geometry("300x100")
+        
+        ttk.Label(dialog, text="Discord Name:").grid(row=0, column=0, padx=5, pady=5)
+        discord_entry = ttk.Entry(dialog)
+        discord_entry.grid(row=0, column=1, padx=5, pady=5)
+        
+        def subscribe():
+            discord_name = discord_entry.get()
+            if discord_name:
+                self.log_message(f"Subscribing {discord_name} to all players")
+                # Add subscribe logic here
+                dialog.destroy()
+        
+        ttk.Button(dialog, text="Subscribe", command=subscribe).grid(row=1, column=0, columnspan=2, pady=10)
+        
+    def show_unsubscribe_all_dialog(self):
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Unsubscribe All")
+        dialog.geometry("300x100")
+        
+        ttk.Label(dialog, text="Discord Name:").grid(row=0, column=0, padx=5, pady=5)
+        discord_entry = ttk.Entry(dialog)
+        discord_entry.grid(row=0, column=1, padx=5, pady=5)
+        
+        def unsubscribe():
+            discord_name = discord_entry.get()
+            if discord_name:
+                self.log_message(f"Unsubscribing {discord_name} from all players")
+                # Add unsubscribe logic here
+                dialog.destroy()
+        
+        ttk.Button(dialog, text="Unsubscribe", command=unsubscribe).grid(row=1, column=0, columnspan=2, pady=10)
+        
+    def debug_group(self):
+        self.log_message("Debugging group data...")
+        # Add debug logic here
 
 def main():
     root = tk.Tk()
