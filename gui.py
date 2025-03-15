@@ -293,14 +293,12 @@ class BotGUI:
             try:
                 # Initialize the client session
                 async def init_and_refresh():
-                    async with aiohttp.ClientSession() as session:
-                        # Set a timeout for the entire operation
-                        try:
-                            async with asyncio.timeout(30):  # 30 second timeout
-                                await list_all_members_and_ranks(session)
-                        except asyncio.TimeoutError:
-                            self.log_message("Operation timed out after 30 seconds")
-                            raise
+                    try:
+                        async with asyncio.timeout(30):  # 30 second timeout
+                            await list_all_members_and_ranks()
+                    except asyncio.TimeoutError:
+                        self.log_message("Operation timed out after 30 seconds")
+                        raise
                 
                 # Run the async operation in the new event loop
                 loop.run_until_complete(init_and_refresh())
