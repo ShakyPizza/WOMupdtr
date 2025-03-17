@@ -1,6 +1,5 @@
 import configparser
 import os
-import threading  # <--- for separate Discord bot thread
 from datetime import datetime
 from discord.ext import tasks, commands
 import discord
@@ -58,6 +57,7 @@ intents.messages = True
 intents.guilds = True
 intents.message_content = True  # Enable message content intent
 discord_client = commands.Bot(command_prefix="/", intents=intents)
+
 wom_client = Client()
 
 # ------------------------------------------------------------------------------
