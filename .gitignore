@@ -264,3 +264,4 @@ __pycache__/
 
 # Ignore Gradle build output directory
 build
+log.txt
