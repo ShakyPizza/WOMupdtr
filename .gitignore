@@ -24,6 +24,11 @@ __pycache__/
 *.pyo
 *.pyd
 
+
+# Electron
+node_modules/
+
+
 # Virtual environments
 venv/
 .env/
