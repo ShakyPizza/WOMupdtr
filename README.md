@@ -15,7 +15,7 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/WOMupdtr.git
+   git clone https://github.com/ShakyPizza/WOMupdtr.git
    cd WOMupdtr
    ```
 
