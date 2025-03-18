@@ -24,6 +24,12 @@ __pycache__/
 *.pyo
 *.pyd
 
+
+# Electron
+node_modules/
+output/
+
+
 # Virtual environments
 venv/
 .env/
