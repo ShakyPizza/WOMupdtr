@@ -4,11 +4,40 @@ from datetime import datetime
 from discord.ext import tasks, commands
 import discord
 import asyncio
+import aiohttp
+import contextlib
 
-from wom import Client
+from wom import Client as BaseClient
 from utils.rank_utils import load_ranks, save_ranks
 from utils.log_csv import log_ehb_to_csv
 from utils.commands import setup_commands
+
+class Client(BaseClient):
+    def __init__(self):
+        self._session = None
+        self._connector = None
+        super().__init__()
+    
+    async def start(self):
+        if self._session is None or self._session.closed:
+            self._connector = aiohttp.TCPConnector()
+            self._session = aiohttp.ClientSession(connector=self._connector)
+        return await super().start()
+    
+    async def close(self):
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self._session = None
+        if self._connector and not self._connector.closed:
+            await self._connector.close()
+            self._connector = None
+
+    async def __aenter__(self):
+        await self.start()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.close()
 
 # ------------------------------------------------------------------------------
 # Helper Functions
@@ -32,7 +61,7 @@ def log(message: str):
 # ------------------------------------------------------------------------------
 
 config = configparser.ConfigParser()
-config_file = os.path.join(os.path.dirname(__file__), 'config.ini')
+config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.ini')
 config.read(config_file)
 
 # Discord and Wise Old Man settings
@@ -64,7 +93,7 @@ wom_client = Client()
 # Utility Functions
 # ------------------------------------------------------------------------------
 
-def get_rank(ehb, ranks_file=os.path.join(os.path.dirname(__file__), 'ranks.ini')):
+def get_rank(ehb, ranks_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ranks.ini')):
     """
     Determines the rank based on the player's EHB using the ranges defined in ranks.ini.
     Ranges can be specified either as a range (e.g. "0-10") or as a lower bound (e.g. "1500+").
@@ -268,11 +297,27 @@ if __name__ == "__main__":
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
-        # Run the Discord client
-        loop.run_until_complete(discord_client.start(discord_token))
-        loop.run_forever()
-    except KeyboardInterrupt:
-        # Handle graceful shutdown
-        loop.run_until_complete(discord_client.close())
+        async def main():
+            async with wom_client, contextlib.AsyncExitStack() as stack:
+                await discord_client.start(discord_token)
+                try:
+                    await asyncio.Future()  # run forever
+                except asyncio.CancelledError:
+                    await discord_client.close()
+        
+        try:
+            loop.run_until_complete(main())
+        except KeyboardInterrupt:
+            print("\nShutting down gracefully...")
+            tasks = [t for t in asyncio.all_tasks(loop) if t is not asyncio.current_task(loop)]
+            for task in tasks:
+                task.cancel()
+            loop.run_until_complete(asyncio.gather(*tasks, return_exceptions=True))
+            
     finally:
-        loop.close()
+        try:
+            loop.run_until_complete(loop.shutdown_asyncgens())
+            loop.close()
+        except Exception as e:
+            print(f"Error during final cleanup: {e}")
+        print("Cleanup complete. Goodbye!")
