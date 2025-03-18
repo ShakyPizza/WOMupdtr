@@ -1,5 +1,0 @@
-discord
-configparser
-wom.py
-asyncio
-aiohttp

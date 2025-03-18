@@ -1,6 +1,3 @@
-// WOMtest.js
-// A test script to gather data from the Wise Old Man API, now with javascript!
-
 const { app, BrowserWindow, ipcMain } = require('electron');
 const { WOMClient } = require('@wise-old-man/utils');
 const fs = require('fs');
@@ -18,7 +15,7 @@ function createWindow() {
         }
     });
 
-    mainWindow.loadFile('index.html');
+    mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
 }
 
 // Helper function to log messages with timestamp
@@ -42,7 +39,7 @@ async function fetchGroupDetails(groupId) {
         log("Group details fetched successfully");
 
         // Create output directory if it doesn't exist
-        const outputDir = path.join(__dirname, 'output');
+        const outputDir = path.join(__dirname, '../../output');
         if (!fs.existsSync(outputDir)) {
             fs.mkdirSync(outputDir);
         }
@@ -90,6 +87,4 @@ ipcMain.handle('fetch-group', async (event, groupId) => {
     } catch (error) {
         return { error: error.message };
     }
-});
-
-
+}); 
