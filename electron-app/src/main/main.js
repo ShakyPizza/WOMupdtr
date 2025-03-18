@@ -35,7 +35,7 @@ async function fetchGroupDetails(groupId) {
         log("WOM client initialized");
 
         // Fetch group details
-        const result = await client.groups.getGroupDetails(groupId);
+        const groupDetails = await client.groups.getGroupDetails(groupId);
         log("Group details fetched successfully");
 
         // Create output directory if it doesn't exist
@@ -48,16 +48,11 @@ async function fetchGroupDetails(groupId) {
         const outputPath = path.join(outputDir, 'group_details.json');
         fs.writeFileSync(
             outputPath,
-            JSON.stringify(result, null, 2)
+            JSON.stringify(groupDetails, null, 2)
         );
         log(`Group details saved to ${outputPath}`);
 
-        return {
-            name: result.name,
-            memberCount: result.memberCount,
-            createdAt: result.createdAt,
-            updatedAt: result.updatedAt
-        };
+        return groupDetails;
 
     } catch (error) {
         log(`Error: ${error.message}`);
