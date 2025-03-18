@@ -24,7 +24,7 @@ async function fetchGroup() {
             const groupInfo = `
                 <div class="group-info">
                     <h2>${result.name}</h2>
-                    <p><strong>Member Count:</strong> ${formatNumber(result.memberCount)}</p>
+                    <p><strong>Member Count:</strong> ${formatNumber(result.memberships.length)}</p>
                     <p><strong>Created At:</strong> ${formatDate(result.createdAt)}</p>
                     <p><strong>Last Updated:</strong> ${formatDate(result.updatedAt)}</p>
                     <p><strong>Description:</strong> ${result.description || 'No description'}</p>
@@ -35,28 +35,32 @@ async function fetchGroup() {
 
             // Display member list
             const membersList = `
-                <h3>Members (${result.members.length})</h3>
+                <h3>Members (${result.memberships.length})</h3>
                 <div class="members-list">
-                    ${result.members.map(member => `
+                    ${result.memberships.map(membership => `
                         <div class="member-card">
-                            <h3>${member.username}</h3>
+                            <h3>${membership.player.displayName || membership.player.username}</h3>
                             <div class="member-stats">
                                 <div class="stats-grid">
                                     <div class="stat-item">
                                         <div class="stat-label">Role</div>
-                                        <div class="stat-value">${member.role || 'Member'}</div>
+                                        <div class="stat-value">${membership.role || 'Member'}</div>
+                                    </div>
+                                    <div class="stat-item">
+                                        <div class="stat-label">Type</div>
+                                        <div class="stat-value">${membership.player.type || 'regular'}</div>
                                     </div>
                                     <div class="stat-item">
                                         <div class="stat-label">Experience</div>
-                                        <div class="stat-value">${formatNumber(member.exp || 0)}</div>
+                                        <div class="stat-value">${formatNumber(membership.player.exp || 0)}</div>
                                     </div>
                                     <div class="stat-item">
-                                        <div class="stat-label">Achievements</div>
-                                        <div class="stat-value">${member.achievements ? formatNumber(member.achievements) : '0'}</div>
+                                        <div class="stat-label">EHP</div>
+                                        <div class="stat-value">${formatNumber(Math.floor(membership.player.ehp || 0))}</div>
                                     </div>
                                     <div class="stat-item">
-                                        <div class="stat-label">Combat Level</div>
-                                        <div class="stat-value">${member.combatLevel || 'N/A'}</div>
+                                        <div class="stat-label">EHB</div>
+                                        <div class="stat-value">${formatNumber(Math.floor(membership.player.ehb || 0))}</div>
                                     </div>
                                 </div>
                             </div>
