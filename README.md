@@ -18,51 +18,32 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
    git clone https://github.com/ShakyPizza/WOMupdtr.git
    cd WOMupdtr
    ```
-
 2. Install dependencies:
    ```bash
+   cd python
    pip install -r requirements.txt
    ```
 
 3. Create a `config.ini` file in the project root directory:
    ```ini
    [discord]
-   # Discord bot token
-   token = 
-
-   # ID of the Discord channel where rank-up messages will be sent
-   channel_id = 
+   token =
+   channel_id =
 
    [wiseoldman]
-   # Wise Old Man group ID
-   group_id = 
-   group_passcode = 
-
-   # Optional: Wise Old Man API key if you have one
-   api_key = 
+   group_id =
+   group_passcode =
+   api_key =
 
    [settings]
-   # Frequency for checking rank updates (in seconds)
    check_interval = 3600
-
-   # Enable/disable initial message on startup
-   run_at_startup = false 
-
-   # Enable/disable CSV logging
-   PRINT_TO_CSV = false
-
-   # Enable/disable console logging of CSV changes
+   run_at_startup = false
+   print_to_csv = true
    print_csv_changes = false
+   post_to_discord = false
+   debug = false
+   silent = false
 
-   # Enable/disable Discord notifications
-   POST_TO_DISCORD = true
-
-   [Other info]
-   # Group passcode for bulk updates
-   WOM_group_passcode =
-
-   # Debug mode
-   DEBUG = false
    ```
 
 4. Create a `ranks.ini` file to define rank thresholds:
@@ -86,9 +67,31 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
    ```
 
 ## Usage
-- The bot automatically tracks ranks based on your configuration
-- Use `/refresh` to manually refresh rankings
-- Use `/update <username>` to update a specific user's rank information (use quotes for usernames with spaces)
+
+The bot automatically tracks ranks based on your configuration. Below are all available commands:
+
+### General Commands
+- `/commands` - Lists all available commands
+- `/refresh` - Refreshes and posts the updated group rankings
+- `/update <username>` - Fetches and updates the rank for a specific user
+- `/lookup <username>` - Lists the rank and EHB for a specific user
+- `/rankup <username>` - Displays the current rank, EHB, and next rank for a given player
+- `/goodnight` - Sends a good night message
+
+### Group Management
+- `/refreshgroup` - Forces a full update for the group's data using the WiseOldMan API
+- `/forcecheck` - Forces an immediate check for rank changes
+
+### User Linking
+- `/link <username> <discord_name>` - Links a Discord user to a WiseOldMan username for rank-up notifications
+- `/subscribeall <discord_name>` - Subscribes a Discord user to ALL usernames
+- `/unsubscribeall <discord_name>` - Removes a Discord user from ALL linked usernames
+
+### Debug Commands
+- `/debug_group` - Debugs and inspects group response
+- `/sendrankup_debug` - Debugging command to simulate a rank up message
+
+**Note**: For usernames with spaces, enclose them in quotes (e.g., "/update 'Player Name'")
 
 ## Logging
 - EHB values are logged to `ehb_log.csv`
