@@ -1,7 +1,5 @@
 # WOMupdtr
 
-# Rich Boys Ranking Bot
-
 A Discord bot that integrates with the Wise Old Man API to track, rank, and notify group members based on their EHB (Efficient Hours Bossed). This bot features rank-up notifications, detailed rankings, and CSV logging for group member statistics.
 
 ## Features
@@ -11,65 +9,63 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
   - `/refresh`: Refreshes and posts updated rankings.
   - `/update <username>`: Fetches and updates rank information for a specific member.
 - **CSV Logging**: Logs EHB values to a CSV file for historical tracking.
-- **Configurable Settings**:
-  - Enable or disable logging and rank messages at startup.
-  - Customize check intervals and rank ranges via configuration files.
+- **Configurable Settings**: Customize bot behavior through the config file.
 
 ## Installation
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/your-username/rich-boys-ranking-bot.git
-   cd rich-boys-ranking-bot
+   git clone https://github.com/your-username/WOMupdtr.git
+   cd WOMupdtr
    ```
 
-2. Install dependencies for WOMupdtr bot from inside the bot folder:
+2. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
 
 3. Create a `config.ini` file in the project root directory:
    ```ini
-    [discord]
-    # Discord bot token
-    token = 
+   [discord]
+   # Discord bot token
+   token = 
 
-    # ID of the Discord channel where rank-up messages will be sent
-    channel_id = 
+   # ID of the Discord channel where rank-up messages will be sent
+   channel_id = 
 
-    [wiseoldman]
-    # Wise Old Man group ID
-    group_id = 
-    group_passcode = 
+   [wiseoldman]
+   # Wise Old Man group ID
+   group_id = 
+   group_passcode = 
 
-    # Optional: Wise Old Man API key if you have one.
-    api_key = 
+   # Optional: Wise Old Man API key if you have one
+   api_key = 
 
-    [settings]
-    # Frequency for checking rank updates (in seconds)
-    check_interval = 3600
+   [settings]
+   # Frequency for checking rank updates (in seconds)
+   check_interval = 3600
 
-    # Set to true if you want the bot to send the initial message on startup into the discord channel.
-    run_at_startup = false 
+   # Enable/disable initial message on startup
+   run_at_startup = false 
 
-    # Set to true if you want the bot to print the rank changes to ehb_log.csv file.
-    PRINT_TO_CSV = false
+   # Enable/disable CSV logging
+   PRINT_TO_CSV = false
 
-    # Set to true if you want the .csv changes to be printed in the console.
-    print_csv_changes = false
+   # Enable/disable console logging of CSV changes
+   print_csv_changes = false
 
-    # Set to true if you want the bot to post the rank changes to the discord channel.
-    POST_TO_DISCORD = true
+   # Enable/disable Discord notifications
+   POST_TO_DISCORD = true
 
-    [Other info]
-    # For updating the whole group at once.                         
-    WOM_group_passcode =
+   [Other info]
+   # Group passcode for bulk updates
+   WOM_group_passcode =
 
-    #Debug mode
-    DEBUG = false
+   # Debug mode
+   DEBUG = false
    ```
 
-4. Create a `ranks.ini` file to define rank thresholds, example shown here:
+4. Create a `ranks.ini` file to define rank thresholds:
    ```ini
    [Group Ranking]
    0-10 = Goblin
@@ -90,29 +86,27 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
    ```
 
 ## Usage
-- The bot will automatically start tracking ranks based on your configuration.
-- Use the `/refresh` command to manually refresh rankings.
-- Use the `/update <username>` command to get updated rank information for a specific user, if username has spaces use "<username>".
+- The bot automatically tracks ranks based on your configuration
+- Use `/refresh` to manually refresh rankings
+- Use `/update <username>` to update a specific user's rank information (use quotes for usernames with spaces)
 
 ## Logging
-- EHB values are logged to `ehb_log.csv` for tracking purposes.
-- Logging to CSV can be toggled with via `print_to_csv` setting in `config.ini`.
-- Terminal logging of CSV updates can be toggled via the `print_csv_changes` setting in `config.ini`.
+- EHB values are logged to `ehb_log.csv`
+- Configure logging behavior in `config.ini`:
+  - `PRINT_TO_CSV`: Enable/disable CSV logging
+  - `print_csv_changes`: Enable/disable console logging of CSV updates
 
-## Development
-
-To contribute to this project:
-1. Fork the repository.
-2. Create a new feature branch.
-3. Commit your changes and push to your fork.
-4. Submit a pull request.
+## Contributing
+1. Fork the repository
+2. Create a feature branch
+3. Commit your changes
+4. Submit a pull request
 
 ## License
 This project is licensed under the MIT License. See `LICENSE` for details.
 
 ## Acknowledgments
-- [Wise Old Man API](https://wiseoldman.net/) for providing player data.
-- [Discord.py](https://discordpy.readthedocs.io/) for enabling Discord bot functionality.
-
+- [Wise Old Man API](https://wiseoldman.net/) for OSRS player data
+- [Discord.py](https://discordpy.readthedocs.io/) for Discord integration
 
 Happy Bossing!
