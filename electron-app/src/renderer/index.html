@@ -8,12 +8,30 @@
     <div class="container">
         <h1>Wise Old Man Group Details</h1>
         
-        <div class="input-group">
-            <input type="number" id="groupId" placeholder="Enter Group ID">
-            <button onclick="fetchGroup()">Fetch Group Details</button>
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('group')">Group Details</button>
+            <button class="tab-button" onclick="switchTab('members')">Members</button>
+            <button class="tab-button" onclick="switchTab('stats')">Statistics</button>
         </div>
 
-        <div id="result"></div>
+        <div id="group-tab" class="tab-content active">
+            <div class="input-group">
+                <input type="number" id="groupId" placeholder="Enter Group ID">
+                <button onclick="fetchGroup()">Fetch Group Details</button>
+            </div>
+            <div id="result"></div>
+        </div>
+
+        <div id="members-tab" class="tab-content">
+            <div id="members-content"></div>
+        </div>
+
+        <div id="stats-tab" class="tab-content">
+            <div id="stats-content">
+                <h2>Group Statistics</h2>
+                <div id="group-stats"></div>
+            </div>
+        </div>
         
         <h3>Log</h3>
         <div id="log"></div>
