@@ -8,6 +8,96 @@ function formatNumber(num) {
     return num.toLocaleString();
 }
 
+function switchTab(tabName) {
+    // Update tab buttons
+    document.querySelectorAll('.tab-button').forEach(button => {
+        button.classList.remove('active');
+    });
+    document.querySelector(`.tab-button[onclick="switchTab('${tabName}')"]`).classList.add('active');
+
+    // Update tab content
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    document.getElementById(`${tabName}-tab`).classList.add('active');
+
+    // If switching to members tab and we have data, update the members list
+    if (tabName === 'members' && window.currentGroupData) {
+        updateMembersTab();
+    } else if (tabName === 'stats' && window.currentGroupData) {
+        updateStatsTab();
+    }
+}
+
+function updateMembersTab() {
+    const membersContent = document.getElementById('members-content');
+    const controls = `
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="memberSearch" placeholder="Search members..." onkeyup="filterAndSortMembers()">
+            </div>
+            <div class="sort-controls">
+                <select id="sortBy" onchange="filterAndSortMembers()">
+                    <option value="name">Name</option>
+                    <option value="exp">Experience</option>
+                    <option value="ehp">EHP</option>
+                    <option value="ehb">EHB</option>
+                </select>
+                <button onclick="toggleSortDirection()">
+                    <span id="sortDirection">v</span>
+                </button>
+            </div>
+        </div>
+    `;
+    membersContent.innerHTML = controls + '<div id="membersList"></div>';
+    filterAndSortMembers();
+}
+
+function updateStatsTab() {
+    const statsContent = document.getElementById('group-stats');
+    if (!window.currentGroupData) {
+        statsContent.innerHTML = '<p>Please fetch group details first</p>';
+        return;
+    }
+
+    const members = window.currentGroupData.memberships;
+    const totalExp = members.reduce((sum, m) => sum + (m.player.exp || 0), 0);
+    const totalEHP = members.reduce((sum, m) => sum + (m.player.ehp || 0), 0);
+    const totalEHB = members.reduce((sum, m) => sum + (m.player.ehb || 0), 0);
+    const avgExp = totalExp / members.length;
+    const avgEHP = totalEHP / members.length;
+    const avgEHB = totalEHB / members.length;
+
+    statsContent.innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="stat-label">Total Experience</div>
+                <div class="stat-value">${formatNumber(totalExp)}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Average Experience</div>
+                <div class="stat-value">${formatNumber(Math.floor(avgExp))}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Total EHP</div>
+                <div class="stat-value">${formatNumber(Math.floor(totalEHP))}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Average EHP</div>
+                <div class="stat-value">${formatNumber(Math.floor(avgEHP))}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Total EHB</div>
+                <div class="stat-value">${formatNumber(Math.floor(totalEHB))}</div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-label">Average EHB</div>
+                <div class="stat-value">${formatNumber(Math.floor(avgEHB))}</div>
+            </div>
+        </div>
+    `;
+}
+
 async function fetchGroup() {
     const groupId = document.getElementById('groupId').value;
     if (!groupId) {
@@ -20,10 +110,9 @@ async function fetchGroup() {
         if (result.error) {
             document.getElementById('result').innerHTML = `Error: ${result.error}`;
         } else {
-            // Store the result globally for filtering/sorting
             window.currentGroupData = result;
 
-            // Display group info
+            // Display group info in the group tab
             const groupInfo = `
                 <div class="group-info">
                     <h2>${result.name}</h2>
@@ -35,30 +124,11 @@ async function fetchGroup() {
                     <p><strong>Homepage:</strong> ${result.homeworld ? `World ${result.homeworld}` : 'Not specified'}</p>
                 </div>
             `;
+            document.getElementById('result').innerHTML = groupInfo;
 
-            // Add filter and sort controls
-            const controls = `
-                <div class="controls">
-                    <div class="search-box">
-                        <input type="text" id="memberSearch" placeholder="Search members..." onkeyup="filterAndSortMembers()">
-                    </div>
-                    <div class="sort-controls">
-                        <select id="sortBy" onchange="filterAndSortMembers()">
-                            <option value="name">Name</option>
-                            <option value="exp">Experience</option>
-                            <option value="ehp">EHP</option>
-                            <option value="ehb">EHB</option>
-                        </select>
-                        <button onclick="toggleSortDirection()">
-                            <span id="sortDirection">v</span>
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            // Display member list (initial render)
-            document.getElementById('result').innerHTML = groupInfo + controls + '<div id="membersList"></div>';
-            filterAndSortMembers();
+            // Update other tabs
+            updateMembersTab();
+            updateStatsTab();
         }
     } catch (error) {
         document.getElementById('result').innerHTML = `Error: ${error.message}`;
