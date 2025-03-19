@@ -53,23 +53,16 @@ async function saveGroupInfo(groupData) {
             fs.mkdirSync(outputDir);
         }
 
-        // Debug logging
-        log('Group data received:');
-        log(JSON.stringify(groupData, null, 2));
-
         // Create a filename with the group ID and simplified timestamp
         const now = new Date();
         const dateStr = now.toLocaleDateString().replace(/\//g, '-');
-        const timeStr = now.toLocaleTimeString('en-IS', {
+        const timeStr = now.toLocaleTimeString('en-US', {
             hour: '2-digit',
             minute: '2-digit',
             hour12: false
         }).replace(':', '-').replace(' ', '');
         
-        // Ensure we have a valid group name and log it
-        log('Raw group name: ' + groupData.name);
         const groupName = groupData.name || 'Unknown Group';
-        log('Processed group name: ' + groupName);
         const safeGroupName = groupName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
         
         const filename = `${safeGroupName}_${dateStr}_${timeStr}.json`;
