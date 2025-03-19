@@ -38,25 +38,61 @@ async function fetchGroupDetails(groupId) {
         const groupDetails = await client.groups.getGroupDetails(groupId);
         log("Group details fetched successfully");
 
-        // Create output directory if it doesn't exist
-        const outputDir = path.join(__dirname, '../../output');
-        if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(outputDir);
-        }
-
-        // Save to JSON file with pretty formatting
-        const outputPath = path.join(outputDir, 'group_details.json');
-        fs.writeFileSync(
-            outputPath,
-            JSON.stringify(groupDetails, null, 2)
-        );
-        log(`Group details saved to ${outputPath}`);
-
         return groupDetails;
 
     } catch (error) {
         log(`Error: ${error.message}`);
         throw error;
+    }
+}
+
+async function saveGroupInfo(groupData) {
+    try {
+        const outputDir = path.join(__dirname, '../../output');
+        if (!fs.existsSync(outputDir)) {
+            fs.mkdirSync(outputDir);
+        }
+
+        // Debug logging
+        log('Group data received:');
+        log(JSON.stringify(groupData, null, 2));
+
+        // Create a filename with the group ID and simplified timestamp
+        const now = new Date();
+        const dateStr = now.toLocaleDateString().replace(/\//g, '-');
+        const timeStr = now.toLocaleTimeString('en-IS', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        }).replace(':', '-').replace(' ', '');
+        
+        // Ensure we have a valid group name and log it
+        log('Raw group name: ' + groupData.name);
+        const groupName = groupData.name || 'Unknown Group';
+        log('Processed group name: ' + groupName);
+        const safeGroupName = groupName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        
+        const filename = `${safeGroupName}_${dateStr}_${timeStr}.json`;
+        const displayName = `${groupName} (${dateStr} ${timeStr})`;
+        
+        const outputPath = path.join(outputDir, filename);
+
+        // Save to JSON file with pretty formatting
+        fs.writeFileSync(
+            outputPath,
+            JSON.stringify(groupData, null, 2)
+        );
+        log(`Group info saved to ${outputPath}`);
+
+        return { 
+            success: true, 
+            filePath: outputPath, 
+            filename: filename,
+            displayName: displayName
+        };
+    } catch (error) {
+        log(`Error saving group info: ${error.message}`);
+        return { success: false, error: error.message };
     }
 }
 
@@ -82,4 +118,8 @@ ipcMain.handle('fetch-group', async (event, groupId) => {
     } catch (error) {
         return { error: error.message };
     }
+});
+
+ipcMain.handle('save-group-info', async (event, groupData) => {
+    return await saveGroupInfo(groupData);
 }); 
