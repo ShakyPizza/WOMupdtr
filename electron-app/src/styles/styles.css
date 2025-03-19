@@ -43,15 +43,21 @@ button:hover {
     white-space: pre-wrap;
 }
 
+#logs-tab {
+    height: calc(100vh - 200px);
+    overflow-y: auto;
+}
+
 #log {
-    margin-top: 20px;
     padding: 10px;
     background-color: #f8f9fa;
     border: 1px solid #ddd;
     border-radius: 4px;
-    height: 200px;
+    height: calc(100vh - 250px);
     overflow-y: auto;
     font-family: monospace;
+    line-height: 1.4;
+    margin: 0;
 }
 
 .group-info {
