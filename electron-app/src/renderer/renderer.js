@@ -109,6 +109,8 @@ async function fetchGroup() {
         const result = await ipcRenderer.invoke('fetch-group', parseInt(groupId));
         if (result.error) {
             document.getElementById('result').innerHTML = `Error: ${result.error}`;
+            document.getElementById('saveButton').disabled = true;
+            window.currentGroupData = null;
         } else {
             window.currentGroupData = result;
 
@@ -125,6 +127,7 @@ async function fetchGroup() {
                 </div>
             `;
             document.getElementById('result').innerHTML = groupInfo;
+            document.getElementById('saveButton').disabled = false;
 
             // Update other tabs
             updateMembersTab();
@@ -132,6 +135,8 @@ async function fetchGroup() {
         }
     } catch (error) {
         document.getElementById('result').innerHTML = `Error: ${error.message}`;
+        document.getElementById('saveButton').disabled = true;
+        window.currentGroupData = null;
     }
 }
 
@@ -220,6 +225,25 @@ function filterAndSortMembers() {
     `;
 
     document.getElementById('membersList').innerHTML = membersList;
+}
+
+async function saveInfo() {
+    if (!window.currentGroupData) {
+        alert('Please fetch group details first');
+        return;
+    }
+
+    try {
+        console.log('Current group data:', window.currentGroupData);
+        const result = await ipcRenderer.invoke('save-group-info', window.currentGroupData);
+        if (result.success) {
+            alert(`Group info saved successfully as "${result.displayName}"`);
+        } else {
+            alert('Failed to save group info: ' + result.error);
+        }
+    } catch (error) {
+        alert('Error saving group info: ' + error.message);
+    }
 }
 
 // Handle logs from main process
