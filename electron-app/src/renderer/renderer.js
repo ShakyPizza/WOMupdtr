@@ -234,7 +234,6 @@ async function saveInfo() {
     }
 
     try {
-        console.log('Current group data:', window.currentGroupData);
         const result = await ipcRenderer.invoke('save-group-info', window.currentGroupData);
         if (result.success) {
             alert(`Group info saved successfully as "${result.displayName}"`);
@@ -249,6 +248,11 @@ async function saveInfo() {
 // Handle logs from main process
 ipcRenderer.on('log', (event, message) => {
     const logDiv = document.getElementById('log');
-    logDiv.innerHTML += message + '\n';
+    // Add a newline before the message if the log is not empty
+    if (logDiv.innerHTML) {
+        logDiv.innerHTML += '\n' + message;
+    } else {
+        logDiv.innerHTML = message;
+    }
     logDiv.scrollTop = logDiv.scrollHeight;
 }); 
