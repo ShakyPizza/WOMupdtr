@@ -167,7 +167,12 @@ class BotGUI:
         search_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=5)
         
         # Create treeview for rankings
-        self.rankings_tree = ttk.Treeview(rankings_frame, columns=("rs_username", "Rank", "EHB", "Next Rank"), show="headings")
+        # Define columns in the order they will be displayed
+        self.rankings_tree = ttk.Treeview(
+            rankings_frame,
+            columns=("rs_username", "Rank", "EHB", "Next Rank"),
+            show="headings",
+        )
         self.rankings_tree.heading("rs_username", text="RuneScape Username")
         self.rankings_tree.heading("Rank", text="Rank")
         self.rankings_tree.heading("EHB", text="EHB")
@@ -380,10 +385,21 @@ class BotGUI:
             
         # Load and display rankings
         ranks_data = load_ranks()
-        for username, data in sorted(ranks_data.items(), key=lambda x: x[1]["last_ehb"], reverse=True):
+        for username, data in sorted(
+            ranks_data.items(), key=lambda x: x[1]["last_ehb"], reverse=True
+        ):
             next_rank_info = next_rank(username)
-            self.rankings_tree.insert("", tk.END, text=username, 
-                                    values=(username, f"{data['last_ehb']:.2f}", data["rank"], next_rank_info))
+            self.rankings_tree.insert(
+                "",
+                tk.END,
+                text=username,
+                values=(
+                    username,
+                    data["rank"],
+                    f"{data['last_ehb']:.2f}",
+                    next_rank_info,
+                ),
+            )
             
     def filter_rankings(self, *args):
         search_term = self.search_var.get().lower()
@@ -663,4 +679,4 @@ def main():
     root.mainloop()
 
 if __name__ == "__main__":
-    main() 
+    main()
