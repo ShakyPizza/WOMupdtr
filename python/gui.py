@@ -97,7 +97,7 @@ class BotGUI:
         commands_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=5)
         
         # Create a canvas with scrollbar for commands
-        canvas = tk.Canvas(commands_frame, height=150)
+        canvas = tk.Canvas(commands_frame, height=280)
         scrollbar = ttk.Scrollbar(commands_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
         
@@ -306,7 +306,7 @@ class BotGUI:
             self.bot_running = True
             self.bot_thread = threading.Thread(target=self.run_bot, daemon=True)
             self.bot_thread.start()
-            
+
             # Update the GUI state
             self.start_button.config(state='disabled')
             self.stop_button.config(state='normal')
