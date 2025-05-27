@@ -306,6 +306,8 @@ class BotGUI:
             self.bot_running = True
             self.bot_thread = threading.Thread(target=self.run_bot, daemon=True)
             self.bot_thread.start()
+            
+            # Update the GUI state
             self.start_button.config(state='disabled')
             self.stop_button.config(state='normal')
             self.bot_status.config(text="Bot Running", foreground="green")
