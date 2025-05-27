@@ -302,6 +302,7 @@ class BotGUI:
     def start_bot(self):
         if not self.bot_running:
             self.log_message("Starting bot...")
+            self.log_message(f"Logged in as {discord_client.user}")
             self.bot_running = True
             self.bot_thread = threading.Thread(target=self.run_bot, daemon=True)
             self.bot_thread.start()
