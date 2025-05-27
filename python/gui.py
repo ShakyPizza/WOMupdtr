@@ -29,8 +29,22 @@ class BotGUI:
         self.msg_queue = BotGUI.msg_queue  # Use the class-level queue
         
         # Load config
-        self.config = configparser.ConfigParser()
-        self.config.read('config.ini')
+        config = configparser.ConfigParser()
+        config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.ini')
+        config.read(config_file)
+        self.config = config
+
+        discord_token       = config['discord']['token']
+        channel_id          = int(config['discord']['channel_id'])
+        group_id            = int(config['wiseoldman']['group_id'])
+        group_passcode      = config['wiseoldman']['group_passcode']
+        check_interval      = int(config['settings']['check_interval'])
+        run_at_startup      = config['settings'].getboolean('run_at_startup', True)
+        print_to_csv        = config['settings'].getboolean('print_to_csv', True)
+        print_csv_changes   = config['settings'].getboolean('print_csv_changes', True)
+        post_to_discord     = config['settings'].getboolean('post_to_discord', True)
+        silent              = config['settings'].getboolean('silent', False)
+        debug               = config['settings'].getboolean('debug', False)
         
         # Create main container
         self.main_container = ttk.Frame(root, padding="10")
@@ -225,16 +239,41 @@ class BotGUI:
         # Refresh displays
         self.refresh_rankings_display()
         self.refresh_fans_display()
-        
+
+        #Create CSV viewer tab
+        csv_frame = ttk.Frame(notebook)
+        notebook.add(csv_frame, text="CSV Viewer")
+        self.csv_text = scrolledtext.ScrolledText(csv_frame, wrap=tk.WORD, height=20)
+        self.csv_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        csv_frame.columnconfigure(0, weight=1)
+        csv_frame.rowconfigure(0, weight=1)
+        # Load CSV data
+        try:
+            # Locate ehb_log.csv one level above the current file's directory
+            csv_file = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ehb_log.csv'))
+            if os.path.exists(csv_file):
+                with open(csv_file, 'r') as f:
+                    csv_data = f.read()
+                    self.csv_text.insert(tk.END, csv_data)
+            else:
+                self.csv_text.insert(tk.END, "No CSV data found.")
+        finally:
+            # Ensure the CSV text widget is read-only
+            self.csv_text.config(state=tk.DISABLED)
+            # Configure the main container to expand
+            self.main_container.columnconfigure(1, weight=1)
+            self.main_container.rowconfigure(1, weight=1)
+
+
     def create_status_bar(self):
         status_frame = ttk.Frame(self.main_container)
         status_frame.grid(row=2, column=0, columnspan=2, sticky=(tk.W, tk.E))
         
-        self.status_label = ttk.Label(status_frame, text="Ready")
+        self.status_label = ttk.Label(status_frame, text="Status:")
         self.status_label.grid(row=0, column=0, sticky=(tk.W))
         
         # Add bot status indicator
-        self.bot_status = ttk.Label(status_frame, text="Bot: Stopped", foreground="red")
+        self.bot_status = ttk.Label(status_frame, text="Bot Stopped", foreground="red")
         self.bot_status.grid(row=0, column=1, sticky=(tk.E))
         
     def log_message(self, message):
@@ -268,7 +307,7 @@ class BotGUI:
             self.bot_thread.start()
             self.start_button.config(state='disabled')
             self.stop_button.config(state='normal')
-            self.bot_status.config(text="Bot: Running", foreground="green")
+            self.bot_status.config(text="Bot Running", foreground="green")
             
     def stop_bot(self):
         if self.bot_running:
