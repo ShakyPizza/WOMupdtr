@@ -341,8 +341,9 @@ class BotGUI:
                 # Initialize the client session
                 async def init_and_refresh():
                     try:
-                        async with asyncio.timeout(30):  # 30 second timeout
-                            await list_all_members_and_ranks()
+                        await asyncio.wait_for(
+                            list_all_members_and_ranks(), timeout=30
+                        )
                     except asyncio.TimeoutError:
                         self.log_message("Operation timed out after 30 seconds")
                         raise
@@ -396,8 +397,9 @@ class BotGUI:
                 # Initialize the client session and run check
                 async def init_and_check():
                     try:
-                        async with asyncio.timeout(30):  # 30 second timeout
-                            await check_for_rank_changes()
+                        await asyncio.wait_for(
+                            check_for_rank_changes(), timeout=30
+                        )
                     except asyncio.TimeoutError:
                         self.log_message("Operation timed out after 30 seconds")
                         raise
