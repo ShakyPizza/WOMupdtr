@@ -333,34 +333,18 @@ class BotGUI:
     def refresh_rankings(self):
         self.log_message("Refreshing rankings...")
         try:
-            # Create a new event loop for this operation
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                # Initialize the client session
-                async def init_and_refresh():
-                    try:
-                        async with asyncio.timeout(30):  # 30 second timeout
-                            await list_all_members_and_ranks()
-                    except asyncio.TimeoutError:
-                        self.log_message("Operation timed out after 30 seconds")
-                        raise
-                
-                # Run the async operation in the new event loop
-                loop.run_until_complete(init_and_refresh())
-                self.refresh_rankings_display()
-                self.log_message("Rankings refreshed successfully!")
-            finally:
+            async def init_and_refresh():
                 try:
-                    # Clean up any pending tasks
-                    pending = asyncio.all_tasks(loop)
-                    for task in pending:
-                        task.cancel()
-                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-                    loop.close()
-                except Exception as cleanup_error:
-                    self.log_message(f"Error during cleanup: {cleanup_error}")
+                    await asyncio.wait_for(
+                        list_all_members_and_ranks(), timeout=30
+                    )
+                except asyncio.TimeoutError:
+                    self.log_message("Operation timed out after 30 seconds")
+                    raise
+
+            asyncio.run(init_and_refresh())
+            self.refresh_rankings_display()
+            self.log_message("Rankings refreshed successfully!")
         except Exception as e:
             self.log_message(f"Error refreshing rankings: {e}")
         
@@ -388,35 +372,19 @@ class BotGUI:
     def force_check(self):
         self.log_message("Forcing rank check...")
         try:
-            # Create a new event loop for this operation
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-            try:
-                # Initialize the client session and run check
-                async def init_and_check():
-                    try:
-                        async with asyncio.timeout(30):  # 30 second timeout
-                            await check_for_rank_changes()
-                    except asyncio.TimeoutError:
-                        self.log_message("Operation timed out after 30 seconds")
-                        raise
-                
-                # Run the check_for_rank_changes in the new event loop
-                loop.run_until_complete(init_and_check())
-                
-                self.log_message("Rank check completed!")
-                self.refresh_rankings_display()  # Refresh the display after check
-            finally:
+            async def init_and_check():
                 try:
-                    # Clean up any pending tasks
-                    pending = asyncio.all_tasks(loop)
-                    for task in pending:
-                        task.cancel()
-                    loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-                    loop.close()
-                except Exception as e:
-                    self.log_message(f"Error during cleanup: {e}")
+                    await asyncio.wait_for(
+                        check_for_rank_changes(), timeout=30
+                    )
+                except asyncio.TimeoutError:
+                    self.log_message("Operation timed out after 30 seconds")
+                    raise
+
+            asyncio.run(init_and_check())
+
+            self.log_message("Rank check completed!")
+            self.refresh_rankings_display()  # Refresh the display after check
         except Exception as e:
             self.log_message(f"Error during rank check: {e}")
         
