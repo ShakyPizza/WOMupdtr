@@ -9,6 +9,7 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
   - `/refresh`: Refreshes and posts updated rankings.
   - `/update <username>`: Fetches and updates rank information for a specific member.
 - **CSV Logging**: Logs EHB values to a CSV file for historical tracking.
+- **Automatic Group Refresh**: The clan data is automatically refreshed every `check_interval * 24` seconds.
 - **Configurable Settings**: Customize bot behavior through the config file.
 
 ## Installation
@@ -80,6 +81,7 @@ The bot automatically tracks ranks based on your configuration. Below are all av
 
 ### Group Management
 - `/refreshgroup` - Forces a full update for the group's data using the WiseOldMan API
+- *Automatic*: This refresh also runs periodically every `check_interval * 24` seconds
 - `/forcecheck` - Forces an immediate check for rank changes
 
 ### User Linking
