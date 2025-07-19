@@ -26,7 +26,7 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
 
 3. Create a `config.ini` file in the project root directory:
    ```ini
-   [discord]
+[discord]
 # Discord bot token
 token = 
 
