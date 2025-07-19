@@ -23,7 +23,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
+*pytest_cache/
 
 # Electron
 node_modules/
