@@ -17,7 +17,15 @@ def format_discord_fans(discord_fans):
 # Setup Commands Function
 # ------------------------------------------------------------------------------
 def setup_commands(
-    bot, wom_client, GROUP_ID, get_rank, list_all_members_and_ranks, GROUP_PASSCODE, send_rank_up_message, check_for_rank_changes, debug
+    bot,
+    wom_client,
+    GROUP_ID,
+    get_rank,
+    list_all_members_and_ranks,
+    send_rank_up_message,
+    check_for_rank_changes,
+    refresh_group_func,
+    debug
 ):
 
     # ------------------------------------------------------------------------------
@@ -129,36 +137,9 @@ def setup_commands(
     # ------------------------------------------------------------------------------
     @bot.command(name="refreshgroup")
     async def refreshgroup(ctx):
-        url = f"https://api.wiseoldman.net/v2/groups/{GROUP_ID}/update-all"
-        headers = {"Content-Type": "application/json"}
-        payload = {"verificationCode": GROUP_PASSCODE}  # The passcode for the group
-
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(url, headers=headers, json=payload) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        print(response.status, data)
-                        updated_count = data.get("count", 0)
-
-                        if updated_count > 0:
-                            await ctx.send(
-                                f"✅ Successfully refreshed group data. **{updated_count}** members updated. Please allow a few minutes for the changes to reflect."
-                            )
-                            print(f"Group update complete: {updated_count} members updated.")
-                        else:
-                            await ctx.send("ℹ️ Group data is already up to date. No members required updating.")
-                            print("Group data is already up to date.")
-                    elif response.status == 400:
-                        error_message = await response.json()
-                        if error_message.get("message") == "Nothing to update.":
-                            await ctx.send("ℹ️ The API reported 'Nothing to update'. The group data is already current.")
-                            print("The API reported 'Nothing to update'.")
-                        else:
-                            await ctx.send(f"❌ Failed to refresh group: {error_message}")
-                    else:
-                        error_message = await response.text()
-                        await ctx.send(f"❌ Failed to refresh group: {error_message}")
+            message = await refresh_group_func()
+            await ctx.send(message)
         except Exception as e:
             await ctx.send(f"❌ Error refreshing WiseOldMan group: {e}")
 
