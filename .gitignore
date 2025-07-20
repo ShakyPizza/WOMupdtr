@@ -24,6 +24,7 @@ __pycache__/
 *.pyo
 *.pyd
 *pytest_cache/
+baserow_test.py
 
 # Electron
 node_modules/
