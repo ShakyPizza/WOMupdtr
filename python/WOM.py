@@ -40,9 +40,9 @@ class Client(BaseClient):
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
 
-# ------------------------------------------------------------------------------
+
 # Helper Functions
-# ------------------------------------------------------------------------------
+
 
 def log(message: str):
     """Logs a message with the current timestamp."""
@@ -58,9 +58,9 @@ def log(message: str):
         except Exception as e:
             print(f"Failed to send message to GUI: {e}")
 
-# ------------------------------------------------------------------------------
+
 # Configuration Loading
-# ------------------------------------------------------------------------------
+
 
 config = configparser.ConfigParser()
 config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.ini')
@@ -79,9 +79,9 @@ post_to_discord     = config['settings'].getboolean('post_to_discord', True)
 silent              = config['settings'].getboolean('silent', False)
 debug               = config['settings'].getboolean('debug', False)
 
-# ------------------------------------------------------------------------------
+
 # Discord Client and Wise Old Man Client Initialization
-# ------------------------------------------------------------------------------
+
 
 intents = discord.Intents.default()
 intents.messages = True
@@ -91,9 +91,9 @@ discord_client = commands.Bot(command_prefix="/", intents=intents)
 
 wom_client = Client()
 
-# ------------------------------------------------------------------------------
+
 # Utility Functions
-# ------------------------------------------------------------------------------
+
 
 def get_rank(ehb, ranks_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ranks.ini')):
     """
@@ -116,9 +116,9 @@ def get_rank(ehb, ranks_file=os.path.join(os.path.dirname(os.path.abspath(__file
         log(f"Error reading ranks.ini: {e}")
     return "Unknown"
 
-# ------------------------------------------------------------------------------
+
 # Discord Events and Tasks
-# ------------------------------------------------------------------------------
+
 
 @discord_client.event
 async def on_ready():
@@ -320,9 +320,9 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
     except Exception as e:
         log(f"Error sending message: {e}")
 
-# ------------------------------------------------------------------------------
+
 # Initialize Additional Commands
-# ------------------------------------------------------------------------------
+
 
 setup_commands(
     discord_client,
@@ -336,9 +336,9 @@ setup_commands(
     debug
 )
 
-# ------------------------------------------------------------------------------
+
 # Run the Bot
-# ------------------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     try:
