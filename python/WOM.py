@@ -140,6 +140,14 @@ async def on_ready():
     else:
         log("check_for_rank_changes task is already running.")
 
+    # Start the periodic group refresh task if not already running
+    if not refresh_group_task.is_running():
+        if debug:
+            log("Starting refresh_group_task.")
+        refresh_group_task.start()
+    else:
+        log("refresh_group_task is already running.")
+
 @tasks.loop(seconds=check_interval)
 async def check_for_rank_changes():
     try:
@@ -244,6 +252,45 @@ async def list_all_members_and_ranks():
     except Exception as e:
         log(f"Error occurred while listing members and ranks: {e}")
 
+async def refresh_group_data():
+    """Refreshes the group's data using the WiseOldMan API."""
+    url = f"https://api.wiseoldman.net/v2/groups/{group_id}/update-all"
+    headers = {"Content-Type": "application/json"}
+    payload = {"verificationCode": group_passcode}
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, headers=headers, json=payload) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    updated_count = data.get("count", 0)
+                    if updated_count > 0:
+                        msg = f"✅ Successfully refreshed group data. {updated_count} members updated."
+                    else:
+                        msg = "ℹ️ Group data is already up to date."
+                elif response.status == 400:
+                    error_message = await response.json()
+                    if error_message.get("message") == "Nothing to update.":
+                        msg = "ℹ️ The API reported 'Nothing to update'."
+                    else:
+                        msg = f"❌ Failed to refresh group: {error_message}"
+                else:
+                    error_message = await response.text()
+                    msg = f"❌ Failed to refresh group: {error_message}"
+    except Exception as e:
+        msg = f"❌ Error refreshing WiseOldMan group: {e}"
+
+    log(msg)
+    return msg
+
+@tasks.loop(seconds=check_interval * 24)
+async def refresh_group_task():
+    msg = await refresh_group_data()
+    if post_to_discord:
+        channel = discord_client.get_channel(channel_id)
+        if channel:
+            await channel.send(msg)
+
 async def send_rank_up_message(username, new_rank, old_rank, ehb):
     try:
         if debug:
@@ -283,9 +330,9 @@ setup_commands(
     group_id,
     get_rank,
     list_all_members_and_ranks,
-    group_passcode,
     send_rank_up_message,
     check_for_rank_changes,
+    refresh_group_data,
     debug
 )
 
