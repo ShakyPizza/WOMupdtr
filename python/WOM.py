@@ -283,7 +283,7 @@ async def refresh_group_data():
     log(msg)
     return msg
 
-@tasks.loop(seconds=check_interval * 24)
+@tasks.loop(seconds=check_interval * 48)
 async def refresh_group_task():
     msg = await refresh_group_data()
     if post_to_discord:
