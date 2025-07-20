@@ -99,8 +99,8 @@ The bot automatically tracks ranks based on your configuration. Below are all av
 
 ### Group Management
 - `/refreshgroup` - Forces a full update for the group's data using the WiseOldMan API
-- *Automatic*: This refresh also runs periodically every `check_interval * 48` seconds
 - `/forcecheck` - Forces an immediate check for rank changes
+- *Automatic:* This refresh also runs periodically every `check_interval * 48` seconds
 
 ### User Linking
 - `/link <username> <discord_name>` - Links a Discord user to a WiseOldMan username for rank-up notifications
