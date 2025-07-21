@@ -21,15 +21,11 @@ def post_to_ehb_table(username, date, ehb):
                 "Content-Type": "application/json"
             },
             json={
-                "Username": {username},
-                "Date": {date},
-                "EHB": {ehb}
+                "Username": username,
+                "Date": date,
+                "EHB": ehb
             }
         )
 
     if post.status_code != 200:
         print("Error: ", post.status_code)
-    else:
-        print("Success posting to EHB table: ", post.status_code)
-
-post_to_ehb_table()
