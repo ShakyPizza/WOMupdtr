@@ -198,8 +198,6 @@ async def check_for_rank_changes():
             save_ranks(ranks_data)
             log("Rank check completed successfully!")
             
-            
-
         else:
             log(f"Failed to fetch group details: {result.unwrap_err()}")
     except Exception as e:
