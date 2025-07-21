@@ -12,6 +12,7 @@ from wom import Client as BaseClient
 from utils.rank_utils import load_ranks, save_ranks
 from utils.log_csv import log_ehb_to_csv
 from utils.commands import setup_commands
+from utils.baserow_connect import post_to_ehb_table
 
 class Client(BaseClient):
     def __init__(self):
@@ -166,6 +167,7 @@ async def check_for_rank_changes():
                     username = player.display_name
                     ehb = round(player.ehb, 2)
                     rank = get_rank(ehb)
+                    date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
                     # Retrieve last known data
                     last_data = ranks_data.get(username, {})
@@ -183,12 +185,17 @@ async def check_for_rank_changes():
                         ranks_data[username] = {"last_ehb": ehb, "rank": rank}
                         if print_to_csv:
                             log_ehb_to_csv(username, ehb)
+                        post_to_ehb_table(username, date, ehb)
+                        log("posted EHB data to Baserow EHB table")
                 except Exception as e:
                     player_name = getattr(membership.player, "display_name", "Unknown")
                     log(f"Error processing player data for {player_name}: {e}")
 
             save_ranks(ranks_data)
             log("Rank check completed successfully!")
+            
+            
+
         else:
             log(f"Failed to fetch group details: {result.unwrap_err()}")
     except Exception as e:
