@@ -167,7 +167,7 @@ async def check_for_rank_changes():
                     username = player.display_name
                     ehb = round(player.ehb, 2)
                     rank = get_rank(ehb)
-                    date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    
 
                     # Retrieve last known data
                     last_data = ranks_data.get(username, {})
@@ -185,8 +185,12 @@ async def check_for_rank_changes():
                         ranks_data[username] = {"last_ehb": ehb, "rank": rank}
                         if print_to_csv:
                             log_ehb_to_csv(username, ehb)
+
+                        # Update Baserow EHB table
+                        date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")    
                         post_to_ehb_table(username, date, ehb)
-                        log("posted EHB data to Baserow EHB table")
+                        log("Posted EHB data to Baserow EHB table")
+
                 except Exception as e:
                     player_name = getattr(membership.player, "display_name", "Unknown")
                     log(f"Error processing player data for {player_name}: {e}")
