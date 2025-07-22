@@ -13,7 +13,8 @@ if not token:
     raise ValueError("Baserow token is not set in the config.ini file.")
 
 def post_to_ehb_table(username, date, ehb):
-    
+    #Create a row in the players table (id 613979).
+
     post = requests.post(
             "https://api.baserow.io/api/database/rows/table/613979/?user_field_names=true",
             headers={
@@ -32,7 +33,9 @@ def post_to_ehb_table(username, date, ehb):
 
 
 def update_players_table(username, rank, ehb, discord_names=None):
-    """Create or update a row in the players table (id 613980)."""
+    #Create or update a row in the players table (id 613980)
+
+    print(f"Updating player {username} with rank {rank}, EHB {ehb}, and Discord names {discord_names} in Baserow Player Table")
 
     base_url = "https://api.baserow.io/api/database/rows/table/613980/"
     headers = {
