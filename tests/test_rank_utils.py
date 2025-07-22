@@ -3,9 +3,25 @@ import os
 import sys
 import configparser
 import pytest
+import types
 
 # Allow importing the 'python' package from the repository root
+
+# Add repository root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+
+# Provide a minimal requests stub to satisfy imports when the real package is missing
+requests_stub = types.SimpleNamespace(post=lambda *a, **k: None,
+                                      get=lambda *a, **k: None,
+                                      patch=lambda *a, **k: None)
+sys.modules.setdefault('requests', requests_stub)
+
+# Create a temporary config.ini so baserow_connect can import without errors
+repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+config_path = os.path.join(repo_root, "python", "config.ini")
+with open(config_path, "w") as f:
+    f.write("[baserow]\n")
+    f.write("token = testtoken\n")
 
 from python.utils import rank_utils
 
@@ -54,3 +70,30 @@ def test_next_rank_returns_correct_next_rank(tmp_path, monkeypatch):
 
     result = rank_utils.next_rank("player")
     assert result == "Gold at 200 EHB"
+
+
+def test_save_ranks_updates_baserow(tmp_path, monkeypatch):
+    data = {"player": {"last_ehb": 42, "rank": "Bronze", "discord_name": []}}
+    ranks_file = tmp_path / "player_ranks.json"
+    monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+
+    called = {}
+
+    def fake_update(username, rank, ehb, discord_names):
+        called["username"] = username
+        called["rank"] = rank
+        called["ehb"] = ehb
+        called["discord"] = discord_names
+
+    monkeypatch.setattr(rank_utils, "update_players_table", fake_update)
+
+    rank_utils.save_ranks(data)
+
+    assert called == {
+        "username": "player",
+        "rank": "Bronze",
+        "ehb": 42,
+        "discord": [],
+    }
+    with open(ranks_file) as f:
+        assert json.load(f) == data
