@@ -1,6 +1,7 @@
 import json
 import os
 import configparser
+from .baserow_connect import update_players_table
 
 # JSON file for storing player ranks
 RANKS_FILE = os.path.join(os.path.dirname(__file__), 'player_ranks.json')
@@ -30,6 +31,16 @@ def save_ranks(data):
     """Save ranks to a JSON file."""
     with open(RANKS_FILE, 'w') as f:
         json.dump(data, f, indent=4)
+
+    # Sync data to Baserow players table
+    try:
+        for username, pdata in data.items():
+            rank = pdata.get("rank", "")
+            ehb = pdata.get("last_ehb", 0)
+            discord_names = pdata.get("discord_name", [])
+            update_players_table(username, rank, ehb, discord_names)
+    except Exception as e:
+        print(f"Error updating Baserow players table: {e}")
 
 def next_rank(username):
     """Returns the next rank for a given player based on their current EHB."""
