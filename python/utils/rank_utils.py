@@ -28,7 +28,7 @@ def load_ranks():
     return {}
 
 def save_ranks(data):
-    """Save ranks to a JSON file."""
+    #Save ranks to a JSON file.
     with open(RANKS_FILE, 'w') as f:
         json.dump(data, f, indent=4)
 
