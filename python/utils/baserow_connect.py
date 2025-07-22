@@ -35,7 +35,7 @@ def post_to_ehb_table(username, date, ehb):
 def update_players_table(username, rank, ehb, discord_names=None):
     #Create or update a row in the players table (id 613980)
 
-    print(f"Updating player {username} with rank {rank}, EHB {ehb}, and Discord names {discord_names} in Baserow Player Table")
+    
 
     base_url = "https://api.baserow.io/api/database/rows/table/613980/"
     headers = {
@@ -62,16 +62,18 @@ def update_players_table(username, rank, ehb, discord_names=None):
             patch = requests.patch(
                 f"{base_url}{row_id}/?user_field_names=true",
                 headers=headers,
-                json={"Username": username, "Rank": rank, "EHB": ehb, "Discord": discord_value},
+                json={"Username": username, "Rank": rank, "last_ehb": ehb, "discord_name": discord_value},
             )
+            print(f"Updating player {username} with rank {rank}, EHB {ehb}, and Discord names {discord_names} in Baserow Player Table")
             if patch.status_code != 200:
                 print("Error updating player row: ", patch.status_code)
         else:
             post = requests.post(
                 f"{base_url}?user_field_names=true",
                 headers=headers,
-                json={"Username": username, "Rank": rank, "EHB": ehb, "Discord": discord_value},
+                json={"Username": username, "Rank": rank, "last_ehb": ehb, "discord_name": discord_value},
             )
+            print(f"Creating player {username} with rank {rank}, EHB {ehb}, and Discord names {discord_names} in Baserow Player Table")
             if post.status_code != 200:
                 print("Error creating player row: ", post.status_code)
     else:
