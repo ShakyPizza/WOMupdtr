@@ -212,16 +212,15 @@ async def list_all_members_and_ranks():
             memberships = group.memberships
             group_name = group.name
 
-            # Build list of players with EHB > 0
+            # Build list of players including those with 0 EHB
             players = []
             for membership in memberships:
                 try:
                     player = membership.player
                     username = player.display_name
                     ehb = round(player.ehb, 2)
-                    if ehb > 0:
-                        rank = get_rank(ehb)
-                        players.append((username, rank, ehb))
+                    rank = get_rank(ehb)
+                    players.append((username, rank, ehb))
                 except Exception as e:
                     player_name = getattr(membership.player, "display_name", "Unknown")
                     log(f"Error processing player data for {player_name}: {e}")
