@@ -72,10 +72,18 @@ def test_next_rank_returns_correct_next_rank(tmp_path, monkeypatch):
     assert result == "Gold at 200 EHB"
 
 
-def test_save_ranks_updates_baserow(tmp_path, monkeypatch):
-    data = {"player": {"last_ehb": 42, "rank": "Bronze", "discord_name": []}}
+def test_save_ranks_updates_baserow_when_ehb_changes(tmp_path, monkeypatch):
+    """update_players_table should be called when EHB differs from file."""
+
+    # Existing data with different EHB
+    initial = {"player": {"last_ehb": 10, "rank": "Bronze", "discord_name": []}}
     ranks_file = tmp_path / "player_ranks.json"
+    with open(ranks_file, "w") as f:
+        json.dump(initial, f)
+
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+
+    updated = {"player": {"last_ehb": 42, "rank": "Bronze", "discord_name": []}}
 
     called = {}
 
@@ -87,7 +95,7 @@ def test_save_ranks_updates_baserow(tmp_path, monkeypatch):
 
     monkeypatch.setattr(rank_utils, "update_players_table", fake_update)
 
-    rank_utils.save_ranks(data)
+    rank_utils.save_ranks(updated)
 
     assert called == {
         "username": "player",
@@ -96,4 +104,27 @@ def test_save_ranks_updates_baserow(tmp_path, monkeypatch):
         "discord": [],
     }
     with open(ranks_file) as f:
-        assert json.load(f) == data
+        assert json.load(f) == updated
+
+
+def test_save_ranks_skips_update_when_ehb_unchanged(tmp_path, monkeypatch):
+    """update_players_table should not be called if EHB has not changed."""
+
+    data = {"player": {"last_ehb": 42, "rank": "Bronze", "discord_name": []}}
+    ranks_file = tmp_path / "player_ranks.json"
+    with open(ranks_file, "w") as f:
+        json.dump(data, f)
+
+    monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+
+    called = {}
+
+    def fake_update(username, rank, ehb, discord_names):
+        called["called"] = True
+
+    monkeypatch.setattr(rank_utils, "update_players_table", fake_update)
+
+    # Saving the same data again should not trigger an update
+    rank_utils.save_ranks(data)
+
+    assert "called" not in called
