@@ -28,17 +28,31 @@ def load_ranks():
     return {}
 
 def save_ranks(data):
-    #Save ranks to a JSON file.
-    with open(RANKS_FILE, 'w') as f:
+    """Save ranks to ``player_ranks.json`` and update Baserow if EHB changed."""
+
+    # Load existing data to compare EHB values
+    old_data = {}
+    if os.path.exists(RANKS_FILE):
+        try:
+            with open(RANKS_FILE, "r") as f:
+                old_data = json.load(f)
+        except (json.JSONDecodeError, ValueError):
+            old_data = {}
+
+    # Write the new data to disk
+    with open(RANKS_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-    # Sync data to Baserow players table
+    # Sync data to Baserow players table only when EHB differs from old value
     try:
         for username, pdata in data.items():
             rank = pdata.get("rank", "")
             ehb = pdata.get("last_ehb", 0)
             discord_names = pdata.get("discord_name", [])
-            update_players_table(username, rank, ehb, discord_names)
+
+            old_ehb = old_data.get(username, {}).get("last_ehb")
+            if old_ehb != ehb:
+                update_players_table(username, rank, ehb, discord_names)
     except Exception as e:
         print(f"Error updating Baserow players table: {e}")
 
