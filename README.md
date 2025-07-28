@@ -11,6 +11,8 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
 - **CSV Logging**: Logs EHB values to a CSV file for historical tracking.
 - **Automatic Group Refresh**: The clan data is automatically refreshed every `check_interval * 24` seconds.
 - **Configurable Settings**: Customize bot behavior through the config file.
+- **Baserow Sync**: Optionally update a Baserow database whenever a player's EHB changes.
+- **GUI Control Panel**: Manage the bot with a Tkinter interface (`python gui.py`).
 
 ## Installation
 
@@ -36,11 +38,15 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
    
    [wiseoldman]
    # Wise Old Man group ID
-   group_id = 
-   group_passcode =  
-   
+   group_id =
+   group_passcode =
+
    # Optional: Wise Old Man API key if you have one.
-   api_key = 
+   api_key =
+
+   [baserow]
+   # Optional: API token for syncing player data
+   token =
    
    [settings]
    # Frequency for checking rank updates (in seconds)
@@ -80,9 +86,13 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
    1500+ = Zenyte
    ```
 
-5. Run the bot:
+5. Run the bot from the `python` directory. Use either of the commands below:
    ```bash
+   # Headless
    python WOM.py
+
+   # With GUI
+   python gui.py
    ```
 
 ## Usage
@@ -118,6 +128,12 @@ The bot automatically tracks ranks based on your configuration. Below are all av
 - Configure logging behavior in `config.ini`:
   - `PRINT_TO_CSV`: Enable/disable CSV logging
   - `print_csv_changes`: Enable/disable console logging of CSV updates
+
+## Running Tests
+Run the unit tests with:
+```bash
+pytest
+```
 
 ## Contributing
 1. Fork the repository
