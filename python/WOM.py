@@ -187,9 +187,9 @@ async def check_for_rank_changes():
                             log_ehb_to_csv(username, ehb)
 
                         # Update Baserow EHB table
-                        date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")    
-                        post_to_ehb_table(username, date, ehb)
-                        log("Posted EHB data to Baserow EHB table")
+                        #date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")    
+                        #post_to_ehb_table(username, date, ehb)
+                        #log("Posted EHB data to Baserow EHB table")
 
                 except Exception as e:
                     player_name = getattr(membership.player, "display_name", "Unknown")
