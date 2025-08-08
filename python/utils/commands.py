@@ -153,7 +153,7 @@ def setup_commands(
             "Usernames are case-sensitive except for **/update** command",
             "\n"
             "/refresh ➡️    Refreshes and posts the updated group rankings.",
-            "/update 'username' ➡️  Fetches and updates the rank for a specific user.",
+            "/upd 'username' ➡️  Fetches and updates the rank for a specific user.",
             "/rankup 'username' ➡️  Displays the current rank, EHB, and next rank for a given player.",
             "/refreshgroup ➡️   Forces a full update for the group's data.",
             "/link 'username' 'discord_name' ➡️     Links a Discord user to a WiseOldMan username for mentions when ranking up.",
