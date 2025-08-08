@@ -81,7 +81,7 @@ def setup_commands(
     
     # Command: /update --- Fetches and updates the rank for a specific user by searching the group data.
     
-    @bot.command(name="update")
+    @bot.command(name="upd")
     async def update(ctx, username: str):
         try:
             # Ensure the Wise Old Man client's session is started
