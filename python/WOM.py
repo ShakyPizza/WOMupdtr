@@ -88,7 +88,8 @@ intents = discord.Intents.default()
 intents.messages = True
 intents.guilds = True
 intents.message_content = True  # Enable message content intent
-discord_client = commands.Bot(command_prefix="/", intents=intents)
+# Use slash commands via app commands; prefix commands are disabled
+discord_client = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
 
 wom_client = Client()
 
@@ -124,6 +125,9 @@ def get_rank(ehb, ranks_file=os.path.join(os.path.dirname(os.path.abspath(__file
 @discord_client.event
 async def on_ready():
     log(f"Logged in as {discord_client.user}")
+
+    # Register slash commands with Discord
+    await discord_client.tree.sync()
 
     # Start Wise Old Man client session
     await wom_client.start()
