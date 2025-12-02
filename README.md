@@ -124,7 +124,7 @@ The bot automatically tracks ranks based on your configuration. Below are all av
 **Note**: For usernames with spaces, enclose them in quotes (e.g., "/update 'Player Name'")
 
 ## Logging
-- EHB values are logged to `ehb_log.csv`
+- EHB values are logged to `python/ehb_log.csv` by default (the path is resolved relative to the `python` folder so you can run the bot from anywhere).
 - Configure logging behavior in `config.ini`:
   - `PRINT_TO_CSV`: Enable/disable CSV logging
   - `print_csv_changes`: Enable/disable console logging of CSV updates
