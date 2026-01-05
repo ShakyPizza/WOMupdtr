@@ -10,6 +10,7 @@ import asyncio
 import aiohttp
 from utils.rank_utils import load_ranks, save_ranks, next_rank
 from utils.log_csv import log_ehb_to_csv
+from utils.config_loader import CONFIG_PATH, load_config
 from WOM import discord_client, wom_client, check_for_rank_changes, list_all_members_and_ranks, group_id, group_passcode
 
 class BotGUI:
@@ -29,9 +30,8 @@ class BotGUI:
         self.msg_queue = BotGUI.msg_queue  # Use the class-level queue
         
         # Load config
-        config = configparser.ConfigParser()
-        config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.ini')
-        config.read(config_file)
+        config = load_config(CONFIG_PATH)
+        self.config_path = CONFIG_PATH
         self.config = config
 
         discord_token       = config['discord']['token']
@@ -516,7 +516,7 @@ class BotGUI:
                 self.config['wiseoldman']['group_passcode'] = passcode_entry.get()
                 self.config['settings']['check_interval'] = str(int(check_interval_entry.get()) * 60)
                 
-                with open('config.ini', 'w') as f:
+                with open(self.config_path, 'w') as f:
                     self.config.write(f)
                     
                 messagebox.showinfo("Success", "Configuration saved successfully!")

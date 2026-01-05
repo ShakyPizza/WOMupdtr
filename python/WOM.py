@@ -13,6 +13,12 @@ from utils.rank_utils import load_ranks, save_ranks
 from utils.log_csv import log_ehb_to_csv
 from utils.commands import setup_commands
 from utils.baserow_connect import post_to_ehb_table
+from utils.config_loader import (
+    CONFIG_PATH,
+    RANKS_PATH,
+    get_config_value,
+    load_config,
+)
 
 class Client(BaseClient):
     def __init__(self):
@@ -63,22 +69,42 @@ def log(message: str):
 # Configuration Loading
 
 
-config = configparser.ConfigParser()
-config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'config.ini')
-config.read(config_file)
+config = load_config()
 
 # Discord and Wise Old Man settings
-discord_token       = config['discord']['token']
-channel_id          = int(config['discord']['channel_id'])
-group_id            = int(config['wiseoldman']['group_id'])
-group_passcode      = config['wiseoldman']['group_passcode']
-check_interval      = int(config['settings']['check_interval'])
-run_at_startup      = config['settings'].getboolean('run_at_startup', True)
-print_to_csv        = config['settings'].getboolean('print_to_csv', True)
-print_csv_changes   = config['settings'].getboolean('print_csv_changes', True)
-post_to_discord     = config['settings'].getboolean('post_to_discord', True)
-silent              = config['settings'].getboolean('silent', False)
-debug               = config['settings'].getboolean('debug', False)
+discord_token = get_config_value(
+    "discord", "token", "DISCORD_TOKEN", config
+)
+channel_id = get_config_value(
+    "discord", "channel_id", "DISCORD_CHANNEL_ID", config, cast=int
+)
+group_id = get_config_value(
+    "wiseoldman", "group_id", "WOM_GROUP_ID", config, cast=int
+)
+group_passcode = get_config_value(
+    "wiseoldman", "group_passcode", "WOM_GROUP_PASSCODE", config, default="", required=False
+)
+check_interval = get_config_value(
+    "settings", "check_interval", "WOM_CHECK_INTERVAL", config, cast=int, default=3600
+)
+run_at_startup = get_config_value(
+    "settings", "run_at_startup", "WOM_RUN_AT_STARTUP", config, cast=bool, default=True, required=False
+)
+print_to_csv = get_config_value(
+    "settings", "print_to_csv", "WOM_PRINT_TO_CSV", config, cast=bool, default=True, required=False
+)
+print_csv_changes = get_config_value(
+    "settings", "print_csv_changes", "WOM_PRINT_CSV_CHANGES", config, cast=bool, default=False, required=False
+)
+post_to_discord = get_config_value(
+    "settings", "post_to_discord", "WOM_POST_TO_DISCORD", config, cast=bool, default=True, required=False
+)
+silent = get_config_value(
+    "settings", "silent", "WOM_SILENT_MODE", config, cast=bool, default=False, required=False
+)
+debug = get_config_value(
+    "settings", "debug", "WOM_DEBUG", config, cast=bool, default=False, required=False
+)
 
 
 # Discord Client and Wise Old Man Client Initialization
@@ -97,7 +123,7 @@ wom_client = Client()
 # Utility Functions
 
 
-def get_rank(ehb, ranks_file=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ranks.ini')):
+def get_rank(ehb, ranks_file=RANKS_PATH):
     """
     Determines the rank based on the player's EHB using the ranges defined in ranks.ini.
     Ranges can be specified either as a range (e.g. "0-10") or as a lower bound (e.g. "1500+").

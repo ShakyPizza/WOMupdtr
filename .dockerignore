@@ -1,0 +1,14 @@
+.git
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.env
+.DS_Store
+config.ini
+ranks.ini
+python/config.ini
+python/ranks.ini
+python/utils/player_ranks.json
+tests

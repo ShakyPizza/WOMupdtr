@@ -1,32 +1,32 @@
-#baserow_connect.py
-import configparser
+# baserow_connect.py
 import requests
-import os
-from datetime import datetime
 
-config = configparser.ConfigParser()
-config_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config.ini')
-config.read(config_file)
-token = config.get('baserow', 'token', fallback='')
+from .config_loader import get_config_value, load_config
 
-if not token:
-    raise ValueError("Baserow token is not set in the config.ini file.")
+
+config = load_config()
+token = get_config_value(
+    "baserow", "token", "BASEROW_TOKEN", config, required=False, default=""
+)
 
 def post_to_ehb_table(username, date, ehb):
     #Create a row in the players table (id 613979).
 
+    if not token:
+        raise ValueError("Baserow token is not set. Set BASEROW_TOKEN or update config.ini.")
+
     post = requests.post(
-            "https://api.baserow.io/api/database/rows/table/613979/?user_field_names=true",
-            headers={
-                "Authorization": "Token {token}".format(token=token),
-                "Content-Type": "application/json"
-            },
-            json={
-                "Username": username,
-                "Date": date,
-                "EHB": ehb
-            }
-        )
+        "https://api.baserow.io/api/database/rows/table/613979/?user_field_names=true",
+        headers={
+            "Authorization": "Token {token}".format(token=token),
+            "Content-Type": "application/json",
+        },
+        json={
+            "Username": username,
+            "Date": date,
+            "EHB": ehb,
+        },
+    )
 
     if post.status_code != 200:
         print("Error: ", post.status_code)
@@ -36,6 +36,9 @@ def update_players_table(username, rank, ehb, discord_names=None):
     #Create or update a row in the players table (id 613980)
 
     
+
+    if not token:
+        raise ValueError("Baserow token is not set. Set BASEROW_TOKEN or update config.ini.")
 
     base_url = "https://api.baserow.io/api/database/rows/table/613980/"
     headers = {

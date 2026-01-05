@@ -1,10 +1,10 @@
 import json
 import os
 import configparser
-from .baserow_connect import update_players_table
 
-# JSON file for storing player ranks
-RANKS_FILE = os.path.join(os.path.dirname(__file__), 'player_ranks.json')
+from .baserow_connect import update_players_table
+from .config_loader import RANKS_FILE, RANKS_PATH
+
 
 def load_ranks():
     """Load ranks from a JSON file and ensure discord_name is always a list."""
@@ -26,6 +26,7 @@ def load_ranks():
             print(f"Error: {RANKS_FILE} is empty or corrupted. Resetting data.")
             return {}
     return {}
+
 
 def save_ranks(data):
     """Save ranks to ``player_ranks.json`` and update Baserow if EHB changed."""
@@ -56,6 +57,7 @@ def save_ranks(data):
     except Exception as e:
         print(f"Error updating Baserow players table: {e}")
 
+
 def next_rank(username):
     """Returns the next rank for a given player based on their current EHB."""
     try:
@@ -70,7 +72,7 @@ def next_rank(username):
 
         # Load rank thresholds from ranks.ini
         config = configparser.ConfigParser()
-        config.read(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ranks.ini'))
+        config.read(RANKS_PATH)
 
         rank_thresholds = []
         for range_key, rank_name in config['Group Ranking'].items():
@@ -89,8 +91,8 @@ def next_rank(username):
             if current_rank == rank_name and i + 1 < len(rank_thresholds):
                 next_rank_name = rank_thresholds[i + 1][1]
                 next_ehb_threshold = rank_thresholds[i + 1][0]
-                return  f"{next_rank_name} at {next_ehb_threshold} EHB"
-        
+                return f"{next_rank_name} at {next_ehb_threshold} EHB"
+
         return "Max Rank Achieved 👑"  # If they are at the highest rank
 
     except Exception as e:

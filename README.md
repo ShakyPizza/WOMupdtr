@@ -95,6 +95,51 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
    python gui.py
    ```
 
+## Running in Docker or LXC
+
+1. Copy the example config files and update them with your credentials:
+   ```bash
+   cp python/config.example.ini python/config.ini
+   cp python/ranks.example.ini python/ranks.ini
+   ```
+
+2. Build the image:
+   ```bash
+   docker build -t womupdtr .
+   ```
+
+3. Run the bot, mounting your config and rank files (add `--net=host` if your LXC setup requires it):
+   ```bash
+   docker run --rm \
+     -v $(pwd)/python/config.ini:/app/python/config.ini \
+     -v $(pwd)/python/ranks.ini:/app/python/ranks.ini \
+     -v $(pwd)/python/utils/player_ranks.json:/app/python/utils/player_ranks.json \
+     -e DISCORD_TOKEN=your-token \
+     -e DISCORD_CHANNEL_ID=your-channel-id \
+     -e WOM_GROUP_ID=your-group-id \
+     womupdtr
+   ```
+
+Environment variables override any values in `config.ini` to simplify secret management when running in containers:
+
+| Environment Variable     | Purpose                               |
+|--------------------------|---------------------------------------|
+| `WOM_CONFIG_PATH`        | Path to the `config.ini` file         |
+| `WOM_RANKS_PATH`         | Path to the `ranks.ini` file          |
+| `WOM_RANKS_FILE`         | Path to the JSON rank cache file      |
+| `DISCORD_TOKEN`          | Discord bot token                     |
+| `DISCORD_CHANNEL_ID`     | Channel ID for updates                |
+| `WOM_GROUP_ID`           | Wise Old Man group ID                 |
+| `WOM_GROUP_PASSCODE`     | Optional group passcode               |
+| `WOM_CHECK_INTERVAL`     | Rank check interval in seconds        |
+| `WOM_RUN_AT_STARTUP`     | Run initial refresh on startup        |
+| `WOM_PRINT_TO_CSV`       | Enable CSV logging                    |
+| `WOM_PRINT_CSV_CHANGES`  | Log CSV changes to console            |
+| `WOM_POST_TO_DISCORD`    | Post updates to Discord               |
+| `WOM_SILENT_MODE`        | Suppress console logging              |
+| `WOM_DEBUG`              | Enable debug logging                  |
+| `BASEROW_TOKEN`          | Token for Baserow sync (optional)     |
+
 ## Usage
 
 The bot automatically tracks ranks based on your configuration. Below are all available commands:
