@@ -6,7 +6,6 @@ import discord
 import asyncio
 import aiohttp
 import contextlib
-import sys
 
 from wom import Client as BaseClient
 from utils.rank_utils import load_ranks, save_ranks
@@ -56,14 +55,6 @@ def log(message: str):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     formatted_message = f"{timestamp} - {message}"
     print(formatted_message)  # Print to terminal
-    
-    # Send to GUI if it's running
-    botgui_module = sys.modules.get('gui') or sys.modules.get('__main__')
-    if botgui_module and hasattr(botgui_module, 'BotGUI'):
-        try:
-            botgui_module.BotGUI.msg_queue.put(formatted_message)
-        except Exception as e:
-            print(f"Failed to send message to GUI: {e}")
 
 
 # Configuration Loading

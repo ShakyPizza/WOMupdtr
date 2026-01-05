@@ -12,7 +12,6 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
 - **Automatic Group Refresh**: The clan data is automatically refreshed every `check_interval * 24` seconds.
 - **Configurable Settings**: Customize bot behavior through the config file.
 - **Baserow Sync**: Optionally update a Baserow database whenever a player's EHB changes.
-- **GUI Control Panel**: Manage the bot with a Tkinter interface (`python gui.py`).
 
 ## Installation
 
@@ -86,13 +85,9 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
    1500+ = Zenyte
    ```
 
-5. Run the bot from the `python` directory. Use either of the commands below:
+5. Run the bot from the `python` directory:
    ```bash
-   # Headless
    python WOM.py
-
-   # With GUI
-   python gui.py
    ```
 
 ## Running in Docker or LXC
