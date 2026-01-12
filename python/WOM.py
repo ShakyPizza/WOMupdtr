@@ -254,9 +254,9 @@ async def list_all_members_and_ranks():
             # Send all message chunks to the configured Discord channel
             channel = discord_client.get_channel(channel_id)
             if channel:
-                log(f"Sending message to channel: {channel.name}")
+                log(f"Sending message to channel: {channel.name}") # pyright: ignore[reportAttributeAccessIssue]
                 for message in message_lines:
-                    await channel.send(message)
+                    await channel.send(message) # pyright: ignore[reportAttributeAccessIssue]
             else:
                 log(f"Channel with ID {channel_id} not found.")
         else:
@@ -301,7 +301,7 @@ async def refresh_group_task():
     if post_to_discord:
         channel = discord_client.get_channel(channel_id)
         if channel:
-            await channel.send(msg)
+            await channel.send(msg) # pyright: ignore[reportAttributeAccessIssue]
 
 async def send_rank_up_message(username, new_rank, old_rank, ehb):
     try:
@@ -321,12 +321,12 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
             channel = discord_client.get_channel(channel_id)
             if channel:
                 if post_to_discord:
-                    await channel.send(
+                    await channel.send( # pyright: ignore[reportAttributeAccessIssue]
                         f'🎉 Congratulations **{username}** on moving up to the rank of **{new_rank}** '
                         f'with **{ehb}** EHB! 🎉\n'
                         f'**Fans:** {fans_display}'
                     )
-                    log(f"Sent rank up message for {username} to channel: {channel.name}")
+                    log(f"Sent rank up message for {username} to channel: {channel.name}") # pyright: ignore[reportAttributeAccessIssue]
             else:
                 log(f"Channel with ID {channel_id} not found.")
     except Exception as e:
