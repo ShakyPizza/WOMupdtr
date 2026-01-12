@@ -7,6 +7,7 @@ import asyncio
 import aiohttp
 import contextlib
 import sys
+from typing import Optional
 
 from wom import Client as BaseClient
 from weeklyupdater import start_weekly_reporter, start_yearly_reporter
@@ -59,6 +60,13 @@ def log(message: str):
             botgui_module.BotGUI.msg_queue.put(formatted_message)
         except Exception as e:
             print(f"Failed to send message to GUI: {e}")
+
+
+def get_messageable_channel(channel_id: int) -> Optional[discord.abc.Messageable]:
+    channel = discord_client.get_channel(channel_id)
+    if isinstance(channel, (discord.TextChannel, discord.Thread, discord.DMChannel, discord.GroupChannel)):
+        return channel
+    return None
 
 
 # Configuration Loading
@@ -294,11 +302,11 @@ async def list_all_members_and_ranks():
                 message_lines.append("\n".join(chunk))
 
             # Send all message chunks to the configured Discord channel
-            channel = discord_client.get_channel(channel_id)
+            channel = get_messageable_channel(channel_id)
             if channel:
-                log(f"Sending message to channel: {channel.name}") # pyright: ignore[reportAttributeAccessIssue]
+                log(f"Sending message to channel: {channel}")
                 for message in message_lines:
-                    await channel.send(message) # pyright: ignore[reportAttributeAccessIssue]
+                    await channel.send(message)  
             else:
                 log(f"Channel with ID {channel_id} not found.")
         else:
@@ -341,9 +349,9 @@ async def refresh_group_data():
 async def refresh_group_task():
     msg = await refresh_group_data()
     if post_to_discord:
-        channel = discord_client.get_channel(channel_id)
+        channel = get_messageable_channel(channel_id)
         if channel:
-            await channel.send(msg) # pyright: ignore[reportAttributeAccessIssue]
+            await channel.send(msg)  
 
 async def send_rank_up_message(username, new_rank, old_rank, ehb):
     try:
@@ -360,15 +368,15 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
 
         # Only send message if the rank has changed
         if new_rank != old_rank:
-            channel = discord_client.get_channel(channel_id)
+            channel = get_messageable_channel(channel_id)
             if channel:
                 if post_to_discord:
-                    await channel.send( # pyright: ignore[reportAttributeAccessIssue]
+                    await channel.send(  
                         f'🎉 Congratulations **{username}** on moving up to the rank of **{new_rank}** '
                         f'with **{ehb}** EHB! 🎉\n'
                         f'**Fans:** {fans_display}'
                     )
-                    log(f"Sent rank up message for {username} to channel: {channel.name}") # pyright: ignore[reportAttributeAccessIssue]
+                    log(f"Sent rank up message for {username} to channel: {channel}")
             else:
                 log(f"Channel with ID {channel_id} not found.")
     except Exception as e:
