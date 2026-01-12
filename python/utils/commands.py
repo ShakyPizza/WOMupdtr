@@ -5,13 +5,18 @@ API (slash commands). Slash commands provide built-in auto-completion and are
 the recommended way for bots to interact with users.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 import aiohttp
 from discord import app_commands, Interaction
 from discord.ext import commands
 
 from .rank_utils import load_ranks, save_ranks, next_rank
+from weeklyupdater import (
+    generate_weekly_report_messages,
+    most_recent_week_end,
+    send_weekly_report,
+)
 
 
 # Helper Functions --- Formats the Discord fans for display.
@@ -26,11 +31,13 @@ def setup_commands(
     bot: commands.Bot,
     wom_client,
     GROUP_ID: int,
+    weekly_channel_id: int,
     get_rank,
     list_all_members_and_ranks,
     send_rank_up_message,
     check_for_rank_changes,
     refresh_group_func,
+    log,
     debug: bool,
 ):
     """Register slash commands on the provided bot."""
@@ -172,6 +179,38 @@ def setup_commands(
                 f"❌ Error refreshing WiseOldMan group: {e}", ephemeral=True
             )
 
+    # Command: /weeklyupdate --- Posts the weekly report to the weekly channel.
+
+    @bot.tree.command(name="weeklyupdate", description="Posts the weekly report to the weekly channel.")
+    async def weeklyupdate(interaction: Interaction):
+        if not weekly_channel_id:
+            await interaction.response.send_message(
+                "❌ weekly_channel_id not configured.", ephemeral=True
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            end_date = most_recent_week_end(datetime.now(timezone.utc))
+            messages = await generate_weekly_report_messages(
+                wom_client=wom_client,
+                group_id=GROUP_ID,
+                end_date=end_date,
+                log=log,
+            )
+            await send_weekly_report(
+                discord_client=bot,
+                channel_id=weekly_channel_id,
+                messages=messages,
+                log=log,
+            )
+            await interaction.followup.send("✅ Weekly report sent.", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ Error sending weekly report: {e}", ephemeral=True
+            )
+
     # Command: /commands --- Lists all available commands.
 
     @bot.tree.command(name="commands", description="Lists all available commands.")
@@ -191,6 +230,7 @@ def setup_commands(
             "/commands ➡️   Lists all available commands.",
             "/goodnight ➡️  Sends a good night message.",
             "/forcecheck ➡️     Forces check_for_rank_changes task to run.",
+            "/weeklyupdate ➡️   Posts the weekly report to the weekly channel.",
             "/sendrankup_debug ➡️   Debugging command to simulate a rank up message.",
             "/debug_group ➡️    Debugs and inspects group response.",
         ]
