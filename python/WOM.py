@@ -9,17 +9,17 @@ import contextlib
 import sys
 
 from wom import Client as BaseClient
-from weeklyupdater import start_weekly_reporter
+from weeklyupdater import start_weekly_reporter, start_yearly_reporter
 from utils.rank_utils import load_ranks, save_ranks
 from utils.log_csv import log_ehb_to_csv
 from utils.commands import setup_commands
 from utils.baserow_connect import post_to_ehb_table
 
 class Client(BaseClient):
-    def __init__(self):
+    def __init__(self, api_key: str | None = None):
         self._session = None
         self._connector = None
-        super().__init__()
+        super().__init__(api_key=api_key)
     
     async def start(self):
         if self._session is None or self._session.closed:
@@ -72,8 +72,10 @@ config.read(config_file)
 discord_token       = config['discord']['token']
 channel_id          = int(config['discord']['channel_id'])
 weekly_channel_id   = int(config['discord'].get('weekly_channel_id', 0) or 0)
+yearly_channel_id   = int(config['discord'].get('yearly_channel_id', weekly_channel_id) or 0)
 group_id            = int(config['wiseoldman']['group_id'])
 group_passcode      = config['wiseoldman']['group_passcode']
+api_key             = config['wiseoldman'].get('api_key', '').strip() or None
 check_interval      = int(config['settings']['check_interval'])
 run_at_startup      = config['settings'].getboolean('run_at_startup', True)
 print_to_csv        = config['settings'].getboolean('print_to_csv', True)
@@ -81,6 +83,11 @@ print_csv_changes   = config['settings'].getboolean('print_csv_changes', True)
 post_to_discord     = config['settings'].getboolean('post_to_discord', True)
 silent              = config['settings'].getboolean('silent', False)
 debug               = config['settings'].getboolean('debug', False)
+
+if api_key:
+    log("Wise Old Man API key loaded.")
+else:
+    log("Wise Old Man API key not configured; using default rate limits.")
 
 
 # Discord Client and Wise Old Man Client Initialization
@@ -93,9 +100,10 @@ intents.message_content = True  # Enable message content intent
 # Use slash commands via app commands; prefix commands are disabled
 discord_client = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
 
-wom_client = Client()
+wom_client = Client(api_key=api_key)
 
 weekly_report_task = None
+yearly_report_task = None
 
 
 # Utility Functions
@@ -137,6 +145,7 @@ async def on_ready():
     await wom_client.start()
 
     global weekly_report_task
+    global yearly_report_task
     if weekly_report_task is None:
         if weekly_channel_id:
             weekly_report_task = start_weekly_reporter(
@@ -150,6 +159,20 @@ async def on_ready():
             log("Weekly report task started.")
         else:
             log("weekly_channel_id not configured; weekly report disabled.")
+
+    if yearly_report_task is None:
+        if yearly_channel_id:
+            yearly_report_task = start_yearly_reporter(
+                wom_client=wom_client,
+                discord_client=discord_client,
+                group_id=group_id,
+                channel_id=yearly_channel_id,
+                log=log,
+                debug=debug,
+            )
+            log("Yearly report task started.")
+        else:
+            log("yearly_channel_id not configured; yearly report disabled.")
 
     # Run initial member and ranks listing if enabled
     if run_at_startup:
@@ -360,6 +383,7 @@ setup_commands(
     wom_client,
     group_id,
     weekly_channel_id,
+    yearly_channel_id,
     get_rank,
     list_all_members_and_ranks,
     send_rank_up_message,

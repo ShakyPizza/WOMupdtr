@@ -6,6 +6,7 @@ the recommended way for bots to interact with users.
 """
 
 from datetime import datetime, timezone
+from typing import Optional
 
 import aiohttp
 from discord import app_commands, Interaction
@@ -14,7 +15,10 @@ from discord.ext import commands
 from .rank_utils import load_ranks, save_ranks, next_rank
 from weeklyupdater import (
     generate_weekly_report_messages,
+    generate_yearly_report_messages,
+    most_recent_year_end,
     most_recent_week_end,
+    send_yearly_report,
     send_weekly_report,
 )
 
@@ -32,6 +36,7 @@ def setup_commands(
     wom_client,
     GROUP_ID: int,
     weekly_channel_id: int,
+    yearly_channel_id: int,
     get_rank,
     list_all_members_and_ranks,
     send_rank_up_message,
@@ -211,6 +216,50 @@ def setup_commands(
                 f"❌ Error sending weekly report: {e}", ephemeral=True
             )
 
+    # Command: /yearlyreport --- Posts the yearly report to the yearly channel.
+
+    @bot.tree.command(name="yearlyreport", description="Posts the yearly report to the yearly channel.")
+    @app_commands.describe(year="Report year (2020 to last completed year).")
+    async def yearlyreport(interaction: Interaction, year: Optional[int] = None):
+        if not yearly_channel_id:
+            await interaction.response.send_message(
+                "❌ yearly_channel_id not configured.", ephemeral=True
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            now = datetime.now(timezone.utc)
+            latest_end = most_recent_year_end(now)
+            last_completed_year = latest_end.year - 1
+
+            if year is not None and (year < 2020 or year > last_completed_year):
+                await interaction.followup.send(
+                    f"❌ Year must be between 2020 and {last_completed_year}.",
+                    ephemeral=True,
+                )
+                return
+
+            end_date = latest_end if year is None else datetime(year + 1, 1, 1, 12, 0, tzinfo=timezone.utc)
+            messages = await generate_yearly_report_messages(
+                wom_client=wom_client,
+                group_id=GROUP_ID,
+                end_date=end_date,
+                log=log,
+            )
+            await send_yearly_report(
+                discord_client=bot,
+                channel_id=yearly_channel_id,
+                messages=messages,
+                log=log,
+            )
+            await interaction.followup.send("✅ Yearly report sent.", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ Error sending yearly report: {e}", ephemeral=True
+            )
+
     # Command: /commands --- Lists all available commands.
 
     @bot.tree.command(name="commands", description="Lists all available commands.")
@@ -231,6 +280,7 @@ def setup_commands(
             "/goodnight ➡️  Sends a good night message.",
             "/forcecheck ➡️     Forces check_for_rank_changes task to run.",
             "/weeklyupdate ➡️   Posts the weekly report to the weekly channel.",
+            "/yearlyreport [year] ➡️   Posts the yearly report to the yearly channel.",
             "/sendrankup_debug ➡️   Debugging command to simulate a rank up message.",
             "/debug_group ➡️    Debugs and inspects group response.",
         ]
