@@ -9,6 +9,7 @@ import contextlib
 import sys
 
 from wom import Client as BaseClient
+from weeklyupdater import start_weekly_reporter
 from utils.rank_utils import load_ranks, save_ranks
 from utils.log_csv import log_ehb_to_csv
 from utils.commands import setup_commands
@@ -70,6 +71,7 @@ config.read(config_file)
 # Discord and Wise Old Man settings
 discord_token       = config['discord']['token']
 channel_id          = int(config['discord']['channel_id'])
+weekly_channel_id   = int(config['discord'].get('weekly_channel_id', 0) or 0)
 group_id            = int(config['wiseoldman']['group_id'])
 group_passcode      = config['wiseoldman']['group_passcode']
 check_interval      = int(config['settings']['check_interval'])
@@ -92,6 +94,8 @@ intents.message_content = True  # Enable message content intent
 discord_client = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
 
 wom_client = Client()
+
+weekly_report_task = None
 
 
 # Utility Functions
@@ -131,6 +135,21 @@ async def on_ready():
 
     # Start Wise Old Man client session
     await wom_client.start()
+
+    global weekly_report_task
+    if weekly_report_task is None:
+        if weekly_channel_id:
+            weekly_report_task = start_weekly_reporter(
+                wom_client=wom_client,
+                discord_client=discord_client,
+                group_id=group_id,
+                channel_id=weekly_channel_id,
+                log=log,
+                debug=debug,
+            )
+            log("Weekly report task started.")
+        else:
+            log("weekly_channel_id not configured; weekly report disabled.")
 
     # Run initial member and ranks listing if enabled
     if run_at_startup:
@@ -340,11 +359,13 @@ setup_commands(
     discord_client,
     wom_client,
     group_id,
+    weekly_channel_id,
     get_rank,
     list_all_members_and_ranks,
     send_rank_up_message,
     check_for_rank_changes,
     refresh_group_data,
+    log,
     debug
 )
 
