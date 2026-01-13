@@ -11,10 +11,11 @@ import types
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Provide a minimal requests stub to satisfy imports when the real package is missing
-requests_stub = types.SimpleNamespace(post=lambda *a, **k: None,
-                                      get=lambda *a, **k: None,
-                                      patch=lambda *a, **k: None)
-sys.modules.setdefault('requests', requests_stub)
+requests_stub = types.ModuleType("requests")
+setattr(requests_stub, "post", lambda *a, **k: None)
+setattr(requests_stub, "get", lambda *a, **k: None)
+setattr(requests_stub, "patch", lambda *a, **k: None)
+sys.modules.setdefault("requests", requests_stub)
 
 # Create a temporary config.ini so baserow_connect can import without errors
 repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -128,3 +129,82 @@ def test_save_ranks_skips_update_when_ehb_unchanged(tmp_path, monkeypatch):
     rank_utils.save_ranks(data)
 
     assert "called" not in called
+
+
+def test_load_ranks_returns_empty_on_corrupt_json(tmp_path, monkeypatch):
+    ranks_file = tmp_path / "player_ranks.json"
+    with open(ranks_file, "w") as f:
+        f.write("{bad json")
+
+    monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+
+    result = rank_utils.load_ranks()
+
+    assert result == {}
+
+
+def test_next_rank_returns_unknown_for_missing_user(tmp_path, monkeypatch):
+    ranks_file = tmp_path / "player_ranks.json"
+    with open(ranks_file, "w") as f:
+        json.dump({}, f)
+
+    monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+
+    result = rank_utils.next_rank("missing_player")
+
+    assert result == "Unknown"
+
+
+def test_next_rank_returns_max_rank_when_at_top(tmp_path, monkeypatch):
+    ranks_data = {
+        "player": {"last_ehb": 150, "rank": "Gold", "discord_name": []}
+    }
+    ranks_file = tmp_path / "player_ranks.json"
+    with open(ranks_file, "w") as f:
+        json.dump(ranks_data, f)
+    monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+
+    ranks_ini = tmp_path / "ranks.ini"
+    with open(ranks_ini, "w") as f:
+        f.write("[Group Ranking]\n")
+        f.write("0-99 = Bronze\n")
+        f.write("100+ = Gold\n")
+
+    original_read = configparser.ConfigParser.read
+
+    def fake_read(self, filenames, encoding=None):
+        return original_read(self, str(ranks_ini), encoding=encoding)
+
+    monkeypatch.setattr(configparser.ConfigParser, "read", fake_read)
+
+    result = rank_utils.next_rank("player")
+
+    assert result == "Max Rank Achieved 👑"
+
+
+def test_save_ranks_updates_only_changed_ehb(tmp_path, monkeypatch):
+    old_data = {
+        "alpha": {"last_ehb": 10, "rank": "Bronze", "discord_name": []},
+        "beta": {"last_ehb": 20, "rank": "Silver", "discord_name": []},
+    }
+    ranks_file = tmp_path / "player_ranks.json"
+    with open(ranks_file, "w") as f:
+        json.dump(old_data, f)
+
+    monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+
+    new_data = {
+        "alpha": {"last_ehb": 10, "rank": "Bronze", "discord_name": []},
+        "beta": {"last_ehb": 25, "rank": "Silver", "discord_name": []},
+    }
+
+    calls = []
+
+    def fake_update(username, rank, ehb, discord_names):
+        calls.append((username, rank, ehb, discord_names))
+
+    monkeypatch.setattr(rank_utils, "update_players_table", fake_update)
+
+    rank_utils.save_ranks(new_data)
+
+    assert calls == [("beta", "Silver", 25, [])]
