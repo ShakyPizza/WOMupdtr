@@ -1,0 +1,10 @@
+version: "3.8"
+services:
+  womupdtr:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./python/config.ini:/app/python/config.ini:ro
+      - ./python/ranks.ini:/app/python/ranks.ini:ro
+    restart: unless-stopped
