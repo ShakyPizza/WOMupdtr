@@ -14,7 +14,7 @@ from weeklyupdater import start_weekly_reporter, start_yearly_reporter
 from utils.rank_utils import load_ranks, save_ranks
 from utils.log_csv import log_ehb_to_csv
 from utils.commands import setup_commands
-from utils.baserow_connect import post_to_ehb_table
+
 
 class Client(BaseClient):
     def __init__(self, api_key: str | None = None):
@@ -240,10 +240,6 @@ async def check_for_rank_changes():
                         if print_to_csv:
                             log_ehb_to_csv(username, ehb)
 
-                        # Update Baserow EHB table
-                        #date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")    
-                        #post_to_ehb_table(username, date, ehb)
-                        #log("Posted EHB data to Baserow EHB table")
 
                 except Exception as e:
                     player_name = getattr(membership.player, "display_name", "Unknown")
