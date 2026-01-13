@@ -4,6 +4,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    environment:
+      - EHB_LOG_PATH=/app/data/ehb_log.csv
     volumes:
-      - ./python:/app/python
+      - ./python/config.ini:/app/python/config.ini:ro
+      - ./python/ranks.ini:/app/python/ranks.ini:ro
+      - ./data:/app/data
     restart: unless-stopped

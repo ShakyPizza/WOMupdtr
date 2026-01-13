@@ -6,6 +6,9 @@ from datetime import datetime
 
 def _resolve_csv_path(file_name: str) -> str:
     """Return an absolute, writable-friendly path for the CSV log."""
+    env_path = os.environ.get("EHB_LOG_PATH")
+    if env_path:
+        return env_path
     if os.path.isabs(file_name):
         return file_name
 
