@@ -322,10 +322,10 @@ async def refresh_group_data():
                 if response.status == 200:
                     data = await response.json()
                     updated_count = data.get("count", 0)
-                    #if updated_count > 0:
-                    #    msg = f"✅ Successfully refreshed group data. {updated_count} members updated."
-                    #else:
-                    #    msg = "ℹ️ Group data is already up to date."
+                    if updated_count > 0:
+                        msg = f"✅ Successfully refreshed group data. {updated_count} members updated."
+                    else:
+                        msg = "ℹ️ Group data is already up to date."
                 elif response.status == 400:
                     error_message = await response.json()
                     if error_message.get("message") == "Nothing to update.":
