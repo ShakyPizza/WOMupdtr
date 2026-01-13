@@ -5,6 +5,5 @@ services:
       context: .
       dockerfile: Dockerfile
     volumes:
-      - ./python/config.ini:/app/python/config.ini:ro
-      - ./python/ranks.ini:/app/python/ranks.ini:ro
+      - ./python:/app/python
     restart: unless-stopped
