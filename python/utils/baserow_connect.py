@@ -9,7 +9,7 @@ config_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__fil
 config.read(config_file)
 
 
-token = config.get('baserow', 'token', fallback='')
+token = config['baserow']['br_token']
 
 if not token:
     raise ValueError("Baserow token is not set in the config.ini file.")
