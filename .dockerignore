@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+tests/
+ehb_log.csv
+python/ehb_log.csv
+python/config.ini
+python/ranks.ini
+config.ini
+ranks.ini
