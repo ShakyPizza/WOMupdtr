@@ -8,8 +8,7 @@ config = configparser.ConfigParser()
 config_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'config.ini')
 config.read(config_file)
 
-
-token = config.get('baserow', 'br_token', fallback=None)
+token = config.get('baserow', 'br_token', fallback='').strip()
 
 if not token:
     raise ValueError("Baserow token is not set in the config.ini file.")
