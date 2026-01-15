@@ -9,6 +9,8 @@ import typing as t
 from wom import enums
 from wom.models.players.enums import AchievementMeasure
 
+_SKILL_METRIC_VALUES = {getattr(metric, "value", metric) for metric in enums.Skills}
+
 
 def _most_recent_sunday_1800_utc(now: datetime) -> datetime:
     if now.tzinfo is None:
@@ -42,6 +44,31 @@ def _format_int(value: t.Union[int, float]) -> str:
 
 def _format_float(value: float) -> str:
     return f"{value:,.2f}"
+
+
+def _is_level_measure(measure: t.Any) -> bool:
+    if measure == AchievementMeasure.Levels:
+        return True
+    level_measure = getattr(AchievementMeasure, "Level", None)
+    if level_measure is not None and measure == level_measure:
+        return True
+    value = getattr(measure, "value", None)
+    if value is None and isinstance(measure, str):
+        value = measure
+    if value is None:
+        return False
+    return str(value).lower() in {"level", "levels"}
+
+
+def _is_skill_metric(metric: t.Any) -> bool:
+    if metric in enums.Skills:
+        return True
+    value = getattr(metric, "value", None)
+    if value is None and isinstance(metric, str):
+        value = metric
+    if value is None:
+        return False
+    return value in _SKILL_METRIC_VALUES
 
 
 async def _get_group_member_map(wom_client, group_id: int, log) -> dict[int, str]:
@@ -285,9 +312,9 @@ async def _generate_weekly_report(
     achievements = [
         achievement
         for achievement in achievements
-        if achievement.measure == AchievementMeasure.Levels
+        if _is_level_measure(achievement.measure)
         and achievement.threshold == 99
-        and achievement.metric in enums.Skills
+        and _is_skill_metric(achievement.metric)
     ]
     achievements.sort(key=lambda item: item.created_at)
 
