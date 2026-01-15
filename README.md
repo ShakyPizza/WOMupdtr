@@ -29,48 +29,48 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
 
 3. Create a `config.ini` file in the project root directory:
    ```ini
-[discord]
-# Discord bot token
-token = 
-
-# Discord channel ID's ( rich-boys-ranks, rich-boys-stats, osrs-pælingar )
-channel_id          = 
-weekly_channel_id   = 
-monthly_channel_id  = 
-yearly_channel_id   = 
-
-[wiseoldman]
-# Wise Old Man group ID
-group_id = 
-group_passcode =  
-
-# Optional: Wise Old Man API key if you have one.
-api_key = 
-
-[baserow]
-br_token = 
-
-[settings]
-# Frequency for checking rank updates (in seconds)
-check_interval = 3600
-
-# Set to true if you want the bot to send the initial message on startup into the discord channel.
-run_at_startup = false
-
-# Set to true if you want the bot to print the rank changes to ehb_log.csv file.
-print_to_csv = true
-
-# Set to true if you want the .csv changes to be printed in the console.
-print_csv_changes = true
-
-# Set to true if you want the bot to post the rank changes to the discord channel.
-post_to_discord = true
-
-# Silent mode (no console output)
-silent_mode = false
-
-#Debug mode
-debug = true
+   [discord]
+   # Discord bot token
+   token = 
+   
+   # Discord channel ID's ( rich-boys-ranks, rich-boys-stats, osrs-pælingar )
+   channel_id          = 
+   weekly_channel_id   = 
+   monthly_channel_id  = 
+   yearly_channel_id   = 
+   
+   [wiseoldman]
+   # Wise Old Man group ID
+   group_id = 
+   group_passcode =  
+   
+   # Optional: Wise Old Man API key if you have one.
+   api_key = 
+   
+   [baserow]
+   br_token = 
+   
+   [settings]
+   # Frequency for checking rank updates (in seconds)
+   check_interval = 3600
+   
+   # Set to true if you want the bot to send the initial message on startup into the discord channel.
+   run_at_startup = false
+   
+   # Set to true if you want the bot to print the rank changes to ehb_log.csv file.
+   print_to_csv = true
+   
+   # Set to true if you want the .csv changes to be printed in the console.
+   print_csv_changes = true
+   
+   # Set to true if you want the bot to post the rank changes to the discord channel.
+   post_to_discord = true
+   
+   # Silent mode (no console output)
+   silent_mode = false
+   
+   #Debug mode
+   debug = true
 
 
    
