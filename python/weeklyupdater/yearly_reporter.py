@@ -323,14 +323,18 @@ def _build_report_lines(
 
     if achievements_99s:
         lines.append(f"New 99s: {len(achievements_99s)}")
-        achievement_lines = []
+        grouped_99s: dict[str, list[tuple[str, str]]] = {}
         for achievement in achievements_99s:
             player_name = player_name_map.get(achievement.player_id, f"Player {achievement.player_id}")
             timestamp = achievement.created_at.strftime("%Y-%m-%d")
-            achievement_lines.append(
-                f"- {player_name}: {_metric_label(achievement.metric)} ({timestamp})"
+            grouped_99s.setdefault(player_name, []).append(
+                (_metric_label(achievement.metric), timestamp)
             )
-        _add_limited_list(lines, achievement_lines, limit=15, suffix="99s")
+        for player_name in sorted(grouped_99s.keys(), key=str.casefold):
+            entries = grouped_99s[player_name]
+            entries.sort(key=lambda item: item[1])
+            details = ", ".join(f"{metric} ({timestamp})" for metric, timestamp in entries)
+            lines.append(f"- {player_name}: {details}")
     else:
         lines.append("New 99s: none")
     lines.append("")
