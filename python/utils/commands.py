@@ -6,6 +6,7 @@ the recommended way for bots to interact with users.
 """
 
 from datetime import datetime, timezone
+import os
 from typing import Optional
 
 import aiohttp
@@ -20,6 +21,7 @@ from weeklyupdater import (
     most_recent_week_end,
     send_yearly_report,
     send_weekly_report,
+    write_yearly_report_file,
 )
 
 
@@ -260,6 +262,65 @@ def setup_commands(
                 f"❌ Error sending yearly report: {e}", ephemeral=True
             )
 
+    # Command: /yearlyreportfile --- Writes the yearly report to a local file.
+
+    @bot.tree.command(
+        name="yearlyreportfile",
+        description="Writes the yearly report to a local file for debugging.",
+    )
+    @app_commands.describe(
+        year="Report year (2020 to last completed year).",
+        filename="Optional output filename (saved in the python folder).",
+    )
+    async def yearlyreportfile(
+        interaction: Interaction,
+        year: Optional[int] = None,
+        filename: Optional[str] = None,
+    ):
+        await interaction.response.defer(ephemeral=True)
+
+        try:
+            now = datetime.now(timezone.utc)
+            latest_end = most_recent_year_end(now)
+            last_completed_year = latest_end.year - 1
+
+            if year is not None and (year < 2020 or year > last_completed_year):
+                await interaction.followup.send(
+                    f"❌ Year must be between 2020 and {last_completed_year}.",
+                    ephemeral=True,
+                )
+                return
+
+            end_date = (
+                latest_end
+                if year is None
+                else datetime(year + 1, 1, 1, 12, 0, tzinfo=timezone.utc)
+            )
+            report_year = end_date.year - 1
+            output_name = filename or f"yearly_report_{report_year}.txt"
+            output_path = os.path.abspath(
+                os.path.join(os.path.dirname(__file__), "..", output_name)
+            )
+
+            messages = await generate_yearly_report_messages(
+                wom_client=wom_client,
+                group_id=GROUP_ID,
+                end_date=end_date,
+                log=log,
+            )
+            await write_yearly_report_file(
+                output_path=output_path,
+                messages=messages,
+                log=log,
+            )
+            await interaction.followup.send(
+                f"✅ Yearly report written to `{output_path}`.", ephemeral=True
+            )
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ Error writing yearly report: {e}", ephemeral=True
+            )
+
     # Command: /commands --- Lists all available commands.
 
     @bot.tree.command(name="commands", description="Lists all available commands.")
@@ -281,6 +342,7 @@ def setup_commands(
             "/forcecheck ➡️     Forces check_for_rank_changes task to run.",
             "/weeklyupdate ➡️   Posts the weekly report to the weekly channel.",
             "/yearlyreport [year] ➡️   Posts the yearly report to the yearly channel.",
+            "/yearlyreportfile [year] [filename] ➡️   Writes the yearly report to a local file.",
             "/sendrankup_debug ➡️   Debugging command to simulate a rank up message.",
             "/debug_group ➡️    Debugs and inspects group response.",
         ]

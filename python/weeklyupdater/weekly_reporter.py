@@ -10,6 +10,7 @@ from wom import enums
 from wom.models.players.enums import AchievementMeasure
 
 _SKILL_METRIC_VALUES = {getattr(metric, "value", metric) for metric in enums.Skills}
+_LEVEL_99_XP = 13_034_431
 
 
 def _most_recent_sunday_1800_utc(now: datetime) -> datetime:
@@ -60,6 +61,18 @@ def _is_level_measure(measure: t.Any) -> bool:
     return str(value).lower() in {"level", "levels"}
 
 
+def _is_experience_measure(measure: t.Any) -> bool:
+    experience_measure = getattr(AchievementMeasure, "Experience", None)
+    if experience_measure is not None and measure == experience_measure:
+        return True
+    value = getattr(measure, "value", None)
+    if value is None and isinstance(measure, str):
+        value = measure
+    if value is None:
+        return False
+    return str(value).lower() in {"experience", "xp", "exp"}
+
+
 def _is_skill_metric(metric: t.Any) -> bool:
     if metric in enums.Skills:
         return True
@@ -69,6 +82,20 @@ def _is_skill_metric(metric: t.Any) -> bool:
     if value is None:
         return False
     return value in _SKILL_METRIC_VALUES
+
+
+def _metric_label(metric: t.Any) -> str:
+    value = getattr(metric, "value", None)
+    if value is None:
+        return str(metric)
+    return str(value)
+
+
+def _matches_threshold(value: t.Any, target: int) -> bool:
+    try:
+        return int(float(value)) == target
+    except (TypeError, ValueError):
+        return False
 
 
 async def _get_group_member_map(wom_client, group_id: int, log) -> dict[int, str]:
@@ -252,7 +279,7 @@ def _build_report_lines(
         for achievement in achievements:
             player_name = player_name_map.get(achievement.player_id, f"Player {achievement.player_id}")
             timestamp = achievement.created_at.strftime("%Y-%m-%d")
-            lines.append(f"- {player_name}: {achievement.metric.value} ({timestamp})")
+            lines.append(f"- {player_name}: {_metric_label(achievement.metric)} ({timestamp})")
     else:
         lines.append("New 99s: none")
 
@@ -312,9 +339,14 @@ async def _generate_weekly_report(
     achievements = [
         achievement
         for achievement in achievements
-        if _is_level_measure(achievement.measure)
-        and achievement.threshold == 99
-        and _is_skill_metric(achievement.metric)
+        if _is_skill_metric(achievement.metric)
+        and (
+            (_is_level_measure(achievement.measure) and _matches_threshold(achievement.threshold, 99))
+            or (
+                _is_experience_measure(achievement.measure)
+                and _matches_threshold(achievement.threshold, _LEVEL_99_XP)
+            )
+        )
     ]
     achievements.sort(key=lambda item: item.created_at)
 
