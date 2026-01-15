@@ -2,9 +2,46 @@ import json
 import os
 import configparser
 from .baserow_connect import update_players_table
+from .log_csv import load_latest_ehb_from_csv
 
 # JSON file for storing player ranks
 RANKS_FILE = os.path.join(os.path.dirname(__file__), 'player_ranks.json')
+
+
+def _get_rank_for_ehb(ehb):
+    """Return rank name for an EHB value using ranks.ini thresholds."""
+    ranks_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ranks.ini')
+    try:
+        rank_config = configparser.ConfigParser()
+        rank_config.read(ranks_path)
+        for range_key, rank_name in rank_config['Group Ranking'].items():
+            if '+' in range_key:
+                lower_bound = int(range_key.replace('+', ''))
+                if ehb >= lower_bound:
+                    return rank_name
+            else:
+                lower_bound, upper_bound = map(int, range_key.split('-'))
+                if lower_bound <= ehb < upper_bound:
+                    return rank_name
+    except Exception as e:
+        print(f"Error reading ranks.ini for CSV bootstrap: {e}")
+    return "Unknown"
+
+
+def _bootstrap_ranks_from_csv():
+    """Seed ranks data from ehb_log.csv when JSON storage is missing/corrupt."""
+    ehb_map = load_latest_ehb_from_csv()
+    if not ehb_map:
+        return {}
+    ranks_data = {}
+    for username, ehb in ehb_map.items():
+        ranks_data[username] = {
+            "last_ehb": ehb,
+            "rank": _get_rank_for_ehb(ehb),
+            "discord_name": [],
+        }
+    print("Loaded ranks from ehb_log.csv.")
+    return ranks_data
 
 def load_ranks():
     """Load ranks from a JSON file and ensure discord_name is always a list."""
@@ -24,8 +61,8 @@ def load_ranks():
 
         except (json.JSONDecodeError, ValueError):
             print(f"Error: {RANKS_FILE} is empty or corrupted. Resetting data.")
-            return {}
-    return {}
+            return _bootstrap_ranks_from_csv()
+    return _bootstrap_ranks_from_csv()
 
 def save_ranks(data):
     """Save ranks to ``player_ranks.json`` and update Baserow if EHB changed."""
