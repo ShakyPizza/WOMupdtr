@@ -11,6 +11,7 @@ from .yearly_reporter import (
     most_recent_year_end,
     send_yearly_report,
     start_yearly_reporter,
+    write_yearly_report_file,
 )
 
 __all__ = [
@@ -22,4 +23,5 @@ __all__ = [
     "most_recent_year_end",
     "send_yearly_report",
     "start_yearly_reporter",
+    "write_yearly_report_file",
 ]
