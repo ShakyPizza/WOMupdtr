@@ -10,7 +10,8 @@ from wom import enums
 from wom.models.players.enums import AchievementMeasure
 
 
-RATE_LIMIT_DELAY_SECONDS = 1.2
+RATE_LIMIT_DELAY_SECONDS = 1.5
+_SKILL_METRIC_VALUES = {getattr(metric, "value", metric) for metric in enums.Skills}
 
 
 def _year_boundary_1200_utc(year: int) -> datetime:
@@ -38,6 +39,31 @@ def _format_int(value: t.Union[int, float]) -> str:
 
 def _format_float(value: float) -> str:
     return f"{value:,.2f}"
+
+
+def _is_level_measure(measure: t.Any) -> bool:
+    if measure == AchievementMeasure.Levels:
+        return True
+    level_measure = getattr(AchievementMeasure, "Level", None)
+    if level_measure is not None and measure == level_measure:
+        return True
+    value = getattr(measure, "value", None)
+    if value is None and isinstance(measure, str):
+        value = measure
+    if value is None:
+        return False
+    return str(value).lower() in {"level", "levels"}
+
+
+def _is_skill_metric(metric: t.Any) -> bool:
+    if metric in enums.Skills:
+        return True
+    value = getattr(metric, "value", None)
+    if value is None and isinstance(metric, str):
+        value = metric
+    if value is None:
+        return False
+    return value in _SKILL_METRIC_VALUES
 
 
 async def _get_group_member_map(wom_client, group_id: int, log) -> dict[int, str]:
@@ -219,7 +245,7 @@ def _build_report_lines(
     lines.append(f"- Average per active member: {_format_int(avg_xp)} xp")
     if overall_gains:
         lines.append("Top overall XP gainers:")
-        for idx, entry in enumerate(overall_gains[:5], start=1):
+        for idx, entry in enumerate(overall_gains[:10], start=1):
             lines.append(f"{idx}. {entry.player.display_name} (+{_format_int(entry.data.gained)} xp)")
     else:
         lines.append("Top overall XP gainers: no data")
@@ -233,13 +259,13 @@ def _build_report_lines(
     lines.append(f"- Group total EHP gained: {_format_float(total_ehp)}")
     if ehb_gains:
         lines.append("Top EHB gainers:")
-        for idx, entry in enumerate(ehb_gains[:5], start=1):
+        for idx, entry in enumerate(ehb_gains[:10], start=1):
             lines.append(f"{idx}. {entry.player.display_name} (+{_format_float(entry.data.gained)} EHB)")
     else:
         lines.append("Top EHB gainers: no data")
     if ehp_gains:
         lines.append("Top EHP gainers:")
-        for idx, entry in enumerate(ehp_gains[:5], start=1):
+        for idx, entry in enumerate(ehp_gains[:10], start=1):
             lines.append(f"{idx}. {entry.player.display_name} (+{_format_float(entry.data.gained)} EHP)")
     else:
         lines.append("Top EHP gainers: no data")
@@ -250,7 +276,7 @@ def _build_report_lines(
     lines.append(f"- Group total Sailing XP: {_format_int(total_sailing)} xp")
     if sailing_gains:
         lines.append("Top Sailing gainers:")
-        for idx, entry in enumerate(sailing_gains[:3], start=1):
+        for idx, entry in enumerate(sailing_gains[:5], start=1):
             lines.append(f"{idx}. {entry.player.display_name} (+{_format_int(entry.data.gained)} xp)")
     else:
         lines.append("Top Sailing gainers: no data")
@@ -362,16 +388,16 @@ async def _generate_yearly_report(
     achievements_99s = [
         achievement
         for achievement in achievements
-        if achievement.measure == AchievementMeasure.Levels
+        if _is_level_measure(achievement.measure)
         and achievement.threshold == 99
-        and achievement.metric in enums.Skills
+        and _is_skill_metric(achievement.metric)
     ]
     achievements_99s.sort(key=lambda item: item.created_at)
 
     achievements_max_total = [
         achievement
         for achievement in achievements
-        if achievement.measure == AchievementMeasure.Levels
+        if _is_level_measure(achievement.measure)
         and achievement.metric == enums.Metric.Overall
         and achievement.threshold == 2376
     ]
