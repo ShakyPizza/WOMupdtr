@@ -254,8 +254,8 @@ def _build_report_lines(
     year_label = start_date.strftime("%Y")
     header = (
         f"Yearly Report {year_label}"
-        f" ({start_date.strftime('%Y-%m-%d %H:%M')} UTC"
-        f" - {end_date.strftime('%Y-%m-%d %H:%M')} UTC)"
+        f" ({start_date.strftime('%d-%m-%Y %H:%M')} UTC"
+        f" - {end_date.strftime('%d-%m-%Y %H:%M')} UTC)"
     )
 
     lines = [header, ""]
@@ -315,7 +315,7 @@ def _build_report_lines(
         total_lines = []
         for achievement in achievements_max_total:
             player_name = player_name_map.get(achievement.player_id, f"Player {achievement.player_id}")
-            timestamp = achievement.created_at.strftime("%Y-%m-%d")
+            timestamp = achievement.created_at.strftime("%d-%m-%Y")
             total_lines.append(f"- {player_name} ({timestamp})")
         _add_limited_list(lines, total_lines, limit=10, suffix="maxed players")
     else:
@@ -326,7 +326,7 @@ def _build_report_lines(
         grouped_99s: dict[str, list[tuple[str, str]]] = {}
         for achievement in achievements_99s:
             player_name = player_name_map.get(achievement.player_id, f"Player {achievement.player_id}")
-            timestamp = achievement.created_at.strftime("%Y-%m-%d")
+            timestamp = achievement.created_at.strftime("%d-%m-%Y")
             grouped_99s.setdefault(player_name, []).append(
                 (_metric_label(achievement.metric), timestamp)
             )
@@ -343,7 +343,7 @@ def _build_report_lines(
         lines.append(f"Name changes: {len(name_changes)}")
         change_lines = []
         for change in name_changes:
-            timestamp = change.created_at.strftime("%Y-%m-%d")
+            timestamp = change.created_at.strftime("%d-%m-%Y")
             change_lines.append(
                 f"- {change.old_name} -> {change.new_name} ({change.status.value}, {timestamp})"
             )
