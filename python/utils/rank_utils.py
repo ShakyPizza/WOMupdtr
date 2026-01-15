@@ -6,6 +6,7 @@ from .log_csv import load_latest_ehb_from_csv
 
 # JSON file for storing player ranks
 RANKS_FILE = os.path.join(os.path.dirname(__file__), 'player_ranks.json')
+_BOOTSTRAPPED_FROM_CSV = False
 
 
 def _get_rank_for_ehb(ehb):
@@ -30,9 +31,11 @@ def _get_rank_for_ehb(ehb):
 
 def _bootstrap_ranks_from_csv():
     """Seed ranks data from ehb_log.csv when JSON storage is missing/corrupt."""
+    global _BOOTSTRAPPED_FROM_CSV
     ehb_map = load_latest_ehb_from_csv()
     if not ehb_map:
         return {}
+    _BOOTSTRAPPED_FROM_CSV = True
     ranks_data = {}
     for username, ehb in ehb_map.items():
         ranks_data[username] = {
@@ -82,6 +85,9 @@ def save_ranks(data):
 
     # Sync data to Baserow players table only when EHB differs from old value
     try:
+        if _BOOTSTRAPPED_FROM_CSV:
+            print("Skipping Baserow sync for CSV bootstrap run.")
+            return
         for username, pdata in data.items():
             rank = pdata.get("rank", "")
             ehb = pdata.get("last_ehb", 0)
