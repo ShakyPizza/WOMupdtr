@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import asyncio
 from datetime import datetime, timezone
+import hashlib
+import json
+import os
+import pickle
 import typing as t
 
 from wom import enums
@@ -13,6 +17,82 @@ from wom.models.players.enums import AchievementMeasure
 RATE_LIMIT_DELAY_SECONDS = 1.5
 _SKILL_METRIC_VALUES = {getattr(metric, "value", metric) for metric in enums.Skills}
 _LEVEL_99_XP = 13_034_431
+_CACHE_VERSION = 1
+
+
+def _cache_enabled(debug: bool) -> bool:
+    env = os.environ.get("WOM_USE_CACHE")
+    if env is None:
+        return debug
+    return env.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _cache_dir() -> str:
+    env_path = os.environ.get("WOM_CACHE_DIR")
+    if env_path:
+        base_dir = env_path
+    else:
+        base_dir = os.path.join(os.path.dirname(__file__), "cache")
+    os.makedirs(base_dir, exist_ok=True)
+    return base_dir
+
+
+def _cache_path(name: str, payload: dict) -> str:
+    serialized = json.dumps(payload, sort_keys=True, default=str)
+    digest = hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:16]
+    filename = f"{name}_{digest}.pkl"
+    return os.path.join(_cache_dir(), filename)
+
+
+def _load_cache(path: str, log, debug: bool) -> t.Any | None:
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, "rb") as handle:
+            payload = pickle.load(handle)
+    except Exception as exc:
+        if debug:
+            log(f"Yearly report: failed to read cache {path}: {exc}")
+        return None
+    if isinstance(payload, dict) and "data" in payload:
+        return payload["data"]
+    return payload
+
+
+def _save_cache(path: str, data: t.Any, log, debug: bool) -> None:
+    payload = {"version": _CACHE_VERSION, "created_at": datetime.now(timezone.utc), "data": data}
+    try:
+        with open(path, "wb") as handle:
+            pickle.dump(payload, handle)
+    except Exception as exc:
+        if debug:
+            log(f"Yearly report: failed to write cache {path}: {exc}")
+
+
+async def _get_cached_or_fetch(
+    *,
+    cache_enabled: bool,
+    cache_name: str,
+    cache_key: dict,
+    fetcher: t.Callable[[], t.Awaitable[tuple[t.Any, bool]]],
+    log,
+    debug: bool,
+) -> t.Any:
+    if not cache_enabled:
+        data, _ = await fetcher()
+        return data
+
+    cache_path = _cache_path(cache_name, cache_key)
+    cached = _load_cache(cache_path, log, debug)
+    if cached is not None:
+        if debug:
+            log(f"Yearly report: cache hit for {cache_name}")
+        return cached
+
+    data, ok = await fetcher()
+    if ok:
+        _save_cache(cache_path, data, log, debug)
+    return data
 
 
 def _year_boundary_1200_utc(year: int) -> datetime:
@@ -93,14 +173,14 @@ def _matches_threshold(value: t.Any, target: int) -> bool:
         return False
 
 
-async def _get_group_member_map(wom_client, group_id: int, log) -> dict[int, str]:
+async def _get_group_member_map(wom_client, group_id: int, log) -> tuple[dict[int, str], bool]:
     result = await wom_client.groups.get_details(group_id)
     if not result.is_ok:
         log(f"Yearly report: failed to fetch group details: {result.unwrap_err()}")
-        return {}
+        return {}, False
 
     group = result.unwrap()
-    return {membership.player.id: membership.player.display_name for membership in group.memberships}
+    return {membership.player.id: membership.player.display_name for membership in group.memberships}, True
 
 
 async def _get_group_gains(
@@ -111,7 +191,7 @@ async def _get_group_gains(
     end_date: datetime,
     *,
     limit: int = 50,
-) -> list:
+) -> tuple[list, bool]:
     result = await wom_client.groups.get_gains(
         group_id,
         metric,
@@ -122,9 +202,9 @@ async def _get_group_gains(
     )
 
     if not result.is_ok:
-        return []
+        return [], False
 
-    return list(result.unwrap())
+    return list(result.unwrap()), True
 
 
 async def _get_group_achievements(
@@ -135,14 +215,16 @@ async def _get_group_achievements(
     log,
     *,
     limit: int = 50,
-) -> list:
+) -> tuple[list, bool]:
     achievements = []
     offset = 0
+    ok = True
 
     while True:
         result = await wom_client.groups.get_achievements(group_id, limit=limit, offset=offset)
         if not result.is_ok:
             log(f"Yearly report: failed to fetch achievements: {result.unwrap_err()}")
+            ok = False
             break
 
         page = list(result.unwrap())
@@ -159,7 +241,7 @@ async def _get_group_achievements(
         offset += limit
         await asyncio.sleep(RATE_LIMIT_DELAY_SECONDS)
 
-    return achievements
+    return achievements, ok
 
 
 async def _get_group_name_changes(
@@ -170,14 +252,16 @@ async def _get_group_name_changes(
     log,
     *,
     limit: int = 50,
-) -> list:
+) -> tuple[list, bool]:
     changes = []
     offset = 0
+    ok = True
 
     while True:
         result = await wom_client.groups.get_name_changes(group_id, limit=limit, offset=offset)
         if not result.is_ok:
             log(f"Yearly report: failed to fetch name changes: {result.unwrap_err()}")
+            ok = False
             break
 
         page = list(result.unwrap())
@@ -194,15 +278,15 @@ async def _get_group_name_changes(
         offset += limit
         await asyncio.sleep(RATE_LIMIT_DELAY_SECONDS)
 
-    return changes
+    return changes, ok
 
 
-async def _get_group_statistics(wom_client, group_id: int, log):
+async def _get_group_statistics(wom_client, group_id: int, log) -> tuple[t.Any, bool]:
     result = await wom_client.groups.get_statistics(group_id)
     if not result.is_ok:
         log(f"Yearly report: failed to fetch group statistics: {result.unwrap_err()}")
-        return None
-    return result.unwrap()
+        return None, False
+    return result.unwrap(), True
 
 
 def _chunk_messages(lines: list[str], limit: int = 2000) -> list[str]:
@@ -381,37 +465,130 @@ async def _generate_yearly_report(
     group_id: int,
     end_date: datetime,
     log,
+    debug: bool,
 ) -> list[str]:
     start_date = _year_boundary_1200_utc(end_date.year - 1)
 
-    player_name_map = await _get_group_member_map(wom_client, group_id, log)
+    cache_enabled = _cache_enabled(debug)
 
-    overall_gains = await _get_group_gains(
-        wom_client, group_id, enums.Metric.Overall, start_date, end_date, limit=50
+    player_name_map = await _get_cached_or_fetch(
+        cache_enabled=cache_enabled,
+        cache_name="group_members",
+        cache_key={"group_id": group_id},
+        fetcher=lambda: _get_group_member_map(wom_client, group_id, log),
+        log=log,
+        debug=debug,
+    )
+
+    overall_gains = await _get_cached_or_fetch(
+        cache_enabled=cache_enabled,
+        cache_name="gains",
+        cache_key={
+            "group_id": group_id,
+            "metric": _metric_label(enums.Metric.Overall),
+            "start": start_date.isoformat(),
+            "end": end_date.isoformat(),
+            "limit": 50,
+        },
+        fetcher=lambda: _get_group_gains(
+            wom_client, group_id, enums.Metric.Overall, start_date, end_date, limit=50
+        ),
+        log=log,
+        debug=debug,
     )
     await asyncio.sleep(RATE_LIMIT_DELAY_SECONDS)
-    ehb_gains = await _get_group_gains(
-        wom_client, group_id, enums.Metric.Ehb, start_date, end_date, limit=50
+    ehb_gains = await _get_cached_or_fetch(
+        cache_enabled=cache_enabled,
+        cache_name="gains",
+        cache_key={
+            "group_id": group_id,
+            "metric": _metric_label(enums.Metric.Ehb),
+            "start": start_date.isoformat(),
+            "end": end_date.isoformat(),
+            "limit": 50,
+        },
+        fetcher=lambda: _get_group_gains(
+            wom_client, group_id, enums.Metric.Ehb, start_date, end_date, limit=50
+        ),
+        log=log,
+        debug=debug,
     )
     await asyncio.sleep(RATE_LIMIT_DELAY_SECONDS)
-    ehp_gains = await _get_group_gains(
-        wom_client, group_id, enums.Metric.Ehp, start_date, end_date, limit=50
+    ehp_gains = await _get_cached_or_fetch(
+        cache_enabled=cache_enabled,
+        cache_name="gains",
+        cache_key={
+            "group_id": group_id,
+            "metric": _metric_label(enums.Metric.Ehp),
+            "start": start_date.isoformat(),
+            "end": end_date.isoformat(),
+            "limit": 50,
+        },
+        fetcher=lambda: _get_group_gains(
+            wom_client, group_id, enums.Metric.Ehp, start_date, end_date, limit=50
+        ),
+        log=log,
+        debug=debug,
     )
     await asyncio.sleep(RATE_LIMIT_DELAY_SECONDS)
-    sailing_gains = await _get_group_gains(
-        wom_client, group_id, enums.Metric.Sailing, start_date, end_date, limit=50
+    sailing_gains = await _get_cached_or_fetch(
+        cache_enabled=cache_enabled,
+        cache_name="gains",
+        cache_key={
+            "group_id": group_id,
+            "metric": _metric_label(enums.Metric.Sailing),
+            "start": start_date.isoformat(),
+            "end": end_date.isoformat(),
+            "limit": 50,
+        },
+        fetcher=lambda: _get_group_gains(
+            wom_client, group_id, enums.Metric.Sailing, start_date, end_date, limit=50
+        ),
+        log=log,
+        debug=debug,
     )
     await asyncio.sleep(RATE_LIMIT_DELAY_SECONDS)
 
-    name_changes = await _get_group_name_changes(
-        wom_client, group_id, start_date, end_date, log, limit=50
+    name_changes = await _get_cached_or_fetch(
+        cache_enabled=cache_enabled,
+        cache_name="name_changes",
+        cache_key={
+            "group_id": group_id,
+            "start": start_date.isoformat(),
+            "end": end_date.isoformat(),
+            "limit": 50,
+        },
+        fetcher=lambda: _get_group_name_changes(
+            wom_client, group_id, start_date, end_date, log, limit=50
+        ),
+        log=log,
+        debug=debug,
     )
     await asyncio.sleep(RATE_LIMIT_DELAY_SECONDS)
-    achievements = await _get_group_achievements(
-        wom_client, group_id, start_date, end_date, log, limit=50
+    achievements = await _get_cached_or_fetch(
+        cache_enabled=cache_enabled,
+        cache_name="achievements",
+        cache_key={
+            "group_id": group_id,
+            "start": start_date.isoformat(),
+            "end": end_date.isoformat(),
+            "limit": 50,
+        },
+        fetcher=lambda: _get_group_achievements(
+            wom_client, group_id, start_date, end_date, log, limit=50
+        ),
+        log=log,
+        debug=debug,
     )
     await asyncio.sleep(RATE_LIMIT_DELAY_SECONDS)
-    group_stats = await _get_group_statistics(wom_client, group_id, log)
+    group_stats = await _get_cached_or_fetch(
+        cache_enabled=cache_enabled,
+        cache_name="group_stats",
+        cache_key={"group_id": group_id},
+        fetcher=lambda: _get_group_statistics(wom_client, group_id, log),
+        log=log,
+        debug=debug,
+    )
 
     overall_gains.sort(key=lambda entry: entry.data.gained, reverse=True)
     ehb_gains.sort(key=lambda entry: entry.data.gained, reverse=True)
@@ -502,6 +679,7 @@ async def _yearly_report_loop(
             group_id=group_id,
             end_date=next_run,
             log=log,
+            debug=debug,
         )
         await _send_report(discord_client, channel_id, report_messages, log)
 
@@ -533,7 +711,7 @@ def most_recent_year_end(now: datetime) -> datetime:
 
 
 async def generate_yearly_report_messages(
-    *, wom_client, group_id: int, end_date: datetime, log
+    *, wom_client, group_id: int, end_date: datetime, log, debug: bool = False
 ) -> list[str]:
     """Generate yearly report message chunks for the provided year window."""
     return await _generate_yearly_report(
@@ -541,6 +719,7 @@ async def generate_yearly_report_messages(
         group_id=group_id,
         end_date=end_date,
         log=log,
+        debug=debug,
     )
 
 
