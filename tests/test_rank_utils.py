@@ -17,12 +17,12 @@ setattr(requests_stub, "get", lambda *a, **k: None)
 setattr(requests_stub, "patch", lambda *a, **k: None)
 sys.modules.setdefault("requests", requests_stub)
 
-# Create a temporary config.ini so baserow_connect can import without errors
-repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-config_path = os.path.join(repo_root, "python", "config.ini")
-with open(config_path, "w") as f:
-    f.write("[baserow]\n")
-    f.write("token = testtoken\n")
+## Create a temporary config.ini so baserow_connect can import without errors
+#repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+#config_path = os.path.join(repo_root, "python", "config.ini")
+#with open(config_path, "w") as f:
+#    f.write("[baserow]\n")
+#    f.write("token = testtoken\n")
 
 from python.utils import rank_utils
 
