@@ -8,8 +8,8 @@ import aiohttp
 import contextlib
 import sys
 from typing import Optional
-
 from wom import Client as BaseClient
+
 from weeklyupdater import start_weekly_reporter, start_yearly_reporter
 from utils.rank_utils import load_ranks, save_ranks
 from utils.log_csv import log_ehb_to_csv
