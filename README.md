@@ -1,21 +1,22 @@
 # WOMupdtr
 
-A Discord bot that integrates with the Wise Old Man API to track, rank, and notify group members based on their EHB (Efficient Hours Bossed). This bot features rank-up notifications, detailed rankings, and CSV logging for group member statistics.
+A Discord bot that integrates with the Wise Old Man API to track EHB-based ranks, post updates to Discord, and generate scheduled clan reports.
 
-## Features
-- **Track Member Rankings**: Automatically fetches and updates group rankings based on EHB.
-- **Discord Notifications**: Sends rank-up messages to a specified Discord channel.
-- **Commands**:
-  - `/refresh`: Refreshes and posts updated rankings.
-  - `/update <username>`: Fetches and updates rank information for a specific member.
-- **CSV Logging**: Logs EHB values to a CSV file for historical tracking.
-- **Automatic Group Refresh**: The clan data is automatically refreshed every `check_interval * 24` seconds.
-- **Configurable Settings**: Customize bot behavior through the config file.
-- **Baserow Sync**: Optionally update a Baserow database whenever a player's EHB changes.
-- **GUI Control Panel**: Manage the bot with a Tkinter interface (`python gui.py`).
+## Highlights
+- EHB rank tracking with automatic rank-up notifications.
+- Slash-command interface (no prefix commands).
+- Group refresh via Wise Old Man update-all, plus periodic refresh.
+- Weekly and yearly report generation (auto-scheduled or on-demand).
+- Optional Baserow sync whenever a player EHB changes.
+- CSV logging with auto-bootstrap of ranks from `ehb_log.csv` when JSON storage is missing.
+- GUI control panel for logs, rankings, fan links, CSV viewing, and config toggles.
+- Docker support with persisted CSV logs.
 
-## Installation
+## Requirements
+- Python 3.11+ (recommended)
+- A Discord bot token and a Wise Old Man group ID
 
+## Install
 1. Clone the repository:
    ```bash
    git clone https://github.com/ShakyPizza/WOMupdtr.git
@@ -23,62 +24,43 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
    ```
 2. Install dependencies:
    ```bash
-   cd python
-   pip install -r requirements.txt
+   pip install -r python/requirements.txt
    ```
-
-3. Create a `config.ini` file in the project root directory:
+3. Create `python/config.ini`:
    ```ini
    [discord]
-   # Discord bot token
-   token = 
-   
-   # Discord channel ID's ( rich-boys-ranks, rich-boys-stats, osrs-pælingar )
-   channel_id          = 
-   weekly_channel_id   = 
-   monthly_channel_id  = 
-   yearly_channel_id   = 
-   
+   token = YOUR_DISCORD_TOKEN
+   channel_id = 123456789012345678
+   weekly_channel_id = 0
+   yearly_channel_id = 0
+   monthly_channel_id = 0
+
    [wiseoldman]
-   # Wise Old Man group ID
-   group_id = 
-   group_passcode =  
-   
-   # Optional: Wise Old Man API key if you have one.
-   api_key = 
-   
+   group_id = 1234
+   group_passcode =
+   api_key =
+
    [baserow]
-   br_token = 
-   
+   br_token =
+
    [settings]
-   # Frequency for checking rank updates (in seconds)
    check_interval = 3600
-   
-   # Set to true if you want the bot to send the initial message on startup into the discord channel.
    run_at_startup = false
-   
-   # Set to true if you want the bot to print the rank changes to ehb_log.csv file.
    print_to_csv = true
-   
-   # Set to true if you want the .csv changes to be printed in the console.
    print_csv_changes = true
-   
-   # Set to true if you want the bot to post the rank changes to the discord channel.
    post_to_discord = true
-   
-   # Silent mode (no console output)
    silent_mode = false
-   
-   #Debug mode
-   debug = true
-
-
-   
-
-
+   debug = false
    ```
 
-4. Create a `ranks.ini` file to define rank thresholds:
+Notes:
+- `weekly_channel_id` and `yearly_channel_id` enable scheduled report posts. Set to `0` to disable.
+- `monthly_channel_id` is currently unused; keep it at `0` if you are not using it.
+- `group_passcode` is only required for `/refreshgroup` (Wise Old Man update-all).
+- `api_key` is optional but helps with Wise Old Man rate limits.
+- Keep your token/API values out of Git history.
+
+4. Create `python/ranks.ini` to define rank thresholds:
    ```ini
    [Group Ranking]
    0-10 = Goblin
@@ -93,66 +75,68 @@ A Discord bot that integrates with the Wise Old Man API to track, rank, and noti
    1500+ = Zenyte
    ```
 
-5. Run the bot from the `python` directory. Use either of the commands below:
-   ```bash
-   # Headless
-   python WOM.py
+## Run
+From the repo root:
+```bash
+# Headless bot
+python python/WOM.py
 
-   # With GUI
-   python gui.py
-   ```
+# GUI control panel, please note this GUI is still a very much work in progress
+python python/gui.py
+```
 
-## Usage
+## Slash Commands
+General:
+- `/commands` - Lists all available commands.
+- `/refresh` - Posts current group rankings.
+- `/lookup <username>` - Shows rank/EHB for a player.
+- `/update <username>` - Updates rank/EHB for one player (case-insensitive).
+- `/rankup <username>` - Shows next rank threshold.
+- `/goodnight` - Sends a good night message.
 
-The bot automatically tracks ranks based on your configuration. Below are all available commands:
+Group management:
+- `/refreshgroup` - Triggers a Wise Old Man update-all.
+- `/forcecheck` - Runs the rank-change check immediately.
 
-### General Commands
-- `/commands` - Lists all available commands
-- `/refresh` - Refreshes and posts the updated group rankings
-- `/update <username>` - Fetches and updates the rank for a specific user
-- `/lookup <username>` - Lists the rank and EHB for a specific user
-- `/rankup <username>` - Displays the current rank, EHB, and next rank for a given player
-- `/goodnight` - Sends a good night message
+Subscriptions:
+- `/link <username> <discord_name>` - Links a Discord user to a Wise Old Man username.
+- `/subscribeall <discord_name>` - Subscribes a Discord user to all players.
+- `/unsubscribeall <discord_name>` - Removes a Discord user from all subscriptions.
 
-### Group Management
-- `/refreshgroup` - Forces a full update for the group's data using the WiseOldMan API
-- `/forcecheck` - Forces an immediate check for rank changes
-- *Automatic:* This refresh also runs periodically every `check_interval * 48` seconds
+Reports:
+- `/weeklyupdate` - Posts a weekly report to the configured weekly channel.
+- `/yearlyreport [year]` - Posts a yearly report (defaults to last completed year).
+- `/yearlyreportfile [year] [filename]` - Writes a yearly report to a local file.
 
-### User Linking
-- `/link <username> <discord_name>` - Links a Discord user to a WiseOldMan username for rank-up notifications
-- `/subscribeall <discord_name>` - Subscribes a Discord user to ALL usernames
-- `/unsubscribeall <discord_name>` - Removes a Discord user from ALL linked usernames
+Debug:
+- `/debug_group` - Inspects the current group response.
+- `/sendrankup_debug` - Sends a simulated rank-up message.
 
-### Debug Commands
-- `/debug_group` - Debugs and inspects group response
-- `/sendrankup_debug` - Debugging command to simulate a rank up message
+## Weekly and Yearly Reports
+The report system summarizes group activity using Wise Old Man gains/achievements data:
+- Weekly: top overall XP gainer, top 3 EHB gainers, top Sailing gainer, and recent achievements.
+- Yearly: top overall XP, EHB, and EHP gainers, Sailing highlights, 99s, max total achievements, name changes, and group stats.
 
-**Note**: For usernames with spaces, enclose them in quotes (e.g., "/update 'Player Name'")
+Reports can be scheduled automatically (when channel IDs are set) or run on demand via slash commands.
 
 ## Logging
-- EHB values are logged to `python/ehb_log.csv` by default (the path is resolved relative to the `python` folder so you can run the bot from anywhere).
-- Configure logging behavior in `config.ini`:
-  - `PRINT_TO_CSV`: Enable/disable CSV logging
-  - `print_csv_changes`: Enable/disable console logging of CSV updates
+- EHB changes are logged to `ehb_log.csv` (defaults to `python/ehb_log.csv`).
+- Set `EHB_LOG_PATH` to override the CSV location (useful in Docker).
+- `player_ranks.json` stores the latest rank snapshot and is auto-bootstrapped from the CSV if missing.
 
-## Running Tests
-Run the unit tests with:
+## Docker
+Build and run:
+```bash
+docker compose up --build
+```
+The compose file mounts:
+- `python/config.ini` and `python/ranks.ini` (read-only).
+- `./data` for persisted CSV logs (`EHB_LOG_PATH=/app/data/ehb_log.csv`).
+
+## Tests
 ```bash
 pytest
 ```
 
-## Contributing
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Submit a pull request
-
 ## License
-This project is licensed under the MIT License. See `LICENSE` for details.
-
-## Acknowledgments
-- [Wise Old Man API](https://wiseoldman.net/) for OSRS player data
-- [Discord.py](https://discordpy.readthedocs.io/) for Discord integration
-
-Happy Bossing!
+MIT. See `LICENSE`.
