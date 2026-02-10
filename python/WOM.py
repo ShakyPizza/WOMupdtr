@@ -315,6 +315,7 @@ async def refresh_group_data():
     url = f"https://api.wiseoldman.net/v2/groups/{group_id}/update-all"
     headers = {"Content-Type": "application/json"}
     payload = {"verificationCode": group_passcode}
+    msg = "❌ Failed to refresh group: unknown error."
 
     try:
         async with aiohttp.ClientSession() as session:
@@ -322,10 +323,10 @@ async def refresh_group_data():
                 if response.status == 200:
                     data = await response.json()
                     updated_count = data.get("count", 0)
-                    # if updated_count > 0:
-                    #     msg = f"✅ Successfully refreshed group data. {updated_count} members updated."
-                    # else:
-                    #     msg = "ℹ️ Group data is already up to date."
+                    if updated_count > 0:
+                        msg = f"✅ Successfully refreshed group data. {updated_count} members updated."
+                    else:
+                        msg = "ℹ️ Group data is already up to date."
                 elif response.status == 400:
                     error_message = await response.json()
                     if error_message.get("message") == "Nothing to update.":
@@ -340,7 +341,6 @@ async def refresh_group_data():
 
     log(msg)
     return msg
-
 @tasks.loop(seconds=check_interval * 48)
 async def refresh_group_task():
     msg = await refresh_group_data()
@@ -360,7 +360,7 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
         # Ensure discord_names is always a list
         if not isinstance(discord_names, list):
             discord_names = [discord_names] if discord_names else []
-        fans_display = "  ".join(discord_names) if discord_names else "0 😭😭😭"
+        fans_display = "  ".join(discord_names) if discord_names else "0 ðŸ˜­ðŸ˜­ðŸ˜­"
 
         # Only send message if the rank has changed
         if new_rank != old_rank:
@@ -368,8 +368,8 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
             if channel:
                 if post_to_discord:
                     await channel.send(  
-                        f'🎉 Congratulations **{username}** on moving up to the rank of **{new_rank}** '
-                        f'with **{ehb}** EHB! 🎉\n'
+                        f'ðŸŽ‰ Congratulations **{username}** on moving up to the rank of **{new_rank}** '
+                        f'with **{ehb}** EHB! ðŸŽ‰\n'
                         f'**Fans:** {fans_display}'
                     )
                     log(f"Sent rank up message for {username} to channel: {channel}")
@@ -431,3 +431,4 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error during final cleanup: {e}")
         print("Cleanup complete. Goodbye!")
+
