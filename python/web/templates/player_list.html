@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Players - WOMupdtr{% endblock %}
+
+{% block content %}
+<h1>Players</h1>
+
+<input type="search" name="q" placeholder="Search players..."
+       value="{{ query }}"
+       hx-get="/players/search"
+       hx-trigger="keyup changed delay:300ms"
+       hx-target="#player-results">
+
+<table role="grid">
+    <thead>
+        <tr>
+            <th>#</th>
+            <th>Player</th>
+            <th>Rank</th>
+            <th>EHB</th>
+            <th>Fans</th>
+        </tr>
+    </thead>
+    <tbody id="player-results">
+        {% for player in players %}
+        <tr>
+            <td>{{ loop.index }}</td>
+            <td><a href="/players/{{ player.username }}">{{ player.username }}</a></td>
+            <td><span class="rank-badge rank-{{ player.rank|lower|replace(' ', '-') }}">{{ player.rank }}</span></td>
+            <td>{{ "%.2f"|format(player.ehb) }}</td>
+            <td>{{ player.discord_name|join(", ") if player.discord_name else "None" }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

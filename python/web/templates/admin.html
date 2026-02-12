@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - WOMupdtr{% endblock %}
+
+{% block content %}
+<h1>Admin Panel</h1>
+
+<article>
+    <h3>Bot Status</h3>
+    <div class="grid">
+        <div>
+            <strong>Started At:</strong><br>
+            {{ bot_state.bot_started_at if bot_state.bot_started_at else "Not started" }}
+        </div>
+        <div>
+            <strong>Uptime:</strong><br>
+            <span id="admin-uptime"
+                  {% if bot_state.bot_started_at %}data-started="{{ bot_state.bot_started_at }}"{% endif %}>
+                N/A
+            </span>
+        </div>
+        <div>
+            <strong>Last Rank Check:</strong><br>
+            {{ bot_state.last_rank_check if bot_state.last_rank_check else "Never" }}
+        </div>
+        <div>
+            <strong>Last Group Refresh:</strong><br>
+            {{ bot_state.last_group_refresh if bot_state.last_group_refresh else "Never" }}
+        </div>
+        <div>
+            <strong>Check Interval:</strong><br>
+            {{ bot_state.check_interval if bot_state.check_interval else "N/A" }} seconds
+        </div>
+    </div>
+</article>
+
+<article>
+    <h3>Actions</h3>
+    <div class="grid">
+        <button hx-post="/admin/force-check" hx-target="#action-result" hx-swap="innerHTML">
+            Force Rank Check
+        </button>
+        <button hx-post="/admin/refresh-group" hx-target="#action-result" hx-swap="innerHTML">
+            Refresh Group Data
+        </button>
+    </div>
+    <div id="action-result"></div>
+</article>
+
+<article>
+    <h3>Configuration</h3>
+    <div class="grid">
+        <label>
+            <input type="checkbox" role="switch"
+                   {% if bot_state.silent %}checked{% endif %}
+                   hx-post="/admin/config"
+                   hx-vals='{"silent": "toggle"}'
+                   hx-target="#action-result"
+                   hx-swap="innerHTML">
+            Silent Mode
+        </label>
+        <label>
+            <input type="checkbox" role="switch"
+                   {% if bot_state.debug %}checked{% endif %}
+                   hx-post="/admin/config"
+                   hx-vals='{"debug": "toggle"}'
+                   hx-target="#action-result"
+                   hx-swap="innerHTML">
+            Debug Mode
+        </label>
+    </div>
+</article>
+
+<article>
+    <h3>Log Viewer</h3>
+    <div class="log-feed" id="log-feed"
+         hx-get="/admin/logs"
+         hx-trigger="load, every 3s"
+         hx-swap="innerHTML">
+        <div class="log-line log-empty">Loading logs...</div>
+    </div>
+</article>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const uptimeEl = document.getElementById('admin-uptime');
+    if (uptimeEl && uptimeEl.dataset.started) {
+        const started = new Date(uptimeEl.dataset.started);
+        function updateUptime() {
+            const diff = Math.floor((Date.now() - started) / 1000);
+            const h = Math.floor(diff / 3600);
+            const m = Math.floor((diff % 3600) / 60);
+            const s = diff % 60;
+            uptimeEl.textContent = `${h}h ${m}m ${s}s`;
+        }
+        updateUptime();
+        setInterval(updateUptime, 1000);
+    }
+});
+</script>
+{% endblock %}

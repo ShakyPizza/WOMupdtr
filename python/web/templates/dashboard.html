@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - WOMupdtr{% endblock %}
+
+{% block content %}
+<h1>Dashboard</h1>
+
+<div class="grid">
+    <article class="stat-card">
+        <h3>Total Players</h3>
+        <p class="stat-value">{{ player_count }}</p>
+    </article>
+    <article class="stat-card">
+        <h3>Total EHB</h3>
+        <p class="stat-value">{{ "%.2f"|format(players|sum(attribute='ehb')) }}</p>
+    </article>
+    <article class="stat-card">
+        <h3>Average EHB</h3>
+        <p class="stat-value">{{ "%.2f"|format(players|sum(attribute='ehb') / player_count) if player_count > 0 else "0.00" }}</p>
+    </article>
+    <article class="stat-card">
+        <h3>Bot Uptime</h3>
+        <p class="stat-value" id="uptime">
+            {% if bot_state and bot_state.bot_started_at %}
+                <span data-started="{{ bot_state.bot_started_at }}">Loading...</span>
+            {% else %}
+                N/A
+            {% endif %}
+        </p>
+    </article>
+</div>
+
+<div class="grid">
+    <article>
+        <h3>Rank Distribution</h3>
+        {% if rank_distribution %}
+        <table>
+            <tbody>
+                {% for rank, count in rank_distribution.items() %}
+                <tr>
+                    <td><span class="rank-badge rank-{{ rank|lower|replace(' ', '-') }}">{{ rank }}</span></td>
+                    <td>{{ count }} players</td>
+                    <td>
+                        <progress value="{{ count }}" max="{{ player_count }}"></progress>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No rank data available.</p>
+        {% endif %}
+    </article>
+
+    <article>
+        <h3>Recent Activity</h3>
+        {% if recent_changes %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Player</th>
+                    <th>EHB</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for change in recent_changes[:10] %}
+                <tr>
+                    <td>{{ change.timestamp }}</td>
+                    <td><a href="/players/{{ change.username }}">{{ change.username }}</a></td>
+                    <td>{{ "%.2f"|format(change.ehb) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No recent activity.</p>
+        {% endif %}
+    </article>
+</div>
+
+<article>
+    <h3>Bot Status</h3>
+    <div class="grid">
+        <div>
+            <strong>Last Rank Check:</strong><br>
+            {{ bot_state.last_rank_check if bot_state and bot_state.last_rank_check else "Never" }}
+        </div>
+        <div>
+            <strong>Check Interval:</strong><br>
+            {{ bot_state.check_interval if bot_state and bot_state.check_interval else "N/A" }} seconds
+        </div>
+        <div>
+            <strong>Last Group Refresh:</strong><br>
+            {{ bot_state.last_group_refresh if bot_state and bot_state.last_group_refresh else "Never" }}
+        </div>
+    </div>
+</article>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const uptimeEl = document.querySelector('#uptime span[data-started]');
+    if (uptimeEl) {
+        const started = new Date(uptimeEl.dataset.started);
+        function updateUptime() {
+            const diff = Math.floor((Date.now() - started) / 1000);
+            const h = Math.floor(diff / 3600);
+            const m = Math.floor((diff % 3600) / 60);
+            const s = diff % 60;
+            uptimeEl.textContent = `${h}h ${m}m ${s}s`;
+        }
+        updateUptime();
+        setInterval(updateUptime, 1000);
+    }
+});
+</script>
+{% endblock %}

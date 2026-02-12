@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+
+{% block title %}Yearly Report - WOMupdtr{% endblock %}
+
+{% block content %}
+<h1>Yearly Report{% if year %} - {{ year }}{% endif %}</h1>
+
+<form method="get" action="/reports/yearly">
+    <div class="grid">
+        <input type="number" name="year" placeholder="Enter year (e.g. 2025)" value="{{ year if year else '' }}" min="2020" max="2030">
+        <button type="submit">Load Report</button>
+    </div>
+</form>
+
+<article>
+    {% if report_lines %}
+    <pre>{% for line in report_lines %}{{ line }}
+{% endfor %}</pre>
+    {% else %}
+    <p>No yearly report data available.</p>
+    {% endif %}
+</article>
+{% endblock %}

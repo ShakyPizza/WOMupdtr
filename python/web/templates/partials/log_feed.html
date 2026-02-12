@@ -1,0 +1,6 @@
+{% for line in log_lines %}
+<div class="log-line">{{ line }}</div>
+{% endfor %}
+{% if not log_lines %}
+<div class="log-line log-empty">No log entries yet.</div>
+{% endif %}

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}{{ player.username }} - WOMupdtr{% endblock %}
+
+{% block content %}
+<h1>{{ player.username }}</h1>
+
+<div class="grid">
+    <article class="stat-card">
+        <h3>Current EHB</h3>
+        <p class="stat-value">{{ "%.2f"|format(player.ehb) }}</p>
+    </article>
+    <article class="stat-card">
+        <h3>Current Rank</h3>
+        <p class="stat-value"><span class="rank-badge rank-{{ player.rank|lower|replace(' ', '-') }}">{{ player.rank }}</span></p>
+    </article>
+    <article class="stat-card">
+        <h3>Next Rank</h3>
+        <p class="stat-value">{{ player.next_rank if player.next_rank else "Max Rank" }}</p>
+    </article>
+</div>
+
+<article>
+    <h3>Fans</h3>
+    {% if player.discord_name %}
+    <ul>
+        {% for name in player.discord_name %}
+        <li>{{ name }}</li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>No fans yet.</p>
+    {% endif %}
+</article>
+
+<article>
+    <h3>EHB History</h3>
+    <canvas id="ehbChart"></canvas>
+</article>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    loadPlayerChart('{{ player.username }}');
+});
+</script>
+{% endblock %}
