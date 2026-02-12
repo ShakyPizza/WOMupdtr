@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+
+{% block title %}Charts - WOMupdtr{% endblock %}
+
+{% block content %}
+<h1>Charts</h1>
+
+<div class="grid">
+    <article>
+        <h3>Rank Distribution</h3>
+        <canvas id="rankDistChart"></canvas>
+    </article>
+    <article>
+        <h3>Top Players by EHB</h3>
+        <canvas id="topPlayersChart"></canvas>
+    </article>
+</div>
+
+<article>
+    <h3>Individual Player EHB History</h3>
+    <select id="playerSelect" onchange="onPlayerSelect(this.value)">
+        <option value="">Select a player...</option>
+        {% for player in players %}
+        <option value="{{ player.username }}">{{ player.username }}</option>
+        {% endfor %}
+    </select>
+    <canvas id="playerChart"></canvas>
+</article>
+
+<script>
+let playerChartInstance = null;
+
+async function onPlayerSelect(username) {
+    if (!username) return;
+    const canvas = document.getElementById('playerChart');
+    if (!canvas) return;
+    if (playerChartInstance) {
+        playerChartInstance.destroy();
+        playerChartInstance = null;
+    }
+    const resp = await fetch(`/charts/api/ehb-history?player=${encodeURIComponent(username)}`);
+    const data = await resp.json();
+    if (!data.length) {
+        canvas.parentElement.querySelector('p')?.remove();
+        const p = document.createElement('p');
+        p.textContent = 'No EHB history data available for this player.';
+        canvas.parentElement.appendChild(p);
+        return;
+    }
+    playerChartInstance = new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: data.map(e => e.timestamp),
+            datasets: [{
+                label: 'EHB',
+                data: data.map(e => e.ehb),
+                borderColor: '#4CAF50',
+                backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                fill: true,
+                tension: 0.3,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                title: { display: true, text: `${username} - EHB History`, color: '#ccc' }
+            },
+            scales: {
+                x: { ticks: { color: '#ccc', maxTicksLimit: 10 }, grid: { color: '#333' } },
+                y: { ticks: { color: '#ccc' }, grid: { color: '#333' } }
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

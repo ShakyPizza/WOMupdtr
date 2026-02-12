@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block title %}Weekly Report - WOMupdtr{% endblock %}
+
+{% block content %}
+<h1>Weekly Report</h1>
+
+<a href="/reports/weekly?fresh=true" role="button" class="outline">Generate Fresh Report</a>
+
+<article>
+    {% if report_lines %}
+    <pre>{% for line in report_lines %}{{ line }}
+{% endfor %}</pre>
+    {% else %}
+    <p>No weekly report data available.</p>
+    {% endif %}
+</article>
+{% endblock %}

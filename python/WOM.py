@@ -14,6 +14,9 @@ from weeklyupdater import start_weekly_reporter, start_yearly_reporter
 from utils.rank_utils import load_ranks, save_ranks
 from utils.log_csv import log_ehb_to_csv
 from utils.commands import setup_commands
+import uvicorn
+from web import create_app
+from web.services.bot_state import BotState
 
 
 class Client(BaseClient):
@@ -52,7 +55,9 @@ def log(message: str):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     formatted_message = f"{timestamp} - {message}"
     print(formatted_message)  # Print to terminal
-    
+    if 'bot_state' in globals() and bot_state is not None:
+        bot_state.log_buffer.append(formatted_message)
+
     # Send to GUI if it's running
     botgui_module = sys.modules.get('gui') or sys.modules.get('__main__')
     if botgui_module and hasattr(botgui_module, 'BotGUI'):
@@ -91,6 +96,11 @@ print_csv_changes   = config['settings'].getboolean('print_csv_changes', True)
 post_to_discord     = config['settings'].getboolean('post_to_discord', True)
 silent              = config['settings'].getboolean('silent', False)
 debug               = config['settings'].getboolean('debug', False)
+
+# Web interface settings
+web_enabled = config['web'].getboolean('enabled', False) if config.has_section('web') else False
+web_host = config['web'].get('host', '0.0.0.0') if config.has_section('web') else '0.0.0.0'
+web_port = int(config['web'].get('port', '8080')) if config.has_section('web') else 8080
 
 if api_key:
     log("Wise Old Man API key loaded.")
@@ -247,7 +257,8 @@ async def check_for_rank_changes():
 
             save_ranks(ranks_data)
             log("Rank check completed successfully!")
-            
+            bot_state.last_rank_check = datetime.now()
+
         else:
             log(f"Failed to fetch group details: {result.unwrap_err()}")
     except Exception as e:
@@ -344,6 +355,7 @@ async def refresh_group_data():
 @tasks.loop(seconds=check_interval * 48)
 async def refresh_group_task():
     msg = await refresh_group_data()
+    bot_state.last_group_refresh = datetime.now()
     if post_to_discord:
         channel = get_messageable_channel(channel_id)
         if channel:
@@ -379,6 +391,20 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
         log(f"Error sending message: {e}")
 
 
+# Shared state for web interface
+bot_state = BotState(
+    wom_client=wom_client,
+    discord_client=discord_client,
+    group_id=group_id,
+    group_passcode=group_passcode,
+    get_rank=get_rank,
+    check_interval=check_interval,
+    post_to_discord=post_to_discord,
+    silent=silent,
+    debug=debug,
+)
+
+
 # Initialize Additional Commands
 
 
@@ -409,11 +435,24 @@ if __name__ == "__main__":
         
         async def main():
             async with wom_client, contextlib.AsyncExitStack() as stack:
-                await discord_client.start(discord_token)
-                try:
-                    await asyncio.Future()  # run forever
-                except asyncio.CancelledError:
-                    await discord_client.close()
+                bot_state.list_all_members_and_ranks = list_all_members_and_ranks
+                bot_state.check_for_rank_changes = check_for_rank_changes
+                bot_state.refresh_group_data = refresh_group_data
+                bot_state.log_func = log
+                bot_state.bot_started_at = datetime.now()
+
+                tasks_to_run = [discord_client.start(discord_token)]
+
+                if web_enabled:
+                    web_app = create_app(bot_state)
+                    uvi_config = uvicorn.Config(
+                        web_app, host=web_host, port=web_port, log_level="info"
+                    )
+                    server = uvicorn.Server(uvi_config)
+                    tasks_to_run.append(server.serve())
+                    log(f"Web interface starting on http://{web_host}:{web_port}")
+
+                await asyncio.gather(*tasks_to_run)
         
         try:
             loop.run_until_complete(main())

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}WOMupdtr{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="container-fluid">
+        <ul>
+            <li><strong>WOMupdtr</strong></li>
+        </ul>
+        <ul>
+            <li><a href="/">Dashboard</a></li>
+            <li><a href="/players/">Players</a></li>
+            <li>
+                <details class="dropdown">
+                    <summary role="button" class="outline">Reports</summary>
+                    <ul dir="rtl">
+                        <li><a href="/reports/weekly">Weekly</a></li>
+                        <li><a href="/reports/yearly">Yearly</a></li>
+                    </ul>
+                </details>
+            </li>
+            <li><a href="/charts/">Charts</a></li>
+            <li><a href="/group/">Group</a></li>
+            <li><a href="/admin/">Admin</a></li>
+        </ul>
+    </nav>
+
+    <main class="container">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="container">
+        <hr>
+        <p><small>WOMupdtr Dashboard</small></p>
+    </footer>
+
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
