@@ -372,7 +372,7 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
         # Ensure discord_names is always a list
         if not isinstance(discord_names, list):
             discord_names = [discord_names] if discord_names else []
-        fans_display = "  ".join(discord_names) if discord_names else "0 ðŸ˜­ðŸ˜­ðŸ˜­"
+        fans_display = "  ".join(discord_names) if discord_names else "0 😭😭😭"
 
         # Only send message if the rank has changed
         if new_rank != old_rank:
@@ -380,8 +380,8 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
             if channel:
                 if post_to_discord:
                     await channel.send(  
-                        f'ðŸŽ‰ Congratulations **{username}** on moving up to the rank of **{new_rank}** '
-                        f'with **{ehb}** EHB! ðŸŽ‰\n'
+                        f'🎉 Congratulations **{username}** on moving up to the rank of **{new_rank}** '
+                        f'with **{ehb}** EHB! 🎉\n'
                         f'**Fans:** {fans_display}'
                     )
                     log(f"Sent rank up message for {username} to channel: {channel}")
@@ -470,4 +470,3 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error during final cleanup: {e}")
         print("Cleanup complete. Goodbye!")
-
