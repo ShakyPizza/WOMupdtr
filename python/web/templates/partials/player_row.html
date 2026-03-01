@@ -1,0 +1,9 @@
+{% for player in players %}
+<tr>
+    <td>{{ loop.index }}</td>
+    <td><a href="/players/{{ player.username }}">{{ player.username }}</a></td>
+    <td><span class="rank-badge rank-{{ player.rank|lower|replace(' ', '-') }}">{{ player.rank }}</span></td>
+    <td>{{ "%.2f"|format(player.ehb) }}</td>
+    <td>{{ player.discord_name|join(", ") if player.discord_name else "None" }}</td>
+</tr>
+{% endfor %}
