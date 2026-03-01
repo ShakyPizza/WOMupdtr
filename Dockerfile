@@ -9,4 +9,6 @@ RUN pip install --no-cache-dir -r /app/python/requirements.txt
 
 COPY python /app/python
 
+EXPOSE 8080
+
 CMD ["python", "python/WOM.py"]

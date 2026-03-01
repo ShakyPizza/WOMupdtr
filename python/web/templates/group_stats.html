@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Group Stats - WOMupdtr{% endblock %}
+
+{% block content %}
+<h1>Group Stats</h1>
+
+<div class="grid">
+    <article class="stat-card">
+        <h3>Total Players</h3>
+        <p class="stat-value">{{ players|length }}</p>
+    </article>
+    <article class="stat-card">
+        <h3>Total EHB</h3>
+        <p class="stat-value">{{ "%.2f"|format(total_ehb) }}</p>
+    </article>
+    <article class="stat-card">
+        <h3>Average EHB</h3>
+        <p class="stat-value">{{ "%.2f"|format(avg_ehb) }}</p>
+    </article>
+</div>
+
+<article>
+    <h3>Rank Distribution</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Rank</th>
+                <th>EHB Range</th>
+                <th>Players</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for threshold in rank_thresholds %}
+            <tr>
+                <td><span class="rank-badge rank-{{ threshold.name|lower|replace(' ', '-') }}">{{ threshold.name }}</span></td>
+                <td>{{ "%.1f"|format(threshold.lower) }} - {{ "%.1f"|format(threshold.upper) if threshold.upper else "+" }}</td>
+                <td>{{ rank_distribution.get(threshold.name, 0) if rank_distribution else 0 }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</article>
+{% endblock %}

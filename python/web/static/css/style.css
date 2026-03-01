@@ -1,0 +1,67 @@
+/* Rank badge base */
+.rank-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 0.85em;
+    color: #fff;
+}
+
+/* Rank colors - OSRS gem tiers */
+.rank-goblin { background-color: #2d5016; color: #fff; }
+.rank-opal { background-color: #a8c8e0; color: #1a1a2e; }
+.rank-sapphire { background-color: #0f52ba; color: #fff; }
+.rank-emerald { background-color: #50c878; color: #1a1a2e; }
+.rank-red-topaz { background-color: #ff6347; color: #fff; }
+.rank-ruby { background-color: #e0115f; color: #fff; }
+.rank-diamond { background-color: #b9f2ff; color: #1a1a2e; }
+.rank-dragonstone { background-color: #7851a9; color: #fff; }
+.rank-onyx { background-color: #353839; color: #fff; border: 1px solid #666; }
+.rank-zenyte { background-color: #ffd700; color: #1a1a2e; }
+
+/* Stat cards */
+.stat-card {
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.stat-value {
+    font-size: 1.8rem;
+    font-weight: bold;
+    margin: 0.5rem 0 0 0;
+}
+
+/* Log viewer */
+.log-feed {
+    background: #1a1a2e;
+    color: #0f0;
+    font-family: monospace;
+    padding: 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 8px;
+}
+
+.log-line {
+    padding: 2px 0;
+    font-size: 0.85em;
+}
+
+.log-empty {
+    color: #666;
+    font-style: italic;
+}
+
+/* Navigation active state */
+nav a[aria-current="page"],
+nav a.active {
+    color: var(--pico-primary);
+    font-weight: bold;
+}
+
+/* Report pre-formatted text */
+article pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}
