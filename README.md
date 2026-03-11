@@ -9,8 +9,9 @@ A Discord bot that integrates with the Wise Old Man API to track EHB-based ranks
 - Weekly and yearly report generation (auto-scheduled or on-demand).
 - Optional Baserow sync whenever a player EHB changes.
 - CSV logging with auto-bootstrap of ranks from `ehb_log.csv` when JSON storage is missing.
+- FastAPI web dashboard (players, reports, charts, admin, group pages).
 - GUI control panel for logs, rankings, fan links, CSV viewing, and config toggles.
-- Docker support with persisted CSV logs.
+- Docker support with persisted CSV logs — runs bot + web dashboard on port 8080.
 
 ## Requirements
 - Python 3.11+ (recommended)
@@ -58,6 +59,7 @@ Notes:
 - `monthly_channel_id` is currently unused; keep it at `0` if you are not using it.
 - `group_passcode` is only required for `/refreshgroup` (Wise Old Man update-all).
 - `api_key` is optional but helps with Wise Old Man rate limits.
+- The Baserow connection is optional but the code probably needs some commenting out if it's not used. 
 - Keep your token/API values out of Git history.
 
 4. Create `python/ranks.ini` to define rank thresholds:
@@ -111,6 +113,15 @@ Reports:
 Debug:
 - `/debug_group` - Inspects the current group response.
 - `/sendrankup_debug` - Sends a simulated rank-up message.
+
+## Web Dashboard
+When running via Docker, the web dashboard is available at `http://localhost:8080`. You can also start it manually alongside the bot. Pages:
+- `/` — overview dashboard
+- `/players` — full member list with EHB history and search
+- `/group` — group stats and member list
+- `/reports` — weekly and yearly report views
+- `/charts` — EHB trend and rank distribution charts
+- `/admin` — settings editor, log viewer, and bot controls
 
 ## Weekly and Yearly Reports
 The report system summarizes group activity using Wise Old Man gains/achievements data:
