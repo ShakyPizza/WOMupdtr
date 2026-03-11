@@ -248,12 +248,16 @@ def _build_report_lines(
     else:
         lines.append("Highest total XP gained: no data")
 
+    lines.append("")
+
     if ehb_top:
         lines.append("Top EHB gainers:")
         for idx, (name, gained) in enumerate(ehb_top, start=1):
             lines.append(f"{idx}. {name} (+{_format_float(gained)} EHB)")
     else:
         lines.append("Top EHB gainers: no data")
+
+    lines.append("")
 
     if sailing_top:
         lines.append(
@@ -273,6 +277,8 @@ def _build_report_lines(
             )
     else:
         lines.append("Name changes: none")
+
+    lines.append("")
 
     if achievements:
         lines.append("New 99s:")
