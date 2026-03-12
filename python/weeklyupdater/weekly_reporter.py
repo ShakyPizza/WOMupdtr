@@ -310,7 +310,7 @@ async def _generate_weekly_report(
         wom_client, group_id, enums.Metric.Ehb, start_date, end_date, limit=50
     )
     sailing_gains = await _get_group_gains(
-        wom_client, group_id, enums.Metric.Sailing, start_date, end_date, limit=50
+        wom_client, group_id, enums.Metric.Sailing, start_date, end_date, limit=50 # type: ignore
     )
 
     name_changes = await _get_group_name_changes(
