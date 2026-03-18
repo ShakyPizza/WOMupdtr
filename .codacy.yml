@@ -1,6 +1,0 @@
----
-engines:
-  pmd:
-    enabled: false
-  pmd-legacy:
-    enabled: false
