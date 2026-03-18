@@ -15,9 +15,6 @@ pip install -r python/requirements.txt
 # Run the bot (headless)
 python python/WOM.py
 
-# Run GUI control panel (WIP)
-python python/gui.py
-
 # Run with Docker (web dashboard at http://localhost:8080)
 docker compose up --build
 
@@ -62,4 +59,3 @@ The bot (`python/WOM.py`) is the entry point. It:
 - `commands.py` is 540+ lines in a single `setup_commands()` function — should be split by category
 - `WOM.py` has a duplicate `get_rank()` that overlaps with `rank_utils._get_rank_for_ehb()`
 - Global state (`bot_state`, task handles) in `WOM.py` could be moved into a class
-- Several dialog methods in `gui.py` are stubs (`show_lookup_dialog`, etc.)

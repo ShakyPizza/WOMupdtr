@@ -10,7 +10,6 @@ A Discord bot that integrates with the Wise Old Man API to track EHB-based ranks
 - Optional Baserow sync whenever a player EHB changes.
 - CSV logging with auto-bootstrap of ranks from `ehb_log.csv` when JSON storage is missing.
 - FastAPI web dashboard (players, reports, charts, admin, group pages).
-- GUI control panel for logs, rankings, fan links, CSV viewing, and config toggles.
 - Docker support with persisted CSV logs — runs bot + web dashboard on port 8080.
 
 ## Requirements
@@ -82,9 +81,6 @@ From the repo root:
 ```bash
 # Headless bot
 python python/WOM.py
-
-# GUI control panel, please note this GUI is still a very much work in progress
-python python/gui.py
 ```
 
 ## Slash Commands
