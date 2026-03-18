@@ -8,6 +8,7 @@ from ..dependencies import get_bot_state
 from ..services.bot_state import BotState
 
 import os
+import logging
 
 router = APIRouter()
 templates = Jinja2Templates(
@@ -29,8 +30,9 @@ async def force_check(state: BotState = Depends(get_bot_state)):
         try:
             await state.check_for_rank_changes()
             return HTMLResponse('<p class="success">Rank check triggered successfully.</p>')
-        except Exception as e:
-            return HTMLResponse(f'<p class="error">Error: {e}</p>')
+        except Exception:
+            logging.exception("Error while triggering rank check")
+            return HTMLResponse('<p class="error">An internal error occurred while triggering rank check.</p>')
     return HTMLResponse('<p class="error">Rank check function not available.</p>')
 
 
@@ -40,8 +42,9 @@ async def refresh_group(state: BotState = Depends(get_bot_state)):
         try:
             msg = await state.refresh_group_data()
             return HTMLResponse(f'<p>{msg}</p>')
-        except Exception as e:
-            return HTMLResponse(f'<p class="error">Error: {e}</p>')
+        except Exception:
+            logging.exception("Error while refreshing group data")
+            return HTMLResponse('<p class="error">An internal error occurred while refreshing group data.</p>')
     return HTMLResponse('<p class="error">Refresh function not available.</p>')
 
 
