@@ -137,6 +137,8 @@ def test_load_ranks_returns_empty_on_corrupt_json(tmp_path, monkeypatch):
         f.write("{bad json")
 
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+    monkeypatch.setattr(rank_utils, "_BOOTSTRAPPED_FROM_CSV", False)
+    monkeypatch.setattr("python.utils.rank_utils.load_latest_ehb_from_csv", lambda: {})
 
     result = rank_utils.load_ranks()
 
@@ -183,6 +185,7 @@ def test_next_rank_returns_max_rank_when_at_top(tmp_path, monkeypatch):
 
 
 def test_save_ranks_updates_only_changed_ehb(tmp_path, monkeypatch):
+    monkeypatch.setattr(rank_utils, "_BOOTSTRAPPED_FROM_CSV", False)
     old_data = {
         "alpha": {"last_ehb": 10, "rank": "Bronze", "discord_name": []},
         "beta": {"last_ehb": 20, "rank": "Silver", "discord_name": []},
