@@ -27,6 +27,33 @@ sys.modules.setdefault("requests", requests_stub)
 from python.utils import rank_utils
 
 
+@pytest.fixture(autouse=True)
+def reset_bootstrapped_flag():
+    """Reset global CSV-bootstrap flag before and after every test."""
+    rank_utils._BOOTSTRAPPED_FROM_CSV = False
+    yield
+    rank_utils._BOOTSTRAPPED_FROM_CSV = False
+
+
+@pytest.fixture
+def tmp_ranks_ini(tmp_path, monkeypatch):
+    """Write a minimal ranks.ini to tmp_path and redirect configparser.read to it."""
+    ranks_ini = tmp_path / "ranks.ini"
+    with open(ranks_ini, "w") as f:
+        f.write("[Group Ranking]\n")
+        f.write("0-99 = Bronze\n")
+        f.write("100-199 = Silver\n")
+        f.write("200+ = Gold\n")
+
+    original_read = configparser.ConfigParser.read
+
+    def fake_read(self, filenames, encoding=None):
+        return original_read(self, str(ranks_ini), encoding=encoding)
+
+    monkeypatch.setattr(configparser.ConfigParser, "read", fake_read)
+    return ranks_ini
+
+
 def test_load_ranks_converts_discord_names_to_list(tmp_path, monkeypatch):
     data = {
         "user1": {"last_ehb": 10, "rank": "Novice", "discord_name": "fan1"},
@@ -137,7 +164,6 @@ def test_load_ranks_returns_empty_on_corrupt_json(tmp_path, monkeypatch):
         f.write("{bad json")
 
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
-    monkeypatch.setattr(rank_utils, "_BOOTSTRAPPED_FROM_CSV", False)
     monkeypatch.setattr("python.utils.rank_utils.load_latest_ehb_from_csv", lambda: {})
 
     result = rank_utils.load_ranks()
@@ -185,7 +211,6 @@ def test_next_rank_returns_max_rank_when_at_top(tmp_path, monkeypatch):
 
 
 def test_save_ranks_updates_only_changed_ehb(tmp_path, monkeypatch):
-    monkeypatch.setattr(rank_utils, "_BOOTSTRAPPED_FROM_CSV", False)
     old_data = {
         "alpha": {"last_ehb": 10, "rank": "Bronze", "discord_name": []},
         "beta": {"last_ehb": 20, "rank": "Silver", "discord_name": []},
@@ -211,3 +236,64 @@ def test_save_ranks_updates_only_changed_ehb(tmp_path, monkeypatch):
     rank_utils.save_ranks(new_data)
 
     assert calls == [("beta", "Silver", 25, [])]
+
+
+# --- _get_rank_for_ehb ---
+
+def test_get_rank_for_ehb_mid_range(tmp_ranks_ini):
+    assert rank_utils._get_rank_for_ehb(150) == "Silver"
+
+
+def test_get_rank_for_ehb_exactly_at_lower_boundary(tmp_ranks_ini):
+    # 100 is the lower bound of Silver (100-199), should return Silver not Bronze
+    assert rank_utils._get_rank_for_ehb(100) == "Silver"
+
+
+def test_get_rank_for_ehb_open_ended_range(tmp_ranks_ini):
+    assert rank_utils._get_rank_for_ehb(500) == "Gold"
+
+
+def test_get_rank_for_ehb_below_all_thresholds(tmp_ranks_ini):
+    # EHB of 0 is within 0-99, should return Bronze
+    assert rank_utils._get_rank_for_ehb(0) == "Bronze"
+
+
+def test_get_rank_for_ehb_returns_unknown_when_no_match(tmp_path, monkeypatch):
+    # ranks.ini only covers 100+, so EHB of 50 matches nothing
+    ranks_ini = tmp_path / "ranks.ini"
+    with open(ranks_ini, "w") as f:
+        f.write("[Group Ranking]\n")
+        f.write("100+ = Gold\n")
+
+    original_read = configparser.ConfigParser.read
+
+    def fake_read(self, filenames, encoding=None):
+        return original_read(self, str(ranks_ini), encoding=encoding)
+
+    monkeypatch.setattr(configparser.ConfigParser, "read", fake_read)
+
+    assert rank_utils._get_rank_for_ehb(50) == "Unknown"
+
+
+# --- save_ranks with corrupt existing file ---
+
+def test_save_ranks_treats_all_as_new_when_existing_file_corrupt(tmp_path, monkeypatch):
+    """When the on-disk JSON is corrupt at save time, old_data is empty so every player triggers a sync."""
+    ranks_file = tmp_path / "player_ranks.json"
+    with open(ranks_file, "w") as f:
+        f.write("{bad json")
+
+    monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+
+    new_data = {"player": {"last_ehb": 42, "rank": "Silver", "discord_name": []}}
+
+    calls = []
+
+    def fake_update(username, rank, ehb, discord_names):
+        calls.append((username, rank, ehb, discord_names))
+
+    monkeypatch.setattr(rank_utils, "update_players_table", fake_update)
+
+    rank_utils.save_ranks(new_data)
+
+    assert calls == [("player", "Silver", 42, [])]
