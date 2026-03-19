@@ -240,6 +240,12 @@ async def check_for_rank_changes():
                         ranks_data[username] = {"last_ehb": ehb, "rank": rank}
                         if print_to_csv:
                             log_ehb_to_csv(username, ehb)
+                    elif rank != last_rank:
+                        # Rank label is stale (e.g. Unknown) but EHB hasn't changed — fix silently
+                        log(f"Correcting stale rank for {username}: '{last_rank}' -> '{rank}'")
+                        existing = ranks_data.get(username, {})
+                        existing["rank"] = rank
+                        ranks_data[username] = existing
 
 
                 except Exception as e:
