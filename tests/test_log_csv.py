@@ -31,3 +31,58 @@ def test_log_ehb_to_csv_writes_row(tmp_path):
 
     assert len(rows) == 1
     assert rows[0][1:] == ["player", "123"]
+
+
+# --- EHB_LOG_PATH env var ---
+
+def test_resolve_csv_path_uses_env_var(monkeypatch, tmp_path):
+    env_path = str(tmp_path / "env_log.csv")
+    monkeypatch.setenv("EHB_LOG_PATH", env_path)
+    assert log_csv._resolve_csv_path("ehb_log.csv") == env_path
+
+
+def test_log_ehb_to_csv_respects_ehb_log_path_env_var(monkeypatch, tmp_path):
+    target = tmp_path / "env_log.csv"
+    monkeypatch.setenv("EHB_LOG_PATH", str(target))
+
+    log_csv.log_ehb_to_csv("player", 99, print_csv_changes=False)
+
+    with open(target, newline="", encoding="utf-8") as f:
+        rows = list(csv.reader(f))
+
+    assert len(rows) == 1
+    assert rows[0][1:] == ["player", "99"]
+
+
+# --- load_latest_ehb_from_csv ---
+
+def test_load_latest_ehb_from_csv_returns_empty_when_file_missing(tmp_path, monkeypatch):
+    monkeypatch.setenv("EHB_LOG_PATH", str(tmp_path / "nonexistent.csv"))
+    assert log_csv.load_latest_ehb_from_csv() == {}
+
+
+def test_load_latest_ehb_from_csv_returns_latest_per_player(tmp_path):
+    target = tmp_path / "ehb_log.csv"
+    with open(target, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["2024-01-01 10:00:00", "alice", "100.0"])
+        writer.writerow(["2024-01-02 10:00:00", "alice", "150.0"])  # later → wins
+        writer.writerow(["2024-01-01 10:00:00", "bob", "200.0"])
+
+    result = log_csv.load_latest_ehb_from_csv(file_name=str(target))
+
+    assert result == {"alice": 150.0, "bob": 200.0}
+
+
+def test_load_latest_ehb_from_csv_skips_malformed_rows(tmp_path):
+    target = tmp_path / "ehb_log.csv"
+    with open(target, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["2024-01-01 10:00:00", "alice", "not_a_number"])
+        writer.writerow(["short_row"])
+        writer.writerow(["2024-01-01 10:00:00", "bob", "42.5"])
+
+    result = log_csv.load_latest_ehb_from_csv(file_name=str(target))
+
+    assert result == {"bob": 42.5}
+    assert "alice" not in result
