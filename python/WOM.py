@@ -6,7 +6,6 @@ import discord
 import asyncio
 import aiohttp
 import contextlib
-import sys
 from typing import Optional
 from wom import Client as BaseClient
 
@@ -57,14 +56,6 @@ def log(message: str):
     print(formatted_message)  # Print to terminal
     if 'bot_state' in globals() and bot_state is not None:
         bot_state.log_buffer.append(formatted_message)
-
-    # Send to GUI if it's running
-    botgui_module = sys.modules.get('gui') or sys.modules.get('__main__')
-    if botgui_module and hasattr(botgui_module, 'BotGUI'):
-        try:
-            botgui_module.BotGUI.msg_queue.put(formatted_message)
-        except Exception as e:
-            print(f"Failed to send message to GUI: {e}")
 
 
 def get_messageable_channel(channel_id: int) -> Optional[discord.abc.Messageable]:
@@ -249,6 +240,12 @@ async def check_for_rank_changes():
                         ranks_data[username] = {"last_ehb": ehb, "rank": rank}
                         if print_to_csv:
                             log_ehb_to_csv(username, ehb)
+                    elif rank != last_rank:
+                        # Rank label is stale (e.g. Unknown) but EHB hasn't changed — fix silently
+                        log(f"Correcting stale rank for {username}: '{last_rank}' -> '{rank}'")
+                        existing = ranks_data.get(username, {})
+                        existing["rank"] = rank
+                        ranks_data[username] = existing
 
 
                 except Exception as e:

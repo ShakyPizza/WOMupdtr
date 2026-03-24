@@ -10,10 +10,9 @@ A reference document for a repo-wide refactor. Use this as a living guide — ch
 
 **Entry points**:
 - `python/WOM.py` — headless Discord bot (primary)
-- `python/gui.py` — Tkinter GUI control panel
 - Docker: `docker compose up --build` (runs bot + web, port 8080)
 
-**Tech stack**: discord.py, wom.py, aiohttp, FastAPI, Uvicorn, Jinja2, Tkinter, requests, pytest
+**Tech stack**: discord.py, wom.py, aiohttp, FastAPI, Uvicorn, Jinja2, requests, pytest
 
 **Data stores**: `player_ranks.json` (local JSON), `ehb_log.csv` (append-only log), Baserow (optional cloud sync)
 
@@ -38,23 +37,6 @@ A reference document for a repo-wide refactor. Use this as a living guide — ch
 **Key globals** (these are the problem):
 - `bot_state` — `BotState` dataclass injected into web server
 - `weekly_report_task`, `yearly_report_task` — task handles stored as globals
-
----
-
-### `python/gui.py` (691 lines) — Tkinter GUI
-
-| Class / Method | Purpose |
-|---|---|
-| `BotGUI.__init__(root)` | Constructor — does too much; creates all UI directly |
-| `create_sidebar()` | Bot controls + action buttons (~80 lines, should split by section) |
-| `create_main_content()` | All 5 notebook tabs in one method (~110 lines, should split per tab) |
-| `start_bot()` / `stop_bot()` / `run_bot()` | Bot lifecycle management via threading |
-| `refresh_rankings()` / `refresh_rankings_display()` / `filter_rankings()` | Rankings tab UI |
-| `refresh_fans_display()` / `link_user()` | Fans management tab |
-| `check_queue()` / `log_message()` | Thread-safe log relay from bot thread to GUI |
-| `show_lookup_dialog()` | **STUB** — no actual logic implemented |
-| `show_update_dialog()` | **STUB** — no actual logic implemented |
-| `show_rankup_dialog()` | **STUB** — no actual logic implemented |
 
 ---
 
@@ -224,11 +206,6 @@ utils.rank_utils
 utils.commands
   ├── utils.rank_utils
   └── weeklyupdater
-
-gui.py
-  ├── utils.rank_utils
-  ├── utils.log_csv
-  └── WOM.py  ← WARNING: circular-ish import; gui imports bot globals
 ```
 
 ---
@@ -324,24 +301,15 @@ Replace with specific exceptions (e.g., `aiohttp.ClientError`, `ValueError`, `Ke
 
 | File | Unused import |
 |---|---|
-| `python/gui.py:8` | `import json` |
-| `python/gui.py:10` | `import aiohttp` |
 | `python/utils/baserow_connect.py:5` | `from datetime import datetime` |
 | `python/utils/commands.py:9` | `import os` |
 
 ---
 
-### 11. GUI Stubs (Incomplete Features)
-
-`python/gui.py:568–680` — `show_lookup_dialog()`, `show_update_dialog()`, `show_rankup_dialog()` are defined but contain comments like `# Add lookup logic here` with no actual implementation. Either implement or remove.
-
----
-
-### 12. Repeated Timestamp Format
+### 11. Repeated Timestamp Format
 
 `datetime.now().strftime("%Y-%m-%d %H:%M:%S")` appears in:
 - `python/WOM.py:55`
-- `python/gui.py:281`
 - `python/utils/log_csv.py:26`
 
 Extract to a single `format_timestamp()` utility function.
@@ -411,8 +379,7 @@ python/
 │   ├── weekly_reporter.py  # Keep — remove _format_int/_format_float (use utils/formatting.py)
 │   └── yearly_reporter.py  # Keep — remove _format_int/_format_float (use utils/formatting.py)
 │
-├── WOM.py                  # Becomes thin entry point: load config, create bot, start uvicorn
-└── gui.py                  # Keep — remove unused imports, split create_main_content per tab
+└── WOM.py                  # Becomes thin entry point: load config, create bot, start uvicorn
 ```
 
 ---
@@ -456,8 +423,7 @@ python/
 
 ### Phase 6 — Cleanup
 
-- [ ] Remove unused imports (`json`, `aiohttp` in gui.py; `datetime` in baserow_connect.py; `os` in commands.py)
-- [ ] Either implement the GUI stub dialogs (`show_lookup_dialog`, etc.) or remove them
+- [ ] Remove unused imports (`datetime` in baserow_connect.py; `os` in commands.py)
 - [ ] Remove duplicate `log()` / timestamp logic — use `utils/formatting.py`
 - [ ] Rename `next_rank()` → `get_next_rank_message()` (returns a string, not a rank object)
 
