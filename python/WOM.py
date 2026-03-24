@@ -353,10 +353,10 @@ async def refresh_group_data():
 async def refresh_group_task():
     msg = await refresh_group_data()
     bot_state.last_group_refresh = datetime.now()
-    if post_to_discord:
+    if post_to_discord and msg.startswith("❌"):
         channel = get_messageable_channel(channel_id)
         if channel:
-            await channel.send(msg)  
+            await channel.send(msg)
 
 async def send_rank_up_message(username, new_rank, old_rank, ehb):
     try:
