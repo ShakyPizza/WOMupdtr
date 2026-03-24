@@ -13,12 +13,18 @@ from .services.bot_state import BotState
 _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
-def create_app(state: BotState) -> FastAPI:
+def create_app(state: BotState, host: str = "0.0.0.0", port: int = 8080, log_func=None) -> FastAPI:
     """Build and return the configured FastAPI application."""
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         app.state.bot_state = state
+        display_host = "localhost" if host in ("0.0.0.0", "") else host
+        url = f"http://{display_host}:{port}"
+        if log_func:
+            log_func(f"Web UI is up and running at {url}")
+        else:
+            print(f"Web UI is up and running at {url}")
         yield
 
     app = FastAPI(title="WOMupdtr Dashboard", lifespan=lifespan)
