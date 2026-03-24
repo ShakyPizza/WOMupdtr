@@ -441,13 +441,12 @@ if __name__ == "__main__":
                 tasks_to_run = [discord_client.start(discord_token)]
 
                 if web_enabled:
-                    web_app = create_app(bot_state)
+                    web_app = create_app(bot_state, host=web_host, port=web_port, log_func=log)
                     uvi_config = uvicorn.Config(
                         web_app, host=web_host, port=web_port, log_level="info"
                     )
                     server = uvicorn.Server(uvi_config)
                     tasks_to_run.append(server.serve())
-                    log(f"Web interface starting on http://{web_host}:{web_port}")
 
                 await asyncio.gather(*tasks_to_run)
         
