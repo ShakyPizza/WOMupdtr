@@ -1,53 +1,73 @@
 """Players router - list, search, detail, history."""
 
-from fastapi import APIRouter, Depends, Request, Query
+from __future__ import annotations
+
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
 
-from ..dependencies import get_bot_state
-from ..services.bot_state import BotState
-from ..services.ranks_service import get_all_players_sorted, get_player_detail, search_players
-from ..services.csv_service import get_player_ehb_history
-
-import os
+from ..services.csv_service import read_player_ehb_history
+from ..services.ranks_service import get_player_detail, get_rank_snapshot, search_players
+from ..ui import render_template
 
 router = APIRouter()
-templates = Jinja2Templates(
-    directory=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "templates")
-)
+
+
+def _error_headers(error: str | None) -> dict[str, str]:
+    return {"X-Data-Error": error} if error else {}
 
 
 @router.get("/", response_class=HTMLResponse)
-async def player_list(request: Request):
-    players = get_all_players_sorted()
-    return templates.TemplateResponse("player_list.html", {
-        "request": request,
-        "players": players,
-        "query": "",
-    })
+async def player_list(request: Request, q: str = Query(""), sort: str = Query("ehb")):
+    snapshot = get_rank_snapshot()
+    players = search_players(q, sort=sort, snapshot=snapshot)
+    return render_template(
+        request,
+        "player_list.html",
+        players=players,
+        query=q,
+        sort=sort,
+        data_error=snapshot.error,
+    )
 
 
 @router.get("/search", response_class=HTMLResponse)
-async def player_search(request: Request, q: str = Query("")):
-    players = search_players(q)
-    return templates.TemplateResponse("partials/player_row.html", {
-        "request": request,
-        "players": players,
-    })
+async def player_search(request: Request, q: str = Query(""), sort: str = Query("ehb")):
+    snapshot = get_rank_snapshot()
+    players = search_players(q, sort=sort, snapshot=snapshot)
+    return render_template(
+        request,
+        "partials/player_row.html",
+        players=players,
+        query=q,
+        sort=sort,
+        data_error=snapshot.error,
+    )
 
 
 @router.get("/{username}", response_class=HTMLResponse)
 async def player_detail(request: Request, username: str):
-    player = get_player_detail(username)
+    snapshot = get_rank_snapshot()
+    player = get_player_detail(username, snapshot=snapshot)
+    history_result = read_player_ehb_history(username)
     if not player:
-        return HTMLResponse("<h2>Player not found</h2>", status_code=404)
-    return templates.TemplateResponse("player_detail.html", {
-        "request": request,
-        "player": player,
-    })
+        return render_template(
+            request,
+            "player_detail.html",
+            player=None,
+            history_error=history_result.error,
+            data_error=snapshot.error,
+            status_code=404,
+        )
+    return render_template(
+        request,
+        "player_detail.html",
+        player=player,
+        history_error=history_result.error,
+        data_error=snapshot.error,
+    )
 
 
 @router.get("/{username}/history")
 async def player_history(username: str):
-    history = get_player_ehb_history(username)
-    return JSONResponse(content=history)
+    result = read_player_ehb_history(username)
+    return JSONResponse(content=result.data, headers=_error_headers(result.error))

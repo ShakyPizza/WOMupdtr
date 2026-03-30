@@ -3,115 +3,115 @@
 {% block title %}Dashboard - WOMupdtr{% endblock %}
 
 {% block content %}
-<h1>Dashboard</h1>
-
-<div class="grid">
-    <article class="stat-card">
-        <h3>Total Players</h3>
-        <p class="stat-value">{{ player_count }}</p>
-    </article>
-    <article class="stat-card">
-        <h3>Total EHB</h3>
-        <p class="stat-value">{{ "%.2f"|format(players|sum(attribute='ehb')) }}</p>
-    </article>
-    <article class="stat-card">
-        <h3>Average EHB</h3>
-        <p class="stat-value">{{ "%.2f"|format(players|sum(attribute='ehb') / player_count) if player_count > 0 else "0.00" }}</p>
-    </article>
-    <article class="stat-card">
-        <h3>Bot Uptime</h3>
-        <p class="stat-value" id="uptime">
-            {% if bot_state and bot_state.bot_started_at %}
-                <span data-started="{{ bot_state.bot_started_at }}">Loading...</span>
-            {% else %}
-                N/A
-            {% endif %}
-        </p>
-    </article>
-</div>
-
-<div class="grid">
-    <article>
-        <h3>Rank Distribution</h3>
-        {% if rank_distribution %}
-        <table>
-            <tbody>
-                {% for rank, count in rank_distribution.items() %}
-                <tr>
-                    <td><span class="rank-badge rank-{{ rank|lower|replace(' ', '-') }}">{{ rank }}</span></td>
-                    <td>{{ count }} players</td>
-                    <td>
-                        <progress value="{{ count }}" max="{{ player_count }}"></progress>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p>No rank data available.</p>
-        {% endif %}
-    </article>
-
-    <article>
-        <h3>Recent Activity</h3>
-        {% if recent_changes %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Time</th>
-                    <th>Player</th>
-                    <th>EHB</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for change in recent_changes[:10] %}
-                <tr>
-                    <td>{{ change.timestamp }}</td>
-                    <td><a href="/players/{{ change.username }}">{{ change.username }}</a></td>
-                    <td>{{ "%.2f"|format(change.ehb) }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-        {% else %}
-        <p>No recent activity.</p>
-        {% endif %}
-    </article>
-</div>
-
-<article>
-    <h3>Bot Status</h3>
-    <div class="grid">
-        <div>
-            <strong>Last Rank Check:</strong><br>
-            {{ bot_state.last_rank_check if bot_state and bot_state.last_rank_check else "Never" }}
-        </div>
-        <div>
-            <strong>Check Interval:</strong><br>
-            {{ bot_state.check_interval if bot_state and bot_state.check_interval else "N/A" }} seconds
-        </div>
-        <div>
-            <strong>Last Group Refresh:</strong><br>
-            {{ bot_state.last_group_refresh if bot_state and bot_state.last_group_refresh else "Never" }}
-        </div>
+<section class="hero-panel">
+    <div>
+        <p class="eyebrow">Group overview</p>
+        <h1>Dashboard</h1>
+        <p class="lede">A quick read on player progression, rank spread, and the bot's most recent activity.</p>
     </div>
-</article>
+    <div class="hero-status surface-card">
+        <p class="mini-label">Bot uptime</p>
+        <p class="hero-metric"
+           data-uptime
+           {% if bot_state and bot_state.bot_started_at %}data-started="{{ bot_state.bot_started_at.isoformat() }}"{% endif %}>
+            {% if bot_state and bot_state.bot_started_at %}Loading...{% else %}N/A{% endif %}
+        </p>
+        <p class="muted">Started {{ bot_state.bot_started_at if bot_state and bot_state.bot_started_at else "not yet recorded" }}</p>
+    </div>
+</section>
 
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    const uptimeEl = document.querySelector('#uptime span[data-started]');
-    if (uptimeEl) {
-        const started = new Date(uptimeEl.dataset.started);
-        function updateUptime() {
-            const diff = Math.floor((Date.now() - started) / 1000);
-            const h = Math.floor(diff / 3600);
-            const m = Math.floor((diff % 3600) / 60);
-            const s = diff % 60;
-            uptimeEl.textContent = `${h}h ${m}m ${s}s`;
-        }
-        updateUptime();
-        setInterval(updateUptime, 1000);
-    }
-});
-</script>
+<section class="stats-grid">
+    <article class="surface-card stat-card">
+        <p class="mini-label">Players tracked</p>
+        <p class="stat-value">{{ snapshot.total_players }}</p>
+    </article>
+    <article class="surface-card stat-card">
+        <p class="mini-label">Total EHB</p>
+        <p class="stat-value">{{ "%.2f"|format(snapshot.total_ehb) }}</p>
+    </article>
+    <article class="surface-card stat-card">
+        <p class="mini-label">Average EHB</p>
+        <p class="stat-value">{{ "%.2f"|format(snapshot.avg_ehb) }}</p>
+    </article>
+    <article class="surface-card stat-card">
+        <p class="mini-label">Last rank check</p>
+        <p class="stat-value smaller">{{ bot_state.last_rank_check if bot_state and bot_state.last_rank_check else "Never" }}</p>
+    </article>
+</section>
+
+<section class="content-grid">
+    <article class="surface-card">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Distribution</p>
+                <h2>Rank spread</h2>
+            </div>
+        </div>
+        {% if snapshot.rank_distribution %}
+        <div class="rank-stack">
+            {% for rank, count in snapshot.rank_distribution.items() %}
+            <div class="rank-row">
+                <div class="rank-label">
+                    <span class="rank-badge rank-{{ rank|rank_slug }}">{{ rank }}</span>
+                    <span class="muted">{{ count }} player{% if count != 1 %}s{% endif %}</span>
+                </div>
+                <div class="rank-bar">
+                    <span style="width: {{ ((count / snapshot.total_players) * 100) if snapshot.total_players else 0 }}%"></span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-state">No rank data is available yet.</p>
+        {% endif %}
+    </article>
+
+    <article class="surface-card">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Recent feed</p>
+                <h2>Latest EHB changes</h2>
+            </div>
+        </div>
+        {% if recent_changes %}
+        <div class="table-wrap">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Player</th>
+                        <th>EHB</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for change in recent_changes %}
+                    <tr>
+                        <td>{{ change.timestamp }}</td>
+                        <td><a href="/players/{{ change.username }}">{{ change.username }}</a></td>
+                        <td>{{ "%.2f"|format(change.ehb) }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="empty-state">No recent activity has been logged yet.</p>
+        {% endif %}
+    </article>
+</section>
+
+<section class="stats-grid">
+    <article class="surface-card">
+        <p class="mini-label">Check interval</p>
+        <p>{{ bot_state.check_interval if bot_state and bot_state.check_interval else "N/A" }} seconds</p>
+    </article>
+    <article class="surface-card">
+        <p class="mini-label">Last group refresh</p>
+        <p>{{ bot_state.last_group_refresh if bot_state and bot_state.last_group_refresh else "Never" }}</p>
+    </article>
+    <article class="surface-card">
+        <p class="mini-label">Discord posting</p>
+        <p>{{ "Enabled" if bot_state and bot_state.post_to_discord else "Disabled" }}</p>
+    </article>
+</section>
 {% endblock %}
