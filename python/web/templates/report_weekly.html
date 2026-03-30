@@ -3,16 +3,21 @@
 {% block title %}Weekly Report - WOMupdtr{% endblock %}
 
 {% block content %}
-<h1>Weekly Report</h1>
+<section class="hero-panel compact">
+    <div>
+        <p class="eyebrow">Reports</p>
+        <h1>Weekly Report</h1>
+        <p class="lede">Generate and inspect the most recent weekly rollup from the web dashboard.</p>
+    </div>
+    <a href="/reports/weekly?fresh=true" role="button" class="secondary">Generate fresh report</a>
+</section>
 
-<a href="/reports/weekly?fresh=true" role="button" class="outline">Generate Fresh Report</a>
-
-<article>
+<article class="surface-card">
     {% if report_lines %}
-    <pre>{% for line in report_lines %}{{ line }}
+    <pre class="report-output">{% for line in report_lines %}{{ line }}
 {% endfor %}</pre>
     {% else %}
-    <p>No weekly report data available.</p>
+    <p class="empty-state">No weekly report data is available yet.</p>
     {% endif %}
 </article>
 {% endblock %}

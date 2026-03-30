@@ -3,42 +3,55 @@
 {% block title %}Group Stats - WOMupdtr{% endblock %}
 
 {% block content %}
-<h1>Group Stats</h1>
+<section class="hero-panel compact">
+    <div>
+        <p class="eyebrow">Group health</p>
+        <h1>Group Stats</h1>
+        <p class="lede">Thresholds, totals, and current distribution across the full ranking ladder.</p>
+    </div>
+</section>
 
-<div class="grid">
-    <article class="stat-card">
-        <h3>Total Players</h3>
-        <p class="stat-value">{{ players|length }}</p>
+<section class="stats-grid">
+    <article class="surface-card stat-card">
+        <p class="mini-label">Total players</p>
+        <p class="stat-value">{{ snapshot.total_players }}</p>
     </article>
-    <article class="stat-card">
-        <h3>Total EHB</h3>
-        <p class="stat-value">{{ "%.2f"|format(total_ehb) }}</p>
+    <article class="surface-card stat-card">
+        <p class="mini-label">Total EHB</p>
+        <p class="stat-value">{{ "%.2f"|format(snapshot.total_ehb) }}</p>
     </article>
-    <article class="stat-card">
-        <h3>Average EHB</h3>
-        <p class="stat-value">{{ "%.2f"|format(avg_ehb) }}</p>
+    <article class="surface-card stat-card">
+        <p class="mini-label">Average EHB</p>
+        <p class="stat-value">{{ "%.2f"|format(snapshot.avg_ehb) }}</p>
     </article>
-</div>
+</section>
 
-<article>
-    <h3>Rank Distribution</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>Rank</th>
-                <th>EHB Range</th>
-                <th>Players</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for threshold in rank_thresholds %}
-            <tr>
-                <td><span class="rank-badge rank-{{ threshold.name|lower|replace(' ', '-') }}">{{ threshold.name }}</span></td>
-                <td>{{ "%.1f"|format(threshold.lower) }} - {{ "%.1f"|format(threshold.upper) if threshold.upper else "+" }}</td>
-                <td>{{ rank_distribution.get(threshold.name, 0) if rank_distribution else 0 }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<article class="surface-card">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Thresholds</p>
+            <h2>Rank ladder</h2>
+        </div>
+    </div>
+    <div class="table-wrap">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Rank</th>
+                    <th>EHB range</th>
+                    <th>Players</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for threshold in rank_thresholds %}
+                <tr>
+                    <td><span class="rank-badge rank-{{ threshold.name|rank_slug }}">{{ threshold.name }}</span></td>
+                    <td>{{ "%.1f"|format(threshold.lower) }} - {{ "%.1f"|format(threshold.upper) if threshold.upper else "+" }}</td>
+                    <td>{{ snapshot.rank_distribution.get(threshold.name, 0) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </article>
 {% endblock %}

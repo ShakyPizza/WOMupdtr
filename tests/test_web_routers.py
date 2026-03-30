@@ -1,4 +1,4 @@
-"""Integration tests for FastAPI JSON API endpoints."""
+"""Integration tests for FastAPI web routes and JSON API endpoints."""
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from web.services.bot_state import BotState
-from web.routers import admin, charts, group, players
+from web.routers import admin, charts, dashboard, group, players
 
 
 # ---------------------------------------------------------------------------
@@ -38,6 +38,7 @@ def _make_app(bot_state: BotState) -> FastAPI:
         yield
 
     app = FastAPI(lifespan=lifespan)
+    app.include_router(dashboard.router)
     app.include_router(admin.router, prefix="/admin")
     app.include_router(charts.router, prefix="/charts")
     app.include_router(group.router, prefix="/group")
@@ -123,6 +124,16 @@ def test_admin_config_sets_both_flags():
         client.post("/admin/config", data={"silent": "on", "debug": "on"})
 
     assert state.silent is True
+    assert state.debug is True
+
+
+def test_admin_config_sets_debug_without_silent():
+    """Submitting only debug keeps silent false and updates debug atomically."""
+    state = _make_bot_state(silent=False, debug=False)
+    with TestClient(_make_app(state)) as client:
+        client.post("/admin/config", data={"debug": "on"})
+
+    assert state.silent is False
     assert state.debug is True
 
 
@@ -296,3 +307,74 @@ def test_player_history_empty_for_unknown_player(monkeypatch, sample_csv_file):
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+# ---------------------------------------------------------------------------
+# HTML routes
+# ---------------------------------------------------------------------------
+
+def test_dashboard_marks_dashboard_nav_active(monkeypatch, sample_players, sample_csv_file):
+    """Dashboard page sets aria-current on the active nav item."""
+    from web.services import ranks_service, csv_service
+
+    monkeypatch.setattr(ranks_service, "load_ranks", lambda: sample_players)
+    monkeypatch.setattr(csv_service, "_resolve_csv_path", lambda _: str(sample_csv_file))
+
+    with TestClient(_make_app(_make_bot_state())) as client:
+        response = client.get("/")
+
+    assert response.status_code == 200
+    assert 'href="/" aria-current="page"' in response.text
+
+
+def test_players_page_marks_players_nav_active(monkeypatch, sample_players):
+    """Players page highlights the players nav item."""
+    from web.services import ranks_service
+
+    monkeypatch.setattr(ranks_service, "load_ranks", lambda: sample_players)
+
+    with TestClient(_make_app(_make_bot_state())) as client:
+        response = client.get("/players/")
+
+    assert response.status_code == 200
+    assert 'href="/players/" aria-current="page"' in response.text
+
+
+def test_players_search_empty_state(monkeypatch, sample_players):
+    """Search partial renders an explicit empty state row when nothing matches."""
+    from web.services import ranks_service
+
+    monkeypatch.setattr(ranks_service, "load_ranks", lambda: sample_players)
+
+    with TestClient(_make_app(_make_bot_state())) as client:
+        response = client.get("/players/search?q=missing")
+
+    assert response.status_code == 200
+    assert "No players matched" in response.text
+
+
+def test_player_detail_not_found_page(monkeypatch, sample_players):
+    """Missing player detail renders the themed 404 state."""
+    from web.services import ranks_service
+
+    monkeypatch.setattr(ranks_service, "load_ranks", lambda: sample_players)
+
+    with TestClient(_make_app(_make_bot_state())) as client:
+        response = client.get("/players/no_such_player")
+
+    assert response.status_code == 404
+    assert "Player not found" in response.text
+
+
+def test_dashboard_empty_rank_data(monkeypatch, sample_csv_file):
+    """Dashboard handles empty rank snapshots without crashing."""
+    from web.services import ranks_service, csv_service
+
+    monkeypatch.setattr(ranks_service, "load_ranks", lambda: {})
+    monkeypatch.setattr(csv_service, "_resolve_csv_path", lambda _: str(sample_csv_file))
+
+    with TestClient(_make_app(_make_bot_state())) as client:
+        response = client.get("/")
+
+    assert response.status_code == 200
+    assert "No rank data is available yet." in response.text

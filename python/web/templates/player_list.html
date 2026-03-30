@@ -3,34 +3,52 @@
 {% block title %}Players - WOMupdtr{% endblock %}
 
 {% block content %}
-<h1>Players</h1>
+<section class="hero-panel compact">
+    <div>
+        <p class="eyebrow">Roster</p>
+        <h1>Players</h1>
+        <p class="lede">Search the tracker, sort the roster, and jump into player-specific history pages.</p>
+    </div>
+</section>
 
-<input type="search" name="q" placeholder="Search players..."
-       value="{{ query }}"
-       hx-get="/players/search"
-       hx-trigger="keyup changed delay:300ms"
-       hx-target="#player-results">
+<article class="surface-card">
+    <form class="player-controls"
+          method="get"
+          action="/players/"
+          hx-get="/players/search"
+          hx-target="#player-results"
+          hx-swap="innerHTML"
+          hx-trigger="keyup changed delay:250ms from:input, change from:select">
+        <label>
+            Search
+            <input type="search" name="q" placeholder="Search players..." value="{{ query }}">
+        </label>
+        <label>
+            Sort
+            <select name="sort">
+                <option value="ehb" {% if sort == "ehb" %}selected{% endif %}>EHB</option>
+                <option value="rank" {% if sort == "rank" %}selected{% endif %}>Rank</option>
+                <option value="name" {% if sort == "name" %}selected{% endif %}>Name</option>
+            </select>
+        </label>
+        <button type="submit">Apply</button>
+    </form>
 
-<table role="grid">
-    <thead>
-        <tr>
-            <th>#</th>
-            <th>Player</th>
-            <th>Rank</th>
-            <th>EHB</th>
-            <th>Fans</th>
-        </tr>
-    </thead>
-    <tbody id="player-results">
-        {% for player in players %}
-        <tr>
-            <td>{{ loop.index }}</td>
-            <td><a href="/players/{{ player.username }}">{{ player.username }}</a></td>
-            <td><span class="rank-badge rank-{{ player.rank|lower|replace(' ', '-') }}">{{ player.rank }}</span></td>
-            <td>{{ "%.2f"|format(player.ehb) }}</td>
-            <td>{{ player.discord_name|join(", ") if player.discord_name else "None" }}</td>
-        </tr>
-        {% endfor %}
-    </tbody>
-</table>
+    <div class="table-wrap">
+        <table class="data-table" role="grid">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Player</th>
+                    <th>Rank</th>
+                    <th>EHB</th>
+                    <th>Fans</th>
+                </tr>
+            </thead>
+            <tbody id="player-results">
+                {% include "partials/player_row.html" %}
+            </tbody>
+        </table>
+    </div>
+</article>
 {% endblock %}
