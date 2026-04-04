@@ -1,3 +1,5 @@
+/* global Chart */
+
 function getRankPalette() {
     const paletteNode = document.getElementById("rank-palette");
     if (!paletteNode) {
@@ -54,7 +56,14 @@ function destroyChart(canvasId) {
     }
 }
 
+function safeRankColor(rank, fallback) {
+    return Object.hasOwn(RANK_COLORS, rank) ? RANK_COLORS[rank] : fallback;
+}
+
 async function fetchJson(url) {
+    if (typeof url !== "string" || (!url.startsWith("/") && !url.startsWith(window.location.origin))) {
+        throw new Error("Invalid URL");
+    }
     const response = await fetch(url);
     const data = await response.json();
     return {
@@ -129,7 +138,7 @@ async function loadRankDistribution() {
             labels,
             datasets: [{
                 data: Object.values(result.data),
-                backgroundColor: labels.map((label) => RANK_COLORS[label] || "#69707d"),
+                backgroundColor: labels.map((label) => safeRankColor(label, "#69707d")),
                 borderColor: "#101416",
                 borderWidth: 2,
             }],
@@ -138,7 +147,10 @@ async function loadRankDistribution() {
     });
     chartInstances.set("rankDistChart", chart);
     if (result.error) {
-        canvas.insertAdjacentHTML("beforebegin", `<p class="chart-message error">${result.error}</p>`);
+        const msg = document.createElement("p");
+        msg.className = "chart-message error";
+        msg.textContent = result.error;
+        canvas.before(msg);
     }
 }
 
@@ -160,7 +172,7 @@ async function loadTopPlayers(limit = 15) {
             datasets: [{
                 label: "EHB",
                 data: result.data.map((player) => player.ehb),
-                backgroundColor: result.data.map((player) => RANK_COLORS[player.rank] || "#dcbc71"),
+                backgroundColor: result.data.map((player) => safeRankColor(player.rank, "#dcbc71")),
                 borderColor: "#101416",
                 borderWidth: 1,
             }],
