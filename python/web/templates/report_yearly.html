@@ -3,21 +3,28 @@
 {% block title %}Yearly Report - WOMupdtr{% endblock %}
 
 {% block content %}
-<h1>Yearly Report{% if year %} - {{ year }}{% endif %}</h1>
-
-<form method="get" action="/reports/yearly">
-    <div class="grid">
-        <input type="number" name="year" placeholder="Enter year (e.g. 2025)" value="{{ year if year else '' }}" min="2020" max="2030">
-        <button type="submit">Load Report</button>
+<section class="hero-panel compact">
+    <div>
+        <p class="eyebrow">Reports</p>
+        <h1>Yearly Report{% if year %} - {{ year }}{% endif %}</h1>
+        <p class="lede">Load a completed yearly report without leaving the dashboard.</p>
     </div>
-</form>
+</section>
 
-<article>
+<article class="surface-card">
+    <form method="get" action="/reports/yearly" class="player-controls">
+        <label>
+            Year
+            <input type="number" name="year" placeholder="Enter year (e.g. 2025)" value="{{ year if year else '' }}" min="2020" max="2030">
+        </label>
+        <button type="submit">Load report</button>
+    </form>
+
     {% if report_lines %}
-    <pre>{% for line in report_lines %}{{ line }}
+    <pre class="report-output">{% for line in report_lines %}{{ line }}
 {% endfor %}</pre>
     {% else %}
-    <p>No yearly report data available.</p>
+    <p class="empty-state">No yearly report data is available for this selection.</p>
     {% endif %}
 </article>
 {% endblock %}

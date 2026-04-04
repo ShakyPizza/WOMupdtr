@@ -1,42 +1,45 @@
 """Charts router - chart pages and JSON data APIs."""
 
-from fastapi import APIRouter, Depends, Request, Query
+from __future__ import annotations
+
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
 
-from ..services.ranks_service import get_all_players_sorted, get_rank_distribution
-from ..services.csv_service import get_player_ehb_history
-
-import os
+from ..services.csv_service import read_player_ehb_history
+from ..services.ranks_service import get_rank_snapshot
+from ..ui import render_template
 
 router = APIRouter()
-templates = Jinja2Templates(
-    directory=os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "templates")
-)
+
+
+def _error_headers(error: str | None) -> dict[str, str]:
+    return {"X-Data-Error": error} if error else {}
 
 
 @router.get("/", response_class=HTMLResponse)
 async def charts_page(request: Request):
-    players = get_all_players_sorted()
-    return templates.TemplateResponse("chart.html", {
-        "request": request,
-        "players": players,
-    })
+    snapshot = get_rank_snapshot()
+    return render_template(
+        request,
+        "chart.html",
+        players=snapshot.players,
+        data_error=snapshot.error,
+    )
 
 
 @router.get("/api/ehb-history")
 async def ehb_history_api(player: str = Query(...)):
-    history = get_player_ehb_history(player)
-    return JSONResponse(content=history)
+    result = read_player_ehb_history(player)
+    return JSONResponse(content=result.data, headers=_error_headers(result.error))
 
 
 @router.get("/api/rank-distribution")
 async def rank_distribution_api():
-    dist = get_rank_distribution()
-    return JSONResponse(content=dist)
+    snapshot = get_rank_snapshot()
+    return JSONResponse(content=snapshot.rank_distribution, headers=_error_headers(snapshot.error))
 
 
 @router.get("/api/top-players")
-async def top_players_api(limit: int = Query(15)):
-    players = get_all_players_sorted()[:limit]
-    return JSONResponse(content=players)
+async def top_players_api(limit: int = Query(15, ge=1, le=50)):
+    snapshot = get_rank_snapshot()
+    return JSONResponse(content=snapshot.players[:limit], headers=_error_headers(snapshot.error))

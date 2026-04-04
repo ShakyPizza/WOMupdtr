@@ -1,6 +1,7 @@
 """Tests for python/web/services/csv_service.py."""
 
 import csv
+import logging
 import pytest
 
 from web.services import csv_service
@@ -69,6 +70,26 @@ def test_get_player_ehb_history_skips_malformed_rows(monkeypatch, tmp_path):
     assert history[0]["ehb"] == 50.0
 
 
+def test_read_player_ehb_history_reports_unexpected_read_error(monkeypatch, tmp_path, caplog):
+    """Unexpected file read failures are logged and surfaced in the result object."""
+    csv_path = tmp_path / "ehb_log.csv"
+    csv_path.write_text("2025-01-01T10:00:00,alpha,10.0\n")
+    monkeypatch.setattr(csv_service, "_resolve_csv_path", lambda _: str(csv_path))
+
+    def raise_open(*args, **kwargs):
+        raise OSError("boom")
+
+    monkeypatch.setattr("builtins.open", raise_open)
+
+    with caplog.at_level(logging.ERROR):
+        result = csv_service.read_player_ehb_history("alpha")
+
+    assert result.data == []
+    assert result.error is not None
+    assert "could not be loaded" in result.error.lower()
+    assert "Failed to read EHB CSV log" in caplog.text
+
+
 # ---------------------------------------------------------------------------
 # get_recent_changes
 # ---------------------------------------------------------------------------
@@ -118,6 +139,17 @@ def test_get_recent_changes_returns_empty_when_csv_missing(monkeypatch, tmp_path
     changes = csv_service.get_recent_changes()
 
     assert changes == []
+
+
+def test_read_recent_changes_preserves_success_shape(monkeypatch, sample_csv_file):
+    """The result object exposes the original list payload without changing entry shape."""
+    monkeypatch.setattr(csv_service, "_resolve_csv_path", lambda _: str(sample_csv_file))
+
+    result = csv_service.read_recent_changes(limit=2)
+
+    assert result.error is None
+    assert len(result.data) == 2
+    assert set(result.data[0].keys()) >= {"timestamp", "username", "ehb"}
 
 
 # ---------------------------------------------------------------------------

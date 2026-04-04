@@ -1,46 +1,77 @@
 {% extends "base.html" %}
 
-{% block title %}{{ player.username }} - WOMupdtr{% endblock %}
+{% block title %}{% if player %}{{ player.username }} - WOMupdtr{% else %}Player Not Found - WOMupdtr{% endif %}{% endblock %}
 
 {% block content %}
-<h1>{{ player.username }}</h1>
+{% if player %}
+<section class="hero-panel compact">
+    <div>
+        <p class="eyebrow">Player profile</p>
+        <h1>{{ player.username }}</h1>
+        <p class="lede">Current rank, linked Discord fans, and the historical EHB trail for this player.</p>
+    </div>
+</section>
 
-<div class="grid">
-    <article class="stat-card">
-        <h3>Current EHB</h3>
+<section class="stats-grid">
+    <article class="surface-card stat-card">
+        <p class="mini-label">Current EHB</p>
         <p class="stat-value">{{ "%.2f"|format(player.ehb) }}</p>
     </article>
-    <article class="stat-card">
-        <h3>Current Rank</h3>
-        <p class="stat-value"><span class="rank-badge rank-{{ player.rank|lower|replace(' ', '-') }}">{{ player.rank }}</span></p>
+    <article class="surface-card stat-card">
+        <p class="mini-label">Current rank</p>
+        <p class="stat-value smaller"><span class="rank-badge rank-{{ player.rank|rank_slug }}">{{ player.rank }}</span></p>
     </article>
-    <article class="stat-card">
-        <h3>Next Rank</h3>
-        <p class="stat-value">{{ player.next_rank if player.next_rank else "Max Rank" }}</p>
+    <article class="surface-card stat-card">
+        <p class="mini-label">Next milestone</p>
+        <p class="stat-value smaller">{{ player.next_rank if player.next_rank else "Max rank" }}</p>
     </article>
-</div>
+</section>
 
-<article>
-    <h3>Fans</h3>
-    {% if player.discord_name %}
-    <ul>
-        {% for name in player.discord_name %}
-        <li>{{ name }}</li>
-        {% endfor %}
-    </ul>
-    {% else %}
-    <p>No fans yet.</p>
-    {% endif %}
-</article>
+<section class="content-grid">
+    <article class="surface-card">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Discord</p>
+                <h2>Fans</h2>
+            </div>
+        </div>
+        {% if player.discord_name %}
+        <ul class="fan-list">
+            {% for name in player.discord_name %}
+            <li>{{ name }}</li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty-state">No linked Discord names yet.</p>
+        {% endif %}
+    </article>
 
-<article>
-    <h3>EHB History</h3>
-    <canvas id="ehbChart"></canvas>
-</article>
-
-<script>
-document.addEventListener('DOMContentLoaded', () => {
-    loadPlayerChart('{{ player.username }}');
-});
-</script>
+    <article class="surface-card"
+             data-player-history-player="{{ player.username }}"
+             data-history-target="ehbChart"
+             data-history-message="ehb-chart-message">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Progression</p>
+                <h2>EHB history</h2>
+            </div>
+        </div>
+        {% if history_error %}
+        <p class="chart-message error">{{ history_error }}</p>
+        {% else %}
+        <p id="ehb-chart-message" class="chart-message">Loading chart...</p>
+        {% endif %}
+        <div class="chart-frame" data-chart-panel>
+            <canvas id="ehbChart"></canvas>
+        </div>
+    </article>
+</section>
+{% else %}
+<section class="surface-card not-found">
+    <p class="eyebrow">Missing player</p>
+    <h1>Player not found</h1>
+    <p class="lede">The requested username was not found in the current rank snapshot.</p>
+    <a href="/players/" role="button">Back to players</a>
+</section>
+{% endif %}
 {% endblock %}

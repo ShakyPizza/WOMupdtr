@@ -4,42 +4,49 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}WOMupdtr{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <nav class="container-fluid">
-        <ul>
-            <li><strong>WOMupdtr</strong></li>
-        </ul>
-        <ul>
-            <li><a href="/">Dashboard</a></li>
-            <li><a href="/players/">Players</a></li>
-            <li>
-                <details class="dropdown">
-                    <summary role="button" class="outline">Reports</summary>
-                    <ul dir="rtl">
-                        <li><a href="/reports/weekly">Weekly</a></li>
-                        <li><a href="/reports/yearly">Yearly</a></li>
-                    </ul>
-                </details>
-            </li>
-            <li><a href="/charts/">Charts</a></li>
-            <li><a href="/group/">Group</a></li>
-            <li><a href="/admin/">Admin</a></li>
-        </ul>
-    </nav>
+    <div class="page-shell">
+        <header class="topbar">
+            <nav class="container">
+                <a href="/" class="brand-mark">
+                    <span class="brand-kicker">Wise Old Man</span>
+                    <strong>WOMupdtr Dashboard</strong>
+                </a>
+                <ul class="main-nav" role="list">
+                    {% for item in nav_items %}
+                    <li>
+                        <a href="{{ item.href }}"
+                           {% if item.active %}aria-current="page"{% endif %}>
+                            {{ item.label }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </nav>
+        </header>
 
-    <main class="container">
-        {% block content %}{% endblock %}
-    </main>
+        <main class="container page-content">
+            {% if data_error %}
+            <section class="surface-banner error" role="status">
+                {{ data_error }}
+            </section>
+            {% endif %}
+            {% block content %}{% endblock %}
+        </main>
 
-    <footer class="container">
-        <hr>
-        <p><small>WOMupdtr Dashboard</small></p>
-    </footer>
+        <footer class="container page-footer">
+            <p><small>Tracking Efficient Hours Bossed with a dashboard built for quick reads, reports, and group health checks.</small></p>
+        </footer>
+    </div>
 
+    <script id="rank-palette" type="application/json">{{ rank_palette_json|safe }}</script>
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <script src="/static/js/app.js"></script>
 </body>

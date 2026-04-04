@@ -1,6 +1,7 @@
 """Tests for python/web/services/ranks_service.py."""
 
 import configparser
+import logging
 import pytest
 
 from web.services import ranks_service
@@ -51,6 +52,23 @@ def test_get_all_players_sorted_defaults_missing_fields(monkeypatch):
     assert result[0]["ehb"] == 0
     assert result[0]["rank"] == "Unknown"
     assert result[0]["discord_name"] == []
+
+
+def test_get_rank_snapshot_reports_load_errors(monkeypatch, caplog):
+    """Snapshot exposes a user-facing error when rank loading fails."""
+    def explode():
+        raise RuntimeError("bad ranks")
+
+    monkeypatch.setattr(ranks_service, "load_ranks", explode)
+
+    with caplog.at_level(logging.ERROR):
+        snapshot = ranks_service.get_rank_snapshot()
+
+    assert snapshot.players == []
+    assert snapshot.rank_distribution == {}
+    assert snapshot.error is not None
+    assert "could not be loaded" in snapshot.error.lower()
+    assert "Failed to load player ranks" in caplog.text
 
 
 # ---------------------------------------------------------------------------
@@ -178,6 +196,15 @@ def test_search_players_partial_prefix(monkeypatch, sample_players):
 
     assert len(result) == 1
     assert result[0]["username"] == "zenyte_zoe"
+
+
+def test_search_players_supports_name_sort(monkeypatch, sample_players):
+    """Name sort returns alphabetical usernames."""
+    monkeypatch.setattr(ranks_service, "load_ranks", lambda: sample_players)
+
+    result = ranks_service.search_players("", sort="name")
+
+    assert [player["username"] for player in result] == ["goblin_gaz", "silver_sam", "zenyte_zoe"]
 
 
 # ---------------------------------------------------------------------------
