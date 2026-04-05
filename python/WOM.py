@@ -1,5 +1,6 @@
 import configparser
 import os
+import socket
 from datetime import datetime
 from discord.ext import tasks, commands
 import discord
@@ -26,7 +27,9 @@ class Client(BaseClient):
     
     async def start(self):
         if self._session is None or self._session.closed:
-            self._connector = aiohttp.TCPConnector()
+            # Prefer IPv4 inside containers where IPv6 DNS answers exist but
+            # outbound IPv6 connectivity is not actually configured.
+            self._connector = aiohttp.TCPConnector(family=socket.AF_INET)
             self._session = aiohttp.ClientSession(connector=self._connector)
         return await super().start()
     
@@ -326,7 +329,8 @@ async def refresh_group_data():
     msg = "❌ Failed to refresh group: unknown error."
 
     try:
-        async with aiohttp.ClientSession() as session:
+        connector = aiohttp.TCPConnector(family=socket.AF_INET)
+        async with aiohttp.ClientSession(connector=connector) as session:
             async with session.post(url, headers=headers, json=payload) as response:
                 if response.status == 200:
                     data = await response.json()

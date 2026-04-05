@@ -7,6 +7,7 @@ the recommended way for bots to interact with users.
 
 from datetime import datetime, timezone
 import os
+import socket
 from typing import Optional
 
 import aiohttp
@@ -362,7 +363,8 @@ def setup_commands(
     async def debug_group(interaction: Interaction):
         url = f"https://api.wiseoldman.net/v2/groups/{GROUP_ID}"
         try:
-            async with aiohttp.ClientSession() as session:
+            connector = aiohttp.TCPConnector(family=socket.AF_INET)
+            async with aiohttp.ClientSession(connector=connector) as session:
                 async with session.get(url) as response:
                     if response.status == 200:
                         group_data = await response.json()
@@ -573,4 +575,3 @@ def setup_commands(
             )
             if debug:
                 print(f"Error in /rankup command: {e}")
-
