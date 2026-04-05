@@ -60,7 +60,8 @@ def build_context(request: Request, **context: Any) -> dict[str, Any]:
 def render_template(request: Request, template_name: str, status_code: int = 200, **context: Any) -> HTMLResponse:
     """Render a Jinja template with the shared base context."""
     return templates.TemplateResponse(
-        template_name,
-        build_context(request, **context),
+        request=request,
+        name=template_name,
+        context=build_context(request, **context),
         status_code=status_code,
     )
