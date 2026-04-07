@@ -109,8 +109,10 @@ intents = discord.Intents.default()
 intents.messages = True
 intents.guilds = True
 intents.message_content = True  # Enable message content intent
+# Force IPv4 so containers without working IPv6 can reach discord.com
+_discord_connector = aiohttp.TCPConnector(family=socket.AF_INET)
 # Use slash commands via app commands; prefix commands are disabled
-discord_client = commands.Bot(command_prefix=commands.when_mentioned, intents=intents)
+discord_client = commands.Bot(command_prefix=commands.when_mentioned, intents=intents, connector=_discord_connector)
 
 wom_client = Client(api_key=api_key)
 
