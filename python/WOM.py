@@ -105,14 +105,21 @@ else:
 # Discord Client and Wise Old Man Client Initialization
 
 
+class IPv4Bot(commands.Bot):
+    """Bot subclass that forces IPv4 for outbound connections."""
+    async def setup_hook(self):
+        # Must be created inside the event loop; forces IPv4 so containers
+        # without working IPv6 can reach discord.com
+        connector = aiohttp.TCPConnector(family=socket.AF_INET)
+        self.http.connector = connector
+        await super().setup_hook()
+
 intents = discord.Intents.default()
 intents.messages = True
 intents.guilds = True
 intents.message_content = True  # Enable message content intent
-# Force IPv4 so containers without working IPv6 can reach discord.com
-_discord_connector = aiohttp.TCPConnector(family=socket.AF_INET)
 # Use slash commands via app commands; prefix commands are disabled
-discord_client = commands.Bot(command_prefix=commands.when_mentioned, intents=intents, connector=_discord_connector)
+discord_client = IPv4Bot(command_prefix=commands.when_mentioned, intents=intents)
 
 wom_client = Client(api_key=api_key)
 
