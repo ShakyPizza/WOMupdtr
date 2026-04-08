@@ -10,11 +10,4 @@ services:
       - ./python/config.ini:/app/python/config.ini:ro
       - ./python/ranks.ini:/app/python/ranks.ini:ro
       - ./data:/app/data
-    ports:
-      - "8080:8080"
-      - "443:443"
-    dns:
-      - 8.8.8.8
-      - 1.1.1.1
-      - 172.17.0.1
     restart: unless-stopped
