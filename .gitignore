@@ -273,4 +273,9 @@ __pycache__/
 build
 log.txt
 
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
 .claude
