@@ -32,7 +32,7 @@ A reference document for a repo-wide refactor. Use this as a living guide — ch
 | `list_all_members_and_ranks` | `async def` | Fetch all members, format ranked table, chunk to Discord 2000-char limit |
 | `refresh_group_data` | `async def` | POST to WOM update-all API with passcode; handles 200/401/429 responses |
 | `refresh_group_task` | `@tasks.loop` async | Periodic group refresh (default every 172800s / 48h) |
-| `send_rank_up_message` | `async def(username, new_rank, old_rank, ehb)` | Posts rank-up embed with fan @mentions |
+| `send_rank_up_message` | `async def(username, new_rank, old_rank, ehb)` | Posts rank-up message to Discord |
 
 **Key globals** (these are the problem):
 - `bot_state` — `BotState` dataclass injected into web server
@@ -45,7 +45,7 @@ A reference document for a repo-wide refactor. Use this as a living guide — ch
 | Function | Signature | Purpose |
 |---|---|---|
 | `_bootstrap_ranks_from_csv` | `() -> None` | Seeds `player_ranks.json` from `ehb_log.csv` when JSON is missing |
-| `load_ranks` | `() -> dict` | Reads JSON; ensures `discord_name` is always a list |
+| `load_ranks` | `() -> dict` | Reads the latest rank snapshot JSON |
 | `save_ranks` | `(data: dict) -> None` | Writes JSON; conditionally syncs changed EHB rows to Baserow |
 | `next_rank` | `(username: str) -> str` | Returns formatted "Rank at X EHB" progress string |
 | `_get_rank_for_ehb` | `(ehb: float) -> str` | Parses `ranks.ini`, returns rank name — **re-reads file every call** (no cache) |
@@ -70,15 +70,12 @@ All 20+ Discord slash commands defined inside a single `setup_commands(bot, ...)
 
 | Command | Handler summary |
 |---|---|
-| `/lookup <username>` | Show rank, EHB, fans for a player |
+| `/lookup <username>` | Show rank and EHB for a player |
 | `/refresh` | Refresh and post full rankings table |
 | `/forcecheck` | Manually trigger rank change detection |
 | `/update <username>` | Update rank for one player (case-insensitive) |
 | `/rankup <username>` | Show current rank + next threshold |
 | `/refreshgroup` | Trigger WOM update-all API |
-| `/link <username> <discord_name>` | Link Discord user for @mention |
-| `/subscribeall <discord_name>` | Subscribe to all players |
-| `/unsubscribeall <discord_name>` | Unsubscribe from all |
 | `/weeklyupdate` | Post weekly report to configured channel |
 | `/yearlyreport [year]` | Post yearly report |
 | `/yearlyreportfile [year] [filename]` | Write yearly report to file |
@@ -94,7 +91,7 @@ All 20+ Discord slash commands defined inside a single `setup_commands(bot, ...)
 | Function | Signature | Purpose |
 |---|---|---|
 | `post_to_ehb_table` | `(username, date, ehb)` | Creates row in table **613979** (EHB history) |
-| `update_players_table` | `(username, rank, ehb, discord_names)` | Updates/creates row in table **613980** (player roster) |
+| `update_players_table` | `(username, rank, ehb)` | Updates/creates row in table **613980** (player roster) |
 
 > Table IDs `613979` and `613980` are hardcoded magic numbers — move to constants.
 
@@ -344,7 +341,7 @@ python/
 │   ├── messaging.py       # send_rank_up_message, list_all_members_and_ranks
 │   └── commands/          # NEW — splits commands.py
 │       ├── __init__.py    # setup_commands() wires all groups
-│       ├── player.py      # /lookup /update /rankup /link /subscribeall /unsubscribeall
+│       ├── player.py      # /lookup /update /rankup
 │       ├── group.py       # /refresh /refreshgroup /forcecheck /debug_group
 │       └── reports.py     # /weeklyupdate /yearlyreport /yearlyreportfile /commands /goodnight
 │

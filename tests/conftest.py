@@ -33,9 +33,9 @@ sys.modules.setdefault("requests", _requests_stub)
 def sample_players():
     """Three players at different EHB / rank levels."""
     return {
-        "goblin_gaz": {"last_ehb": 5.0, "rank": "Goblin", "discord_name": ["Gaz#1234"]},
-        "silver_sam": {"last_ehb": 150.0, "rank": "Silver", "discord_name": ["Sam#5678"]},
-        "zenyte_zoe": {"last_ehb": 1600.0, "rank": "Zenyte", "discord_name": []},
+        "goblin_gaz": {"last_ehb": 5.0, "rank": "Goblin"},
+        "silver_sam": {"last_ehb": 150.0, "rank": "Silver"},
+        "zenyte_zoe": {"last_ehb": 1600.0, "rank": "Zenyte"},
     }
 
 

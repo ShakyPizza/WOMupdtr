@@ -33,7 +33,7 @@ def post_to_ehb_table(username, date, ehb):
         print("Error: ", post.status_code)
 
 
-def update_players_table(username, rank, ehb, discord_names=None):
+def update_players_table(username, rank, ehb):
     #Create or update a row in the players table (id 613980)
     if not token:
         return
@@ -43,12 +43,6 @@ def update_players_table(username, rank, ehb, discord_names=None):
         "Authorization": f"Token {token}",
         "Content-Type": "application/json",
     }
-
-    # Convert list of discord names to comma separated string if provided
-    if isinstance(discord_names, list):
-        discord_value = ", ".join(discord_names)
-    else:
-        discord_value = discord_names or ""
 
     # Check if the player already exists
     get = requests.get(
@@ -63,18 +57,18 @@ def update_players_table(username, rank, ehb, discord_names=None):
             patch = requests.patch(
                 f"{base_url}{row_id}/?user_field_names=true",
                 headers=headers,
-                json={"Username": username, "Rank": rank, "last_ehb": ehb, "discord_name": discord_value},
+                json={"Username": username, "Rank": rank, "last_ehb": ehb},
             )
-            print(f"Updating player {username} with rank {rank}, EHB {ehb}, and Discord names {discord_names} in Baserow Player Table")
+            print(f"Updating player {username} with rank {rank} and EHB {ehb} in Baserow Player Table")
             if patch.status_code != 200:
                 print("Error updating player row: ", patch.status_code)
         else:
             post = requests.post(
                 f"{base_url}?user_field_names=true",
                 headers=headers,
-                json={"Username": username, "Rank": rank, "last_ehb": ehb, "discord_name": discord_value},
+                json={"Username": username, "Rank": rank, "last_ehb": ehb},
             )
-            print(f"Creating player {username} with rank {rank}, EHB {ehb}, and Discord names {discord_names} in Baserow Player Table")
+            print(f"Creating player {username} with rank {rank} and EHB {ehb} in Baserow Player Table")
             if post.status_code != 200:
                 print("Error creating player row: ", post.status_code)
     else:

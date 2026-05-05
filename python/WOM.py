@@ -376,14 +376,6 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
         if debug:
             log(f"debug mode: Sending rank up message for {username}.")
 
-        ranks_data = load_ranks()
-        discord_names = ranks_data.get(username, {}).get("discord_name", [])
-
-        # Ensure discord_names is always a list
-        if not isinstance(discord_names, list):
-            discord_names = [discord_names] if discord_names else []
-        fans_display = "  ".join(discord_names) if discord_names else "0 😭😭😭"
-
         # Only send message if the rank has changed
         if new_rank != old_rank:
             channel = get_messageable_channel(channel_id)
@@ -391,8 +383,7 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
                 if post_to_discord:
                     await channel.send(  
                         f'🎉 Congratulations **{username}** on moving up to the rank of **{new_rank}** '
-                        f'with **{ehb}** EHB! 🎉\n'
-                        f'**Fans:** {fans_display}'
+                        f'with **{ehb}** EHB! 🎉'
                     )
                     log(f"Sent rank up message for {username} to channel: {channel}")
             else:

@@ -41,26 +41,16 @@ def _bootstrap_ranks_from_csv():
         ranks_data[username] = {
             "last_ehb": ehb,
             "rank": _get_rank_for_ehb(ehb),
-            "discord_name": [],
         }
     print("Loaded ranks from ehb_log.csv.")
     return ranks_data
 
 def load_ranks():
-    """Load ranks from a JSON file and ensure discord_name is always a list."""
+    """Load ranks from a JSON file."""
     if os.path.exists(RANKS_FILE):
         try:
             with open(RANKS_FILE, 'r') as f:
-                ranks_data = json.load(f)
-
-            # Ensure discord_name is always a list
-            for username, data in ranks_data.items():
-                if "discord_name" not in data:
-                    data["discord_name"] = []  # Initialize missing field as a list
-                elif isinstance(data["discord_name"], str):
-                    data["discord_name"] = [data["discord_name"]]  # Convert string to list
-
-            return ranks_data
+                return json.load(f)
 
         except (json.JSONDecodeError, ValueError):
             print(f"Error: {RANKS_FILE} is empty or corrupted. Resetting data.")
@@ -69,6 +59,13 @@ def load_ranks():
 
 def save_ranks(data):
     """Save ranks to ``player_ranks.json`` and update Baserow if EHB changed."""
+    sanitized_data = {
+        username: {
+            "last_ehb": pdata.get("last_ehb", 0),
+            "rank": pdata.get("rank", "Unknown"),
+        }
+        for username, pdata in data.items()
+    }
 
     # Load existing data to compare EHB values
     old_data = {}
@@ -81,21 +78,20 @@ def save_ranks(data):
 
     # Write the new data to disk
     with open(RANKS_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+        json.dump(sanitized_data, f, indent=4)
 
     # Sync data to Baserow players table only when EHB differs from old value
     try:
         if _BOOTSTRAPPED_FROM_CSV:
             print("Skipping Baserow sync for CSV bootstrap run.")
             return
-        for username, pdata in data.items():
+        for username, pdata in sanitized_data.items():
             rank = pdata.get("rank", "")
             ehb = pdata.get("last_ehb", 0)
-            discord_names = pdata.get("discord_name", [])
 
             old_ehb = old_data.get(username, {}).get("last_ehb")
             if old_ehb != ehb:
-                update_players_table(username, rank, ehb, discord_names)
+                update_players_table(username, rank, ehb)
     except Exception as e:
         print(f"Error updating Baserow players table: {e}")
 

@@ -54,10 +54,10 @@ def tmp_ranks_ini(tmp_path, monkeypatch):
     return ranks_ini
 
 
-def test_load_ranks_converts_discord_names_to_list(tmp_path, monkeypatch):
+def test_load_ranks_preserves_json_payload(tmp_path, monkeypatch):
     data = {
-        "user1": {"last_ehb": 10, "rank": "Novice", "discord_name": "fan1"},
-        "user2": {"last_ehb": 20, "rank": "Intermediate", "discord_name": ["fan2", "fan3"]},
+        "user1": {"last_ehb": 10, "rank": "Novice"},
+        "user2": {"last_ehb": 20, "rank": "Intermediate"},
         "user3": {"last_ehb": 30, "rank": "Advanced"}
     }
     ranks_file = tmp_path / "player_ranks.json"
@@ -68,14 +68,12 @@ def test_load_ranks_converts_discord_names_to_list(tmp_path, monkeypatch):
 
     result = rank_utils.load_ranks()
 
-    assert result["user1"]["discord_name"] == ["fan1"]
-    assert result["user2"]["discord_name"] == ["fan2", "fan3"]
-    assert result["user3"]["discord_name"] == []
+    assert result == data
 
 
 def test_next_rank_returns_correct_next_rank(tmp_path, monkeypatch):
     ranks_data = {
-        "player": {"last_ehb": 150, "rank": "Silver", "discord_name": []}
+        "player": {"last_ehb": 150, "rank": "Silver"}
     }
     ranks_file = tmp_path / "player_ranks.json"
     with open(ranks_file, "w") as f:
@@ -104,22 +102,21 @@ def test_save_ranks_updates_baserow_when_ehb_changes(tmp_path, monkeypatch):
     """update_players_table should be called when EHB differs from file."""
 
     # Existing data with different EHB
-    initial = {"player": {"last_ehb": 10, "rank": "Bronze", "discord_name": []}}
+    initial = {"player": {"last_ehb": 10, "rank": "Bronze"}}
     ranks_file = tmp_path / "player_ranks.json"
     with open(ranks_file, "w") as f:
         json.dump(initial, f)
 
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
 
-    updated = {"player": {"last_ehb": 42, "rank": "Bronze", "discord_name": []}}
+    updated = {"player": {"last_ehb": 42, "rank": "Bronze"}}
 
     called = {}
 
-    def fake_update(username, rank, ehb, discord_names):
+    def fake_update(username, rank, ehb):
         called["username"] = username
         called["rank"] = rank
         called["ehb"] = ehb
-        called["discord"] = discord_names
 
     monkeypatch.setattr(rank_utils, "update_players_table", fake_update)
 
@@ -129,7 +126,6 @@ def test_save_ranks_updates_baserow_when_ehb_changes(tmp_path, monkeypatch):
         "username": "player",
         "rank": "Bronze",
         "ehb": 42,
-        "discord": [],
     }
     with open(ranks_file) as f:
         assert json.load(f) == updated
@@ -138,7 +134,7 @@ def test_save_ranks_updates_baserow_when_ehb_changes(tmp_path, monkeypatch):
 def test_save_ranks_skips_update_when_ehb_unchanged(tmp_path, monkeypatch):
     """update_players_table should not be called if EHB has not changed."""
 
-    data = {"player": {"last_ehb": 42, "rank": "Bronze", "discord_name": []}}
+    data = {"player": {"last_ehb": 42, "rank": "Bronze"}}
     ranks_file = tmp_path / "player_ranks.json"
     with open(ranks_file, "w") as f:
         json.dump(data, f)
@@ -147,7 +143,7 @@ def test_save_ranks_skips_update_when_ehb_unchanged(tmp_path, monkeypatch):
 
     called = {}
 
-    def fake_update(username, rank, ehb, discord_names):
+    def fake_update(username, rank, ehb):
         called["called"] = True
 
     monkeypatch.setattr(rank_utils, "update_players_table", fake_update)
@@ -185,7 +181,7 @@ def test_next_rank_returns_unknown_for_missing_user(tmp_path, monkeypatch):
 
 def test_next_rank_returns_max_rank_when_at_top(tmp_path, monkeypatch):
     ranks_data = {
-        "player": {"last_ehb": 150, "rank": "Gold", "discord_name": []}
+        "player": {"last_ehb": 150, "rank": "Gold"}
     }
     ranks_file = tmp_path / "player_ranks.json"
     with open(ranks_file, "w") as f:
@@ -212,8 +208,8 @@ def test_next_rank_returns_max_rank_when_at_top(tmp_path, monkeypatch):
 
 def test_save_ranks_updates_only_changed_ehb(tmp_path, monkeypatch):
     old_data = {
-        "alpha": {"last_ehb": 10, "rank": "Bronze", "discord_name": []},
-        "beta": {"last_ehb": 20, "rank": "Silver", "discord_name": []},
+        "alpha": {"last_ehb": 10, "rank": "Bronze"},
+        "beta": {"last_ehb": 20, "rank": "Silver"},
     }
     ranks_file = tmp_path / "player_ranks.json"
     with open(ranks_file, "w") as f:
@@ -222,20 +218,20 @@ def test_save_ranks_updates_only_changed_ehb(tmp_path, monkeypatch):
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
 
     new_data = {
-        "alpha": {"last_ehb": 10, "rank": "Bronze", "discord_name": []},
-        "beta": {"last_ehb": 25, "rank": "Silver", "discord_name": []},
+        "alpha": {"last_ehb": 10, "rank": "Bronze"},
+        "beta": {"last_ehb": 25, "rank": "Silver"},
     }
 
     calls = []
 
-    def fake_update(username, rank, ehb, discord_names):
-        calls.append((username, rank, ehb, discord_names))
+    def fake_update(username, rank, ehb):
+        calls.append((username, rank, ehb))
 
     monkeypatch.setattr(rank_utils, "update_players_table", fake_update)
 
     rank_utils.save_ranks(new_data)
 
-    assert calls == [("beta", "Silver", 25, [])]
+    assert calls == [("beta", "Silver", 25)]
 
 
 # --- _get_rank_for_ehb ---
@@ -285,15 +281,15 @@ def test_save_ranks_treats_all_as_new_when_existing_file_corrupt(tmp_path, monke
 
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
 
-    new_data = {"player": {"last_ehb": 42, "rank": "Silver", "discord_name": []}}
+    new_data = {"player": {"last_ehb": 42, "rank": "Silver"}}
 
     calls = []
 
-    def fake_update(username, rank, ehb, discord_names):
-        calls.append((username, rank, ehb, discord_names))
+    def fake_update(username, rank, ehb):
+        calls.append((username, rank, ehb))
 
     monkeypatch.setattr(rank_utils, "update_players_table", fake_update)
 
     rank_utils.save_ranks(new_data)
 
-    assert calls == [("player", "Silver", 42, [])]
+    assert calls == [("player", "Silver", 42)]

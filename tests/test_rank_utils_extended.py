@@ -59,7 +59,7 @@ def test_save_ranks_creates_file_on_first_run(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(rank_utils, "update_players_table", lambda *a, **k: calls.append(a))
 
-    data = {"alice": {"last_ehb": 50.0, "rank": "Bronze", "discord_name": []}}
+    data = {"alice": {"last_ehb": 50.0, "rank": "Bronze"}}
     rank_utils.save_ranks(data)
 
     assert json_path.exists()
@@ -75,7 +75,7 @@ def test_save_ranks_syncs_to_baserow_on_first_run(tmp_path, monkeypatch):
     calls = []
     monkeypatch.setattr(rank_utils, "update_players_table", lambda *a, **k: calls.append(a))
 
-    data = {"alice": {"last_ehb": 50.0, "rank": "Bronze", "discord_name": []}}
+    data = {"alice": {"last_ehb": 50.0, "rank": "Bronze"}}
     rank_utils.save_ranks(data)
 
     # alice's old_ehb is None (no file existed), current is 50 → sync triggered
@@ -91,7 +91,7 @@ def test_next_rank_at_exact_lower_boundary(tmp_path, monkeypatch, tmp_ranks_ini)
     """Player with EHB exactly at the threshold of a rank returns the correct next rank."""
     json_path = tmp_path / "player_ranks.json"
     # EHB = 100 puts the player exactly at the Silver threshold (100-199)
-    data = {"boundary_bob": {"last_ehb": 100.0, "rank": "Silver", "discord_name": []}}
+    data = {"boundary_bob": {"last_ehb": 100.0, "rank": "Silver"}}
     json_path.write_text(json.dumps(data))
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(json_path))
 
@@ -135,7 +135,6 @@ def test_bootstrap_ranks_from_csv_builds_correct_entries(tmp_path, monkeypatch, 
     assert "zara" in result
     assert result["zara"]["last_ehb"] == 150.0
     assert result["zara"]["rank"] == "Silver"
-    assert result["zara"]["discord_name"] == []
 
 
 def test_bootstrap_ranks_from_csv_returns_empty_when_no_csv(monkeypatch):
@@ -157,7 +156,7 @@ def test_save_ranks_skips_baserow_sync_after_bootstrap(tmp_path, monkeypatch):
     monkeypatch.setattr(rank_utils, "update_players_table", lambda *a, **k: calls.append(a))
 
     rank_utils._BOOTSTRAPPED_FROM_CSV = True
-    data = {"alice": {"last_ehb": 50.0, "rank": "Bronze", "discord_name": []}}
+    data = {"alice": {"last_ehb": 50.0, "rank": "Bronze"}}
     rank_utils.save_ranks(data)
 
     assert calls == []
@@ -179,20 +178,20 @@ def test_load_ranks_empty_file_falls_back_to_bootstrap(tmp_path, monkeypatch):
     assert result == {}
 
 
-def test_load_ranks_discord_name_already_list_is_unchanged(tmp_path, monkeypatch):
-    """load_ranks does not double-wrap a discord_name that is already a list."""
+def test_load_ranks_preserves_unrecognized_fields(tmp_path, monkeypatch):
+    """load_ranks returns stored JSON without schema mutation."""
     json_path = tmp_path / "player_ranks.json"
-    data = {"dan": {"last_ehb": 10.0, "rank": "Bronze", "discord_name": ["Dan#0001", "Dan#0002"]}}
+    data = {"dan": {"last_ehb": 10.0, "rank": "Bronze", "note": "legacy"}}
     json_path.write_text(json.dumps(data))
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(json_path))
 
     result = rank_utils.load_ranks()
 
-    assert result["dan"]["discord_name"] == ["Dan#0001", "Dan#0002"]
+    assert result == data
 
 
-def test_load_ranks_missing_discord_name_field_defaults_to_list(tmp_path, monkeypatch):
-    """load_ranks initialises discord_name to [] when the field is absent."""
+def test_load_ranks_missing_optional_fields_is_accepted(tmp_path, monkeypatch):
+    """load_ranks accepts entries with only the core rank fields."""
     json_path = tmp_path / "player_ranks.json"
     data = {"eve": {"last_ehb": 20.0, "rank": "Bronze"}}
     json_path.write_text(json.dumps(data))
@@ -200,4 +199,4 @@ def test_load_ranks_missing_discord_name_field_defaults_to_list(tmp_path, monkey
 
     result = rank_utils.load_ranks()
 
-    assert result["eve"]["discord_name"] == []
+    assert result == data

@@ -96,11 +96,6 @@ Group management:
 - `/refreshgroup` - Triggers a Wise Old Man update-all.
 - `/forcecheck` - Runs the rank-change check immediately.
 
-Subscriptions:
-- `/link <username> <discord_name>` - Links a Discord user to a Wise Old Man username.
-- `/subscribeall <discord_name>` - Subscribes a Discord user to all players.
-- `/unsubscribeall <discord_name>` - Removes a Discord user from all subscriptions.
-
 Reports:
 - `/weeklyupdate` - Posts a weekly report to the configured weekly channel.
 - `/yearlyreport [year]` - Posts a yearly report (defaults to last completed year).

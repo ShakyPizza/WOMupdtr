@@ -32,13 +32,13 @@ def test_get_all_players_sorted_returns_empty_list_when_no_players(monkeypatch):
 
 
 def test_get_all_players_sorted_includes_expected_keys(monkeypatch, sample_players):
-    """Each player dict contains username, ehb, rank, and discord_name."""
+    """Each player dict contains username, ehb, and rank."""
     monkeypatch.setattr(ranks_service, "load_ranks", lambda: sample_players)
 
     result = ranks_service.get_all_players_sorted()
 
     for player in result:
-        assert set(player.keys()) >= {"username", "ehb", "rank", "discord_name"}
+        assert set(player.keys()) >= {"username", "ehb", "rank"}
 
 
 def test_get_all_players_sorted_defaults_missing_fields(monkeypatch):
@@ -51,7 +51,6 @@ def test_get_all_players_sorted_defaults_missing_fields(monkeypatch):
 
     assert result[0]["ehb"] == 0
     assert result[0]["rank"] == "Unknown"
-    assert result[0]["discord_name"] == []
 
 
 def test_get_rank_snapshot_reports_load_errors(monkeypatch, caplog):

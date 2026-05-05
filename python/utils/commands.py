@@ -26,14 +26,6 @@ from weeklyupdater import (
 )
 
 
-# Helper Functions --- Formats the Discord fans for display.
-
-def format_discord_fans(discord_fans):
-    if isinstance(discord_fans, list):
-        return " + ".join(discord_fans) if discord_fans else "0 😭"
-    return discord_fans if discord_fans else "0 😭"
-
-
 def setup_commands(
     bot: commands.Bot,
     wom_client,
@@ -60,13 +52,11 @@ def setup_commands(
             if username in ranks_data:
                 ehb = ranks_data[username]["last_ehb"]
                 rank = ranks_data[username]["rank"]
-                discord_fans = ranks_data[username]["discord_name"]
-                fans_display = format_discord_fans(discord_fans)
                 await interaction.response.send_message(
-                    f"**{username}**\n**Rank:** {rank} ({ehb} EHB)\n**Fans:** {fans_display}"
+                    f"**{username}**\n**Rank:** {rank} ({ehb} EHB)"
                 )
                 if debug:
-                    print(f"Listed {username}: {rank} ({ehb} EHB), Fans: {fans_display}")
+                    print(f"Listed {username}: {rank} ({ehb} EHB)")
             else:
                 await interaction.response.send_message(
                     f"❌ Username **'{username}'** not found in the ranks data.",
@@ -138,26 +128,19 @@ def setup_commands(
                     ehb = round(player.ehb, 2)
                     rank = get_rank(ehb)
 
-                    # Fetch Discord fans (linked Discord users)
-                    discord_fans = ranks_data.get(username, {}).get("discord_name", [])
-                    fans_display = format_discord_fans(discord_fans)
-
                     # Update ranks_data
                     ranks_data[username] = {
                         "last_ehb": ehb,
                         "rank": rank,
-                        "discord_name": discord_fans,
                     }
                     save_ranks(ranks_data)
 
                     # Send formatted message to Discord
                     await interaction.response.send_message(
-                        f"✅ **{player.display_name}** \n**Rank:** {rank} ({ehb} EHB)\n**Fans:** {fans_display}"
+                        f"✅ **{player.display_name}** \n**Rank:** {rank} ({ehb} EHB)"
                     )
                     if debug:
-                        print(
-                            f"Updated {player.display_name}: {rank} ({ehb} EHB), Fans: {fans_display}"
-                        )
+                        print(f"Updated {player.display_name}: {rank} ({ehb} EHB)")
                 else:
                     await interaction.response.send_message(
                         f"❌ Could not find a player with username **{username}** in the group.",
@@ -334,10 +317,7 @@ def setup_commands(
             "/update 'username' ➡️  Fetches and updates the rank for a specific user.",
             "/rankup 'username' ➡️  Displays the current rank, EHB, and next rank for a given player.",
             "/refreshgroup ➡️   Forces a full update for the group's data.",
-            "/link 'username' 'discord_name' ➡️     Links a Discord user to a WiseOldMan username for mentions when ranking up.",
             "/lookup 'username' ➡️  Lists the rank and EHB for a specific user.",
-            "/subscribeall 'discord_name' ➡️    Subscribes a Discord user to ALL usernames.",
-            "/unsubscribeall 'discord_name' ➡️  Removes a Discord user from ALL linked usernames.",
             "/commands ➡️   Lists all available commands.",
             "/goodnight ➡️  Sends a good night message.",
             "/forcecheck ➡️     Forces check_for_rank_changes task to run.",
@@ -386,141 +366,6 @@ def setup_commands(
             await interaction.response.send_message(
                 f"Error fetching group details: {e}", ephemeral=True
             )
-
-    # Command: /link --- Links a Discord user to a WiseOldMan username for mentions when ranking up.
-
-    @bot.tree.command(
-        name="link",
-        description="Links a Discord user to a WiseOldMan username for mentions when ranking up.",
-    )
-    @app_commands.describe(username="Wise Old Man username", discord_name="Discord user to link")
-    async def link(interaction: Interaction, username: str, discord_name: str):
-        try:
-            ranks_data = load_ranks()
-
-            if username in ranks_data:
-                # Ensure discord_name is stored as a list
-                if not isinstance(ranks_data[username].get("discord_name"), list):
-                    ranks_data[username]["discord_name"] = [
-                        ranks_data[username]["discord_name"]
-                    ]
-                # Prevent duplicate entries
-                if discord_name not in ranks_data[username]["discord_name"]:
-                    ranks_data[username]["discord_name"].append(discord_name)
-                    save_ranks(ranks_data)
-                    await interaction.response.send_message(
-                        f"✅ Linked {discord_name} to {username} :)"
-                    )
-                    if debug:
-                        print(f"✅ Linked {discord_name} to {username}.")
-                else:
-                    await interaction.response.send_message(
-                        f"⚠️ {discord_name} is already linked to {username}.",
-                        ephemeral=True,
-                    )
-            else:
-                await interaction.response.send_message(
-                    f"❌ Username '{username}' not found in the ranks data.",
-                    ephemeral=True,
-                )
-        except Exception as e:
-            await interaction.response.send_message(
-                f"❌ An error occurred while linking: {e}", ephemeral=True
-            )
-            if debug:
-                print(f"Error in /link command: {e}")
-
-    # Command: /unsubscribeall --- Removes a Discord user from all linked usernames in player_ranks.json.
-
-    @bot.tree.command(
-        name="unsubscribeall",
-        description="Removes a Discord user from all linked usernames.",
-    )
-    @app_commands.describe(discord_name="Discord user to unsubscribe")
-    async def unsubscribeall(interaction: Interaction, discord_name: str):
-        try:
-            ranks_data = load_ranks()
-            removed = False
-            count = 0
-            if debug:
-                print(f"Unsubscribing {discord_name} from all users...")
-
-            # Iterate through all usernames in ranks_data
-            for username, data in list(ranks_data.items()):
-                if "discord_name" in data and isinstance(data["discord_name"], list):
-                    if discord_name in data["discord_name"]:
-                        data["discord_name"].remove(discord_name)
-                        removed = True
-                        count += 1
-
-                        # If the list becomes empty, remove the key entirely
-                        if not data["discord_name"]:
-                            del data["discord_name"]
-
-            save_ranks(ranks_data)
-
-            if removed:
-                await interaction.response.send_message(
-                    f"✅ **{discord_name}** has been unsubscribed from **{count}** users."
-                )
-                if debug:
-                    print(f"✅ {discord_name} has been unsubscribed from {count} users.")
-            else:
-                await interaction.response.send_message(
-                    f"⚠️ **{discord_name}** was not found in any subscriptions.",
-                    ephemeral=True,
-                )
-                if debug:
-                    print(f"⚠️ {discord_name} was not found in any subscriptions.")
-        except Exception as e:
-            await interaction.response.send_message(
-                f"❌ An error occurred while unsubscribing: {e}", ephemeral=True
-            )
-            if debug:
-                print(f"Error in /unsubscribeall command: {e}")
-
-    # Command: /subscribeall --- Subscribes a Discord user to all usernames in player_ranks.json.
-
-    @bot.tree.command(
-        name="subscribeall",
-        description="Subscribes a Discord user to all usernames in player_ranks.json.",
-    )
-    @app_commands.describe(discord_name="Discord user to subscribe")
-    async def subscribeall(interaction: Interaction, discord_name: str):
-        try:
-            ranks_data = load_ranks()
-            subscribed_count = 0
-
-            # Iterate through all players in ranks_data
-            for username, data in ranks_data.items():
-                # Ensure discord_name field is initialized as a list
-                if "discord_name" not in data or not isinstance(data["discord_name"], list):
-                    data["discord_name"] = []
-                if discord_name not in data["discord_name"]:
-                    data["discord_name"].append(discord_name)
-                    subscribed_count += 1
-
-            save_ranks(ranks_data)
-
-            if subscribed_count > 0:
-                await interaction.response.send_message(
-                    f"✅ **{discord_name}** has been subscribed to **{subscribed_count}** players."
-                )
-                if debug:
-                    print(
-                        f"✅ {discord_name} has been subscribed to {subscribed_count} players."
-                    )
-            else:
-                await interaction.response.send_message(
-                    f"⚠️ **{discord_name}** is already subscribed to all players.",
-                    ephemeral=True,
-                )
-        except Exception as e:
-            await interaction.response.send_message(
-                f"❌ An error occurred while subscribing: {e}", ephemeral=True
-            )
-            if debug:
-                print(f"Error in /subscribeall command: {e}")
 
     # Command: /sendrankup_debug --- Debugging command to simulate a rank up message.
 

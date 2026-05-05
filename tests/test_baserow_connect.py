@@ -80,7 +80,7 @@ def test_update_players_table_creates_new_player(monkeypatch):
     monkeypatch.setattr(baserow_connect.requests, "post", fake_post)
     monkeypatch.setattr(baserow_connect.requests, "patch", fake_patch)
 
-    baserow_connect.update_players_table("alice", "Silver", 150.0, ["Alice#1234"])
+    baserow_connect.update_players_table("alice", "Silver", 150.0)
 
     assert len(post_calls) == 1
     assert post_calls[0]["Username"] == "alice"
@@ -114,7 +114,7 @@ def test_update_players_table_patches_existing_player(monkeypatch):
     monkeypatch.setattr(baserow_connect.requests, "post", fake_post)
     monkeypatch.setattr(baserow_connect.requests, "patch", fake_patch)
 
-    baserow_connect.update_players_table("alice", "Silver", 150.0, ["Alice#1234"])
+    baserow_connect.update_players_table("alice", "Silver", 150.0)
 
     assert len(patch_calls) == 1
     assert patch_calls[0]["json"]["Username"] == "alice"
@@ -136,12 +136,8 @@ def test_update_players_table_no_op_when_token_empty(monkeypatch):
     assert calls == []
 
 
-# ---------------------------------------------------------------------------
-# update_players_table — discord_name conversion
-# ---------------------------------------------------------------------------
-
-def test_update_players_table_joins_discord_name_list(monkeypatch):
-    """A list of Discord names is joined into a comma-separated string."""
+def test_update_players_table_payload_omits_removed_fan_field(monkeypatch):
+    """The Baserow payload no longer includes the removed fan field."""
     monkeypatch.setattr(baserow_connect, "token", "test-token")
 
     post_calls = []
@@ -152,26 +148,9 @@ def test_update_players_table_joins_discord_name_list(monkeypatch):
                         lambda url, headers=None, json=None: post_calls.append(json) or _fake_response(200))
     monkeypatch.setattr(baserow_connect.requests, "patch", lambda *a, **k: _fake_response(200))
 
-    baserow_connect.update_players_table("bob", "Gold", 300.0, ["Bob#1111", "Bobby#2222"])
+    baserow_connect.update_players_table("carol", "Gold", 300.0)
 
-    assert post_calls[0]["discord_name"] == "Bob#1111, Bobby#2222"
-
-
-def test_update_players_table_handles_none_discord_name(monkeypatch):
-    """None discord_name is sent as an empty string."""
-    monkeypatch.setattr(baserow_connect, "token", "test-token")
-
-    post_calls = []
-
-    monkeypatch.setattr(baserow_connect.requests, "get",
-                        lambda *a, **k: _fake_response(200, {"results": []}))
-    monkeypatch.setattr(baserow_connect.requests, "post",
-                        lambda url, headers=None, json=None: post_calls.append(json) or _fake_response(200))
-    monkeypatch.setattr(baserow_connect.requests, "patch", lambda *a, **k: _fake_response(200))
-
-    baserow_connect.update_players_table("carol", "Gold", 300.0, None)
-
-    assert post_calls[0]["discord_name"] == ""
+    assert "discord_name" not in post_calls[0]
 
 
 # ---------------------------------------------------------------------------

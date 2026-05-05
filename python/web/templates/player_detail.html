@@ -8,7 +8,7 @@
     <div>
         <p class="eyebrow">Player profile</p>
         <h1>{{ player.username }}</h1>
-        <p class="lede">Current rank, linked Discord fans, and the historical EHB trail for this player.</p>
+        <p class="lede">Current rank and the historical EHB trail for this player.</p>
     </div>
 </section>
 
@@ -28,24 +28,6 @@
 </section>
 
 <section class="content-grid">
-    <article class="surface-card">
-        <div class="section-heading">
-            <div>
-                <p class="eyebrow">Discord</p>
-                <h2>Fans</h2>
-            </div>
-        </div>
-        {% if player.discord_name %}
-        <ul class="fan-list">
-            {% for name in player.discord_name %}
-            <li>{{ name }}</li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <p class="empty-state">No linked Discord names yet.</p>
-        {% endif %}
-    </article>
-
     <article class="surface-card"
              data-player-history-player="{{ player.username }}"
              data-history-target="ehbChart"

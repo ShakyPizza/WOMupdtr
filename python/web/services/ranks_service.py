@@ -33,7 +33,6 @@ def _build_player(username: str, data: dict) -> dict:
         "username": username,
         "ehb": data.get("last_ehb", 0),
         "rank": canonicalize_rank_name(data.get("rank", "Unknown")),
-        "discord_name": data.get("discord_name", []),
     }
 
 
