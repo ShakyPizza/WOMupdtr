@@ -11,6 +11,7 @@ from typing import Optional
 from wom import Client as BaseClient
 
 from weeklyupdater import start_weekly_reporter, start_yearly_reporter
+from utils.database import count_players, import_csv_history, init_database, upsert_players
 from utils.rank_utils import load_ranks, save_ranks
 from utils.log_csv import log_ehb_to_csv
 from utils.commands import setup_commands
@@ -441,6 +442,17 @@ if __name__ == "__main__":
                 bot_state.refresh_group_data = refresh_group_data
                 bot_state.log_func = log
                 bot_state.bot_started_at = datetime.now()
+                db_path = init_database()
+                log(f"SQLite database ready at {db_path}")
+
+                ranks_snapshot = load_ranks()
+                if ranks_snapshot:
+                    upsert_players(ranks_snapshot, db_path=db_path)
+                imported_rows = import_csv_history(db_path=db_path)
+                if imported_rows:
+                    log(f"Imported {imported_rows} EHB history rows into SQLite.")
+                elif count_players(db_path=db_path) == 0 and not ranks_snapshot:
+                    log("SQLite database initialized with no existing rank or EHB history data.")
 
                 tasks_to_run = [discord_client.start(discord_token)]
 

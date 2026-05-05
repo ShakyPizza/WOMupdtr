@@ -3,6 +3,8 @@ import csv
 import os
 from datetime import datetime
 
+from .database import log_ehb_history
+
 
 def _resolve_csv_path(file_name: str) -> str:
     """Return an absolute, writable-friendly path for the CSV log."""
@@ -25,6 +27,7 @@ def log_ehb_to_csv(username, ehb, file_name="ehb_log.csv", print_csv_changes=Tru
             writer = csv.writer(file)
             timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             writer.writerow([timestamp, username, ehb])
+            log_ehb_history(username, ehb, timestamp=timestamp)
             if print_csv_changes:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 print(

@@ -12,9 +12,9 @@ A reference document for a repo-wide refactor. Use this as a living guide — ch
 - `python/WOM.py` — headless Discord bot (primary)
 - Docker: `docker compose up --build` (runs bot + web, port 8080)
 
-**Tech stack**: discord.py, wom.py, aiohttp, FastAPI, Uvicorn, Jinja2, requests, pytest
+**Tech stack**: discord.py, wom.py, aiohttp, FastAPI, Uvicorn, Jinja2, SQLite, pytest
 
-**Data stores**: `player_ranks.json` (local JSON), `ehb_log.csv` (append-only log), Baserow (optional cloud sync)
+**Data stores**: `player_ranks.json` (local JSON), `ehb_log.csv` (append-only log), `database.db` (local SQLite)
 
 ---
 
@@ -46,7 +46,7 @@ A reference document for a repo-wide refactor. Use this as a living guide — ch
 |---|---|---|
 | `_bootstrap_ranks_from_csv` | `() -> None` | Seeds `player_ranks.json` from `ehb_log.csv` when JSON is missing |
 | `load_ranks` | `() -> dict` | Reads the latest rank snapshot JSON |
-| `save_ranks` | `(data: dict) -> None` | Writes JSON; conditionally syncs changed EHB rows to Baserow |
+| `save_ranks` | `(data: dict) -> None` | Writes JSON; syncs changed player snapshot rows to SQLite |
 | `next_rank` | `(username: str) -> str` | Returns formatted "Rank at X EHB" progress string |
 | `_get_rank_for_ehb` | `(ehb: float) -> str` | Parses `ranks.ini`, returns rank name — **re-reads file every call** (no cache) |
 
@@ -86,14 +86,14 @@ All 20+ Discord slash commands defined inside a single `setup_commands(bot, ...)
 
 ---
 
-### `python/utils/baserow_connect.py`
+### `python/utils/database.py`
 
 | Function | Signature | Purpose |
 |---|---|---|
-| `post_to_ehb_table` | `(username, date, ehb)` | Creates row in table **613979** (EHB history) |
-| `update_players_table` | `(username, rank, ehb)` | Updates/creates row in table **613980** (player roster) |
-
-> Table IDs `613979` and `613980` are hardcoded magic numbers — move to constants.
+| `init_database` | `(db_path: str | None = None) -> str` | Creates the SQLite database and required tables |
+| `upsert_players` | `(players: dict, db_path: str | None = None) -> None` | Updates latest player snapshot rows |
+| `log_ehb_history` | `(username, ehb, timestamp, db_path) -> None` | Appends EHB history into SQLite |
+| `import_csv_history` | `(db_path, file_name) -> int` | Imports existing CSV history into SQLite |
 
 ---
 
@@ -197,7 +197,7 @@ WOM.py (entry point)
       └── web.routers.*
 
 utils.rank_utils
-  ├── utils.baserow_connect (update_players_table)
+  ├── utils.database        (upsert_players)
   └── utils.log_csv         (load_latest_ehb_from_csv)
 
 utils.commands
@@ -228,8 +228,6 @@ Both parse `ranks.ini` and return a rank name. The one in `WOM.py` should be del
 
 | Location | Value | Should become |
 |---|---|---|
-| `python/utils/baserow_connect.py:21` | `613979` | `BASEROW_TABLE_EHB` constant |
-| `python/utils/baserow_connect.py:42` | `613980` | `BASEROW_TABLE_PLAYERS` constant |
 | `python/WOM.py:301` | `2000` | `DISCORD_MAX_MESSAGE_LENGTH` constant |
 | `python/WOM.py:326` | WOM API URL (hardcoded string) | Config or constant |
 | `python/utils/commands.py:363` | Same WOM API URL | Same constant |
@@ -241,7 +239,6 @@ Both parse `ranks.ini` and return a rank name. The one in `WOM.py` should be del
 | File | Pattern |
 |---|---|
 | `python/WOM.py:81` | `os.path.dirname(os.path.abspath(__file__))` |
-| `python/utils/baserow_connect.py:8` | `os.path.dirname(os.path.dirname(...))` |
 | `python/utils/rank_utils.py:14` | Similar multi-level dirname |
 
 All three need to agree on where `config.ini` lives. Centralize with a single `ConfigManager` or a `config/loader.py` module.
@@ -287,7 +284,6 @@ This should be a single constant in `web/templates_path.py` or `web/app.py`.
 | Location | Impact |
 |---|---|
 | `python/utils/commands.py:74–79` and throughout | Swallows system errors, hides bugs |
-| `python/utils/baserow_connect.py:31, 71, 82` | Silently drops API failures |
 | `python/web/services/csv_service.py:30, 57, 84` | Returns empty list with no log |
 
 Replace with specific exceptions (e.g., `aiohttp.ClientError`, `ValueError`, `KeyError`) and always log the exception.
@@ -298,7 +294,6 @@ Replace with specific exceptions (e.g., `aiohttp.ClientError`, `ValueError`, `Ke
 
 | File | Unused import |
 |---|---|
-| `python/utils/baserow_connect.py:5` | `from datetime import datetime` |
 | `python/utils/commands.py:9` | `import os` |
 
 ---
@@ -329,8 +324,6 @@ python/
 │   ├── __init__.py
 │   ├── loader.py          # ConfigManager singleton — reads config.ini and ranks.ini once
 │   └── constants.py       # DISCORD_MAX_MESSAGE_LENGTH = 2000
-│                          # BASEROW_TABLE_EHB = 613979
-│                          # BASEROW_TABLE_PLAYERS = 613980
 │                          # WOM_UPDATE_ALL_URL = "https://api.wiseoldman.net/v2/groups/{id}/update-all"
 │                          # TIMESTAMP_FMT = "%Y-%m-%d %H:%M:%S"
 │
@@ -349,7 +342,7 @@ python/
 │   ├── __init__.py
 │   ├── rank_utils.py      # Keep — remove get_rank() duplicate, add ranks.ini cache
 │   ├── log_csv.py         # Keep as-is (cleanest file in repo)
-│   ├── baserow_connect.py # Keep — move hardcoded table IDs to config/constants.py
+│   ├── database.py        # Local SQLite storage for snapshot + EHB history
 │   └── formatting.py      # NEW — format_timestamp(), format_int(), format_float()
 │
 ├── web/
@@ -385,9 +378,8 @@ python/
 
 ### Phase 1 — Foundations (do this first, everything else depends on it)
 
-- [ ] Create `python/config/constants.py` with `DISCORD_MAX_MESSAGE_LENGTH`, `BASEROW_TABLE_EHB`, `BASEROW_TABLE_PLAYERS`, `WOM_UPDATE_ALL_URL`, `TIMESTAMP_FMT`
+- [ ] Create `python/config/constants.py` with `DISCORD_MAX_MESSAGE_LENGTH`, `WOM_UPDATE_ALL_URL`, `TIMESTAMP_FMT`
 - [ ] Create `python/config/loader.py` with a `ConfigManager` that reads `config.ini` and `ranks.ini` once and caches the result. All other files import from here.
-- [ ] Update `baserow_connect.py` to import table IDs from `constants.py`
 - [ ] Update all callers of hardcoded magic values
 
 ### Phase 2 — Split `WOM.py`
@@ -420,7 +412,7 @@ python/
 
 ### Phase 6 — Cleanup
 
-- [ ] Remove unused imports (`datetime` in baserow_connect.py; `os` in commands.py)
+- [ ] Remove unused imports (`os` in commands.py)
 - [ ] Remove duplicate `log()` / timestamp logic — use `utils/formatting.py`
 - [ ] Rename `next_rank()` → `get_next_rank_message()` (returns a string, not a rank object)
 
@@ -444,7 +436,7 @@ python/
 | How EHB is logged to CSV | `python/utils/log_csv.py` |
 | Discord slash commands | `python/utils/commands.py` (pre-refactor) or `python/bot/commands/` (post-refactor) |
 | How rank changes are detected | `python/WOM.py:check_for_rank_changes` (pre) or `python/bot/tasks.py` (post) |
-| Baserow sync logic | `python/utils/baserow_connect.py` |
+| SQLite persistence logic | `python/utils/database.py` |
 | Weekly/yearly report logic | `python/weeklyupdater/` |
 | Web dashboard routes | `python/web/routers/` |
 | Web dashboard data queries | `python/web/services/` |

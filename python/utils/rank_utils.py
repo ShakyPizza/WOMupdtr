@@ -1,7 +1,7 @@
 import json
 import os
 import configparser
-from .baserow_connect import update_players_table
+from .database import upsert_players
 from .log_csv import load_latest_ehb_from_csv
 
 # JSON file for storing player ranks
@@ -58,7 +58,7 @@ def load_ranks():
     return _bootstrap_ranks_from_csv()
 
 def save_ranks(data):
-    """Save ranks to ``player_ranks.json`` and update Baserow if EHB changed."""
+    """Save ranks to ``player_ranks.json`` and sync the latest snapshot to SQLite."""
     sanitized_data = {
         username: {
             "last_ehb": pdata.get("last_ehb", 0),
@@ -80,20 +80,17 @@ def save_ranks(data):
     with open(RANKS_FILE, "w") as f:
         json.dump(sanitized_data, f, indent=4)
 
-    # Sync data to Baserow players table only when EHB differs from old value
     try:
-        if _BOOTSTRAPPED_FROM_CSV:
-            print("Skipping Baserow sync for CSV bootstrap run.")
-            return
-        for username, pdata in sanitized_data.items():
-            rank = pdata.get("rank", "")
-            ehb = pdata.get("last_ehb", 0)
-
-            old_ehb = old_data.get(username, {}).get("last_ehb")
-            if old_ehb != ehb:
-                update_players_table(username, rank, ehb)
+        changed_rows = {
+            username: pdata
+            for username, pdata in sanitized_data.items()
+            if old_data.get(username, {}).get("last_ehb") != pdata.get("last_ehb")
+            or old_data.get(username, {}).get("rank") != pdata.get("rank")
+        }
+        if changed_rows:
+            upsert_players(changed_rows)
     except Exception as e:
-        print(f"Error updating Baserow players table: {e}")
+        print(f"Error updating SQLite player snapshot: {e}")
 
 def next_rank(username):
     """Returns the next rank for a given player based on their current EHB."""

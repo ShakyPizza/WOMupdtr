@@ -21,8 +21,9 @@ def test_resolve_csv_path_keeps_absolute_path(tmp_path):
     assert log_csv._resolve_csv_path(str(absolute)) == str(absolute)
 
 
-def test_log_ehb_to_csv_writes_row(tmp_path):
+def test_log_ehb_to_csv_writes_row(monkeypatch, tmp_path):
     target = tmp_path / "ehb_log.csv"
+    monkeypatch.setenv("WOM_DATABASE_PATH", str(tmp_path / "database.db"))
 
     log_csv.log_ehb_to_csv("player", 123, file_name=str(target), print_csv_changes=False)
 
@@ -44,6 +45,7 @@ def test_resolve_csv_path_uses_env_var(monkeypatch, tmp_path):
 def test_log_ehb_to_csv_respects_ehb_log_path_env_var(monkeypatch, tmp_path):
     target = tmp_path / "env_log.csv"
     monkeypatch.setenv("EHB_LOG_PATH", str(target))
+    monkeypatch.setenv("WOM_DATABASE_PATH", str(tmp_path / "database.db"))
 
     log_csv.log_ehb_to_csv("player", 99, print_csv_changes=False)
 

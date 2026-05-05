@@ -7,7 +7,7 @@ A Discord bot that integrates with the Wise Old Man API to track EHB-based ranks
 - Slash-command interface (no prefix commands).
 - Group refresh via Wise Old Man update-all, plus periodic refresh.
 - Weekly and yearly report generation (auto-scheduled or on-demand).
-- Optional Baserow sync whenever a player EHB changes.
+- Local SQLite storage bootstrapped automatically on startup.
 - CSV logging with auto-bootstrap of ranks from `ehb_log.csv` when JSON storage is missing.
 - FastAPI web dashboard (players, reports, charts, admin, group pages).
 - Docker support with persisted CSV logs — runs bot + web dashboard on port 8080.
@@ -39,10 +39,6 @@ A Discord bot that integrates with the Wise Old Man API to track EHB-based ranks
    group_id = 1234
    group_passcode =
    api_key =
-
-   [baserow]
-   br_token =
-
    [settings]
    check_interval = 3600
    run_at_startup = false
@@ -58,7 +54,6 @@ Notes:
 - `monthly_channel_id` is currently unused; keep it at `0` if you are not using it.
 - `group_passcode` is only required for `/refreshgroup` (Wise Old Man update-all).
 - `api_key` is optional but helps with Wise Old Man rate limits.
-- The Baserow connection is optional but the code probably needs some commenting out if it's not used. 
 - Keep your token/API values out of Git history.
 
 4. Create `python/ranks.ini` to define rank thresholds:
@@ -124,6 +119,8 @@ Reports can be scheduled automatically (when channel IDs are set) or run on dema
 ## Logging
 - EHB changes are logged to `ehb_log.csv` (defaults to `python/ehb_log.csv`).
 - Set `EHB_LOG_PATH` to override the CSV location (useful in Docker).
+- SQLite data is stored in `python/database.db` by default.
+- Set `WOM_DATABASE_PATH` to override the SQLite location. In Docker this defaults to `/app/data/database.db`.
 - `player_ranks.json` stores the latest rank snapshot and is auto-bootstrapped from the CSV if missing.
 
 ## Docker
@@ -133,7 +130,7 @@ docker compose up --build
 ```
 The compose file mounts:
 - `python/config.ini` and `python/ranks.ini` (read-only).
-- `./data` for persisted CSV logs (`EHB_LOG_PATH=/app/data/ehb_log.csv`).
+- `./data` for persisted CSV logs and SQLite data (`EHB_LOG_PATH=/app/data/ehb_log.csv`, `WOM_DATABASE_PATH=/app/data/database.db`).
 
 ## Tests
 ```bash

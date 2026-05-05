@@ -3,26 +3,11 @@ import os
 import sys
 import configparser
 import pytest
-import types
 
 # Allow importing the 'python' package from the repository root
 
 # Add repository root to sys.path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-# Provide a minimal requests stub to satisfy imports when the real package is missing
-requests_stub = types.ModuleType("requests")
-setattr(requests_stub, "post", lambda *a, **k: None)
-setattr(requests_stub, "get", lambda *a, **k: None)
-setattr(requests_stub, "patch", lambda *a, **k: None)
-sys.modules.setdefault("requests", requests_stub)
-
-## Create a temporary config.ini so baserow_connect can import without errors
-#repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-#config_path = os.path.join(repo_root, "python", "config.ini")
-#with open(config_path, "w") as f:
-#    f.write("[baserow]\n")
-#    f.write("token = testtoken\n")
 
 from python.utils import rank_utils
 
@@ -98,8 +83,8 @@ def test_next_rank_returns_correct_next_rank(tmp_path, monkeypatch):
     assert result == "Gold at 200 EHB"
 
 
-def test_save_ranks_updates_baserow_when_ehb_changes(tmp_path, monkeypatch):
-    """update_players_table should be called when EHB differs from file."""
+def test_save_ranks_updates_sqlite_snapshot_when_ehb_changes(tmp_path, monkeypatch):
+    """upsert_players should be called when EHB differs from file."""
 
     # Existing data with different EHB
     initial = {"player": {"last_ehb": 10, "rank": "Bronze"}}
@@ -113,12 +98,13 @@ def test_save_ranks_updates_baserow_when_ehb_changes(tmp_path, monkeypatch):
 
     called = {}
 
-    def fake_update(username, rank, ehb):
+    def fake_update(players):
+        ((username, pdata),) = players.items()
         called["username"] = username
-        called["rank"] = rank
-        called["ehb"] = ehb
+        called["rank"] = pdata["rank"]
+        called["ehb"] = pdata["last_ehb"]
 
-    monkeypatch.setattr(rank_utils, "update_players_table", fake_update)
+    monkeypatch.setattr(rank_utils, "upsert_players", fake_update)
 
     rank_utils.save_ranks(updated)
 
@@ -132,7 +118,7 @@ def test_save_ranks_updates_baserow_when_ehb_changes(tmp_path, monkeypatch):
 
 
 def test_save_ranks_skips_update_when_ehb_unchanged(tmp_path, monkeypatch):
-    """update_players_table should not be called if EHB has not changed."""
+    """upsert_players should not be called if EHB has not changed."""
 
     data = {"player": {"last_ehb": 42, "rank": "Bronze"}}
     ranks_file = tmp_path / "player_ranks.json"
@@ -143,10 +129,10 @@ def test_save_ranks_skips_update_when_ehb_unchanged(tmp_path, monkeypatch):
 
     called = {}
 
-    def fake_update(username, rank, ehb):
+    def fake_update(players):
         called["called"] = True
 
-    monkeypatch.setattr(rank_utils, "update_players_table", fake_update)
+    monkeypatch.setattr(rank_utils, "upsert_players", fake_update)
 
     # Saving the same data again should not trigger an update
     rank_utils.save_ranks(data)
@@ -224,10 +210,10 @@ def test_save_ranks_updates_only_changed_ehb(tmp_path, monkeypatch):
 
     calls = []
 
-    def fake_update(username, rank, ehb):
-        calls.append((username, rank, ehb))
+    def fake_update(players):
+        calls.extend((username, pdata["rank"], pdata["last_ehb"]) for username, pdata in players.items())
 
-    monkeypatch.setattr(rank_utils, "update_players_table", fake_update)
+    monkeypatch.setattr(rank_utils, "upsert_players", fake_update)
 
     rank_utils.save_ranks(new_data)
 
@@ -285,10 +271,10 @@ def test_save_ranks_treats_all_as_new_when_existing_file_corrupt(tmp_path, monke
 
     calls = []
 
-    def fake_update(username, rank, ehb):
-        calls.append((username, rank, ehb))
+    def fake_update(players):
+        calls.extend((username, pdata["rank"], pdata["last_ehb"]) for username, pdata in players.items())
 
-    monkeypatch.setattr(rank_utils, "update_players_table", fake_update)
+    monkeypatch.setattr(rank_utils, "upsert_players", fake_update)
 
     rank_utils.save_ranks(new_data)
 

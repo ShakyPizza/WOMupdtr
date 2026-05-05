@@ -5,7 +5,6 @@ import csv
 import json
 import os
 import sys
-import types
 
 import pytest
 
@@ -21,12 +20,10 @@ if _REPO_ROOT not in sys.path:
 if _PYTHON_DIR not in sys.path:
     sys.path.insert(0, _PYTHON_DIR)
 
-# Stub requests before any module import that triggers baserow_connect
-_requests_stub = types.ModuleType("requests")
-setattr(_requests_stub, "post", lambda *a, **k: None)
-setattr(_requests_stub, "get", lambda *a, **k: None)
-setattr(_requests_stub, "patch", lambda *a, **k: None)
-sys.modules.setdefault("requests", _requests_stub)
+@pytest.fixture(autouse=True)
+def isolate_database_path(monkeypatch, tmp_path):
+    """Keep SQLite test writes inside a per-test temp directory."""
+    monkeypatch.setenv("WOM_DATABASE_PATH", str(tmp_path / "database.db"))
 
 
 @pytest.fixture

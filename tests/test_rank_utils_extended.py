@@ -4,18 +4,10 @@ import json
 import os
 import sys
 import configparser
-import types
 import pytest
 
 # Allow importing the 'python' package from the repository root
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-# Stub requests before rank_utils import triggers baserow_connect
-_requests_stub = types.ModuleType("requests")
-setattr(_requests_stub, "post", lambda *a, **k: None)
-setattr(_requests_stub, "get", lambda *a, **k: None)
-setattr(_requests_stub, "patch", lambda *a, **k: None)
-sys.modules.setdefault("requests", _requests_stub)
 
 from python.utils import rank_utils
 
@@ -57,7 +49,7 @@ def test_save_ranks_creates_file_on_first_run(tmp_path, monkeypatch):
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(json_path))
 
     calls = []
-    monkeypatch.setattr(rank_utils, "update_players_table", lambda *a, **k: calls.append(a))
+    monkeypatch.setattr(rank_utils, "upsert_players", lambda players: calls.append(players))
 
     data = {"alice": {"last_ehb": 50.0, "rank": "Bronze"}}
     rank_utils.save_ranks(data)
@@ -67,20 +59,20 @@ def test_save_ranks_creates_file_on_first_run(tmp_path, monkeypatch):
     assert saved["alice"]["last_ehb"] == 50.0
 
 
-def test_save_ranks_syncs_to_baserow_on_first_run(tmp_path, monkeypatch):
+def test_save_ranks_syncs_to_sqlite_on_first_run(tmp_path, monkeypatch):
     """When JSON file is absent all players are treated as new and synced."""
     json_path = tmp_path / "player_ranks.json"
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(json_path))
 
     calls = []
-    monkeypatch.setattr(rank_utils, "update_players_table", lambda *a, **k: calls.append(a))
+    monkeypatch.setattr(rank_utils, "upsert_players", lambda players: calls.append(players))
 
     data = {"alice": {"last_ehb": 50.0, "rank": "Bronze"}}
     rank_utils.save_ranks(data)
 
     # alice's old_ehb is None (no file existed), current is 50 → sync triggered
     assert len(calls) == 1
-    assert calls[0][0] == "alice"
+    assert list(calls[0].keys()) == ["alice"]
 
 
 # ---------------------------------------------------------------------------
@@ -147,19 +139,20 @@ def test_bootstrap_ranks_from_csv_returns_empty_when_no_csv(monkeypatch):
     assert rank_utils._BOOTSTRAPPED_FROM_CSV is False
 
 
-def test_save_ranks_skips_baserow_sync_after_bootstrap(tmp_path, monkeypatch):
-    """save_ranks does not call Baserow when _BOOTSTRAPPED_FROM_CSV is True."""
+def test_save_ranks_syncs_after_bootstrap_when_data_changes(tmp_path, monkeypatch):
+    """save_ranks still syncs SQLite after bootstrap when new data is written."""
     json_path = tmp_path / "player_ranks.json"
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(json_path))
 
     calls = []
-    monkeypatch.setattr(rank_utils, "update_players_table", lambda *a, **k: calls.append(a))
+    monkeypatch.setattr(rank_utils, "upsert_players", lambda players: calls.append(players))
 
     rank_utils._BOOTSTRAPPED_FROM_CSV = True
     data = {"alice": {"last_ehb": 50.0, "rank": "Bronze"}}
     rank_utils.save_ranks(data)
 
-    assert calls == []
+    assert len(calls) == 1
+    assert list(calls[0].keys()) == ["alice"]
 
 
 # ---------------------------------------------------------------------------
