@@ -96,18 +96,26 @@ def load_ranks():
     return _bootstrap_ranks_from_csv()
 
 def _sanitize_player_entry(pdata):
-    """Return a persisted player entry, preserving EHP fields only when present.
+    """Return a persisted player entry, preserving optional and future fields.
 
     Preserving EHP keys conditionally keeps the JSON backward-compatible: pre-EHP
     rows round-trip byte-for-byte, while EHP-tracked rows retain their fields.
     """
-    entry = {
-        "last_ehb": pdata.get("last_ehb", 0),
-        "rank": pdata.get("rank", "Unknown"),
-    }
+    pdata = pdata or {}
+    entry = dict(pdata)
+    entry.setdefault("last_ehb", 0)
+    entry.setdefault("rank", "Unknown")
     if "last_ehp" in pdata or "ehp_rank" in pdata:
-        entry["last_ehp"] = pdata.get("last_ehp", 0)
-        entry["ehp_rank"] = pdata.get("ehp_rank", "Unknown")
+        entry.setdefault("last_ehp", 0)
+        entry.setdefault("ehp_rank", "Unknown")
+    return entry
+
+
+def merge_manual_rank_update(last_data: dict, ehb: float, rank: str) -> dict:
+    """Return a manual EHB update without discarding unrelated player state."""
+    entry = dict(last_data or {})
+    entry["last_ehb"] = ehb
+    entry["rank"] = rank
     return entry
 
 
@@ -149,13 +157,19 @@ def _next_rank_for(current_rank, section, unit_label):
     """Return the next-rank description for a current rank within a ranks section."""
     rank_thresholds = [(lower, name) for lower, _upper, name in get_rank_thresholds(section)]
 
-    for i, (threshold, rank_name) in enumerate(rank_thresholds):
-        if current_rank == rank_name and i + 1 < len(rank_thresholds):
-            next_rank_name = rank_thresholds[i + 1][1]
-            next_threshold = rank_thresholds[i + 1][0]
-            return f"{next_rank_name} at {next_threshold} {unit_label}"
+    if not rank_thresholds:
+        return "Unknown"
 
-    return "Max Rank Achieved 👑"  # If they are at the highest rank
+    for i, (threshold, rank_name) in enumerate(rank_thresholds):
+        if current_rank != rank_name:
+            continue
+        if i + 1 == len(rank_thresholds):
+            return "Max Rank Achieved 👑"
+        next_rank_name = rank_thresholds[i + 1][1]
+        next_threshold = rank_thresholds[i + 1][0]
+        return f"{next_rank_name} at {next_threshold} {unit_label}"
+
+    return "Unknown"
 
 
 def compute_member_update(last_data, ehb, rank, ehp=None, ehp_rank=None, track_ehp=False):

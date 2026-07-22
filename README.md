@@ -34,6 +34,7 @@ A Discord bot that integrates with the Wise Old Man API to track EHB-based ranks
    weekly_channel_id = 0
    yearly_channel_id = 0
    monthly_channel_id = 0
+   gains_channel_id = 0
 
    [wiseoldman]
    group_id = 1234
@@ -47,6 +48,10 @@ A Discord bot that integrates with the Wise Old Man API to track EHB-based ranks
    post_to_discord = true
    silent_mode = false
    debug = false
+   track_ehp = false
+   gains_snapshot_interval = 86400
+   gains_window_days = 7
+   gains_metrics = overall,ehb
    ```
 
 Notes:
@@ -54,9 +59,11 @@ Notes:
 - `monthly_channel_id` is currently unused; keep it at `0` if you are not using it.
 - `group_passcode` is only required for `/refreshgroup` (Wise Old Man update-all).
 - `api_key` is optional but helps with Wise Old Man rate limits.
+- EHP collection is opt-in. Set `track_ehp = true` to populate EHP ranks and history.
+- Gains snapshots default to a 7-day window collected daily. `gains_channel_id = 0` keeps the snapshots in SQLite without posting a Discord digest.
 - Keep your token/API values out of Git history.
 
-4. Create `python/ranks.ini` to define rank thresholds:
+4. Copy `python/ranks.ini.example` to `python/ranks.ini`, then adjust the rank thresholds if needed:
    ```ini
    [Group Ranking]
    0-10 = Goblin
@@ -69,7 +76,16 @@ Notes:
    750-1000 = Dragonstone
    1000-1500 = Onyx
    1500+ = Zenyte
+
+   [Skilling Ranking]
+   0-100 = Novice
+   100-500 = Apprentice
+   500-1000 = Adept
+   1000-1500 = Expert
+   1500+ = Master
    ```
+
+The skilling ladder is used for EHP when `track_ehp = true`.
 
 ## Run
 From the repo root:

@@ -97,9 +97,10 @@ def make_gains_entry(player, *, gained=0.0, start_date=None, end_date=None):
 class FakeGroupService:
     """Async group service returning canned FakeResult values."""
 
-    def __init__(self, *, details=None, gains=None, hiscores=None):
+    def __init__(self, *, details=None, gains=None, gains_errors=None, hiscores=None):
         self._details = details
         self._gains = gains or {}
+        self._gains_errors = gains_errors or {}
         self._hiscores = hiscores or {}
         self.calls = []
 
@@ -113,6 +114,9 @@ class FakeGroupService:
                         end_date=None, limit=None, offset=None):
         self.calls.append(("get_gains", metric, limit, offset))
         key = getattr(metric, "value", metric)
+        error = self._gains_errors.get((key, offset or 0))
+        if error is not None:
+            return FakeResult(err=error)
         entries = list(self._gains.get(key, []))
         page = entries[(offset or 0): (offset or 0) + (limit or len(entries))]
         return FakeResult(value=page)
@@ -128,8 +132,13 @@ class FakeGroupService:
 class FakeWomClient:
     """Async WOM client stub exposing a ``groups`` service."""
 
-    def __init__(self, *, details=None, gains=None, hiscores=None):
-        self.groups = FakeGroupService(details=details, gains=gains, hiscores=hiscores)
+    def __init__(self, *, details=None, gains=None, gains_errors=None, hiscores=None):
+        self.groups = FakeGroupService(
+            details=details,
+            gains=gains,
+            gains_errors=gains_errors,
+            hiscores=hiscores,
+        )
 
     async def start(self):
         return None
@@ -138,8 +147,13 @@ class FakeWomClient:
 @pytest.fixture
 def fake_wom_client():
     """Factory fixture for a configurable async WOM client stub."""
-    def _make(*, details=None, gains=None, hiscores=None):
-        return FakeWomClient(details=details, gains=gains, hiscores=hiscores)
+    def _make(*, details=None, gains=None, gains_errors=None, hiscores=None):
+        return FakeWomClient(
+            details=details,
+            gains=gains,
+            gains_errors=gains_errors,
+            hiscores=hiscores,
+        )
     return _make
 
 

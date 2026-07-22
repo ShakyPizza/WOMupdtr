@@ -55,7 +55,11 @@ async def _collect_gains(
             offset=offset,
         )
         if not result.is_ok:
-            break
+            error = result.unwrap_err()
+            raise RuntimeError(
+                f"Failed to fetch gains for metric '{metric.value}' "
+                f"at offset {offset}: {error}"
+            )
         page = list(result.unwrap())
         if not page:
             break
@@ -112,22 +116,29 @@ async def snapshot_gains_once(
     snapshot_str = now.strftime(_TS_FMT)
     start_str = period_start.strftime(_TS_FMT)
 
-    inserted = 0
+    all_rows: list[dict] = []
+    valid_metrics = 0
     for metric_name in metrics:
         metric = resolve_metric(metric_name)
         if metric is None:
             log(f"Gains snapshot: unknown metric '{metric_name}', skipping.")
             continue
+        valid_metrics += 1
         entries = await _collect_gains(wom_client, group_id, metric, period_start, now)
-        rows = _build_gains_rows(
-            entries,
-            snapshot_time=snapshot_str,
-            period_start=start_str,
-            period_end=snapshot_str,
-            metric=metric.value,
+        all_rows.extend(
+            _build_gains_rows(
+                entries,
+                snapshot_time=snapshot_str,
+                period_start=start_str,
+                period_end=snapshot_str,
+                metric=metric.value,
+            )
         )
-        inserted += log_gains_snapshot(rows)
-    return inserted
+
+    if valid_metrics == 0:
+        raise ValueError("Gains snapshot has no valid metrics configured.")
+
+    return log_gains_snapshot(all_rows)
 
 
 async def collect_gains_leaderboard(

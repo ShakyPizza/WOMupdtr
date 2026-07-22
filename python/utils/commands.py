@@ -14,7 +14,13 @@ import aiohttp
 from discord import app_commands, Interaction
 from discord.ext import commands
 
-from .rank_utils import load_ranks, save_ranks, next_rank, next_rank_ehp
+from .rank_utils import (
+    load_ranks,
+    merge_manual_rank_update,
+    next_rank,
+    next_rank_ehp,
+    save_ranks,
+)
 from gainstracker import build_gains_lines, collect_gains_leaderboard, resolve_metric
 from weeklyupdater import (
     generate_weekly_report_messages,
@@ -154,10 +160,17 @@ def setup_commands(
                     rank = get_rank(ehb)
 
                     # Update ranks_data
-                    ranks_data[username] = {
-                        "last_ehb": ehb,
-                        "rank": rank,
-                    }
+                    rank_key = next(
+                        (
+                            stored_username
+                            for stored_username in ranks_data
+                            if stored_username.lower() == username.lower()
+                        ),
+                        username,
+                    )
+                    ranks_data[rank_key] = merge_manual_rank_update(
+                        ranks_data.get(rank_key, {}), ehb, rank
+                    )
                     save_ranks(ranks_data)
 
                     # Send formatted message to Discord

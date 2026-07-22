@@ -2,6 +2,9 @@
 
 import asyncio
 from datetime import datetime, timezone
+import types
+
+import pytest
 
 from python.gainstracker import gains_snapshotter
 from python.utils import database
@@ -141,3 +144,123 @@ def test_collect_gains_leaderboard_sorted(fake_wom_client):
     ))
     assert board[0] == ("high", 999.0)
     assert board[1] == ("low", 10.0)
+
+
+# ---------------------------------------------------------------------------
+# API failure handling and snapshot atomicity
+# ---------------------------------------------------------------------------
+
+def test_snapshot_gains_first_page_failure_writes_nothing(fake_wom_client):
+    client = fake_wom_client(gains_errors={("overall", 0): "WOM unavailable"})
+
+    with pytest.raises(RuntimeError, match="overall.*offset 0.*WOM unavailable"):
+        run(gains_snapshotter.snapshot_gains_once(
+            wom_client=client,
+            group_id=1,
+            metrics=["overall"],
+            window_days=7,
+            log=_log,
+            now=NOW,
+        ))
+
+    assert database.read_latest_gains("overall") == []
+
+
+def test_snapshot_gains_later_page_failure_discards_partial_rows(fake_wom_client):
+    entries = [make_gains_entry(make_player(f"p{i}"), gained=float(i)) for i in range(75)]
+    client = fake_wom_client(
+        gains={"overall": entries},
+        gains_errors={("overall", 50): "page failed"},
+    )
+
+    with pytest.raises(RuntimeError, match="overall.*offset 50.*page failed"):
+        run(gains_snapshotter.snapshot_gains_once(
+            wom_client=client,
+            group_id=1,
+            metrics=["overall"],
+            window_days=7,
+            log=_log,
+            now=NOW,
+        ))
+
+    assert database.read_latest_gains("overall") == []
+
+
+def test_snapshot_gains_multi_metric_failure_is_atomic(fake_wom_client):
+    client = fake_wom_client(
+        gains={"overall": [make_gains_entry(make_player("alice"), gained=5000.0)]},
+        gains_errors={("ehb", 0): "EHB failed"},
+    )
+
+    with pytest.raises(RuntimeError, match="ehb.*offset 0.*EHB failed"):
+        run(gains_snapshotter.snapshot_gains_once(
+            wom_client=client,
+            group_id=1,
+            metrics=["overall", "ehb"],
+            window_days=7,
+            log=_log,
+            now=NOW,
+        ))
+
+    assert database.read_latest_gains("overall") == []
+    assert database.read_latest_gains("ehb") == []
+
+
+def test_snapshot_gains_requires_at_least_one_valid_metric(fake_wom_client):
+    client = fake_wom_client()
+
+    with pytest.raises(ValueError, match="no valid metrics"):
+        run(gains_snapshotter.snapshot_gains_once(
+            wom_client=client,
+            group_id=1,
+            metrics=["not_a_metric"],
+            window_days=7,
+            log=_log,
+            now=NOW,
+        ))
+
+
+def test_live_gains_leaderboard_propagates_api_failure(fake_wom_client):
+    client = fake_wom_client(gains_errors={("overall", 0): "live failed"})
+
+    with pytest.raises(RuntimeError, match="overall.*offset 0.*live failed"):
+        run(gains_snapshotter.collect_gains_leaderboard(
+            wom_client=client,
+            group_id=1,
+            metric_name="overall",
+            window_days=7,
+            log=_log,
+            now=NOW,
+        ))
+
+
+def test_snapshot_loop_does_not_publish_or_mark_failed_cycle(fake_wom_client, monkeypatch):
+    client = fake_wom_client(gains_errors={("overall", 0): "scheduled failure"})
+    snapshot_calls = []
+    channel_lookups = []
+    logs = []
+
+    async def stop_after_first_cycle(_seconds):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(gains_snapshotter.asyncio, "sleep", stop_after_first_cycle)
+    discord_client = types.SimpleNamespace(
+        get_channel=lambda channel_id: channel_lookups.append(channel_id)
+    )
+
+    with pytest.raises(asyncio.CancelledError):
+        run(gains_snapshotter._gains_snapshot_loop(
+            wom_client=client,
+            discord_client=discord_client,
+            group_id=1,
+            channel_id=123,
+            metrics=["overall"],
+            window_days=7,
+            interval_seconds=60,
+            log=logs.append,
+            on_snapshot=lambda: snapshot_calls.append(True),
+        ))
+
+    assert snapshot_calls == []
+    assert channel_lookups == []
+    assert any("scheduled failure" in message for message in logs)

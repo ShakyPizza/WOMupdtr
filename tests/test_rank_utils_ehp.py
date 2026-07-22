@@ -1,6 +1,7 @@
 """Tests for the EHP (skilling) rank ladder — Feature 2."""
 
 import json
+import os
 
 from python.utils import rank_utils
 
@@ -50,9 +51,57 @@ def test_next_rank_ehp_max(tmp_path, monkeypatch, tmp_ranks_ini):
     assert rank_utils.next_rank_ehp("player") == "Max Rank Achieved 👑"
 
 
+def test_production_ehp_rank_boundaries():
+    ranks_file = os.path.join(os.path.dirname(rank_utils.RANKS_INI), "ranks.ini.example")
+
+    assert rank_utils.get_ehp_rank(0, ranks_file) == "Novice"
+    assert rank_utils.get_ehp_rank(99.99, ranks_file) == "Novice"
+    assert rank_utils.get_ehp_rank(100, ranks_file) == "Apprentice"
+    assert rank_utils.get_ehp_rank(500, ranks_file) == "Adept"
+    assert rank_utils.get_ehp_rank(1000, ranks_file) == "Expert"
+    assert rank_utils.get_ehp_rank(1500, ranks_file) == "Master"
+    assert rank_utils.get_ehp_rank(2000, ranks_file) == "Master"
+
+
+def test_next_rank_for_missing_section_is_unknown(tmp_ranks_ini):
+    assert rank_utils._next_rank_for("Stone", "No Such Section", "EHP") == "Unknown"
+
+
+def test_next_rank_for_unmatched_rank_is_unknown(tmp_ranks_ini):
+    assert rank_utils._next_rank_for("Unknown", "Skilling Ranking", "EHP") == "Unknown"
+
+
 # ---------------------------------------------------------------------------
 # save_ranks: EHP field preservation
 # ---------------------------------------------------------------------------
+
+def test_merge_manual_rank_update_preserves_ehp_and_future_fields():
+    existing = {
+        "last_ehb": 42,
+        "rank": "Bronze",
+        "last_ehp": 120,
+        "ehp_rank": "Stone",
+        "future_field": "keep-me",
+    }
+
+    result = rank_utils.merge_manual_rank_update(existing, 12, "Wood")
+
+    assert result == {
+        "last_ehb": 12,
+        "rank": "Wood",
+        "last_ehp": 120,
+        "ehp_rank": "Stone",
+        "future_field": "keep-me",
+    }
+    assert existing["last_ehb"] == 42
+
+
+def test_merge_manual_rank_update_does_not_add_ehp_to_legacy_row():
+    result = rank_utils.merge_manual_rank_update(
+        {"last_ehb": 42, "rank": "Bronze"}, 50, "Silver"
+    )
+
+    assert result == {"last_ehb": 50, "rank": "Silver"}
 
 def test_save_ranks_preserves_ehp_fields(tmp_path, monkeypatch):
     ranks_file = tmp_path / "player_ranks.json"
@@ -60,6 +109,17 @@ def test_save_ranks_preserves_ehp_fields(tmp_path, monkeypatch):
     monkeypatch.setattr(rank_utils, "upsert_players", lambda players: None)
 
     data = {"player": {"last_ehb": 42, "rank": "Bronze", "last_ehp": 120, "ehp_rank": "Stone"}}
+    rank_utils.save_ranks(data)
+
+    assert json.loads(ranks_file.read_text()) == data
+
+
+def test_save_ranks_preserves_future_fields(tmp_path, monkeypatch):
+    ranks_file = tmp_path / "player_ranks.json"
+    monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+    monkeypatch.setattr(rank_utils, "upsert_players", lambda players: None)
+    data = {"player": {"last_ehb": 42, "rank": "Bronze", "future_field": "keep-me"}}
+
     rank_utils.save_ranks(data)
 
     assert json.loads(ranks_file.read_text()) == data
