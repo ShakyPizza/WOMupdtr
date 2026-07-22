@@ -5,10 +5,12 @@
     <td><a href="/players/{{ player.username }}">{{ player.username }}</a></td>
     <td><span class="rank-badge rank-{{ player.rank|rank_slug }}">{{ player.rank }}</span></td>
     <td>{{ "%.2f"|format(player.ehb) }}</td>
+    <td>{{ player.ehp_rank if player.ehp_rank else "Unknown" }}</td>
+    <td>{{ "%.2f"|format(player.ehp or 0) }}</td>
 </tr>
 {% endfor %}
 {% else %}
 <tr>
-    <td colspan="4" class="empty-cell">No players matched{% if query %} "{{ query }}"{% endif %}.</td>
+    <td colspan="6" class="empty-cell">No players matched{% if query %} "{{ query }}"{% endif %}.</td>
 </tr>
 {% endif %}

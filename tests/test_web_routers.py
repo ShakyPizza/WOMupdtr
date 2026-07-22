@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from web.services.bot_state import BotState
 from web.routers import admin, charts, dashboard, group, players
+from utils import database
 
 
 # ---------------------------------------------------------------------------
@@ -307,6 +308,50 @@ def test_player_history_empty_for_unknown_player(monkeypatch, sample_csv_file):
 
     assert response.status_code == 200
     assert response.json() == []
+
+
+# ---------------------------------------------------------------------------
+# GET /charts/api/ehp-history + /charts/api/gains-history
+# ---------------------------------------------------------------------------
+
+def test_ehp_history_endpoint_returns_list():
+    """EHP history endpoint returns the persisted rows as JSON."""
+    database.log_ehp_history("alice", 120.0, timestamp="2025-01-01 12:00:00")
+    database.log_ehp_history("alice", 130.0, timestamp="2025-02-01 12:00:00")
+
+    with TestClient(_make_app(_make_bot_state())) as client:
+        data = client.get("/charts/api/ehp-history?player=alice").json()
+
+    assert data == [
+        {"timestamp": "2025-01-01 12:00:00", "ehp": 120.0},
+        {"timestamp": "2025-02-01 12:00:00", "ehp": 130.0},
+    ]
+
+
+def test_gains_history_endpoint_returns_list():
+    """Gains history endpoint returns persisted snapshots for a player+metric."""
+    database.log_gains_snapshot([
+        {"snapshot_time": "2025-01-08 00:00:00", "period_start": "2025-01-01 00:00:00",
+         "period_end": "2025-01-08 00:00:00", "username": "alice", "metric": "overall", "gained": 5000.0},
+    ])
+
+    with TestClient(_make_app(_make_bot_state())) as client:
+        data = client.get("/charts/api/gains-history?player=alice&metric=overall").json()
+
+    assert data == [{"timestamp": "2025-01-08 00:00:00", "gained": 5000.0}]
+
+
+def test_players_page_shows_ehp_columns(monkeypatch, sample_players):
+    """Players table renders the Skill Rank / EHP columns."""
+    from web.services import ranks_service
+    monkeypatch.setattr(ranks_service, "load_ranks", lambda: sample_players)
+
+    with TestClient(_make_app(_make_bot_state())) as client:
+        response = client.get("/players/")
+
+    assert response.status_code == 200
+    assert "Skill Rank" in response.text
+    assert "Adept" in response.text  # silver_sam's ehp_rank from the fixture
 
 
 # ---------------------------------------------------------------------------

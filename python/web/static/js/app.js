@@ -228,6 +228,124 @@ async function renderPlayerHistory(username, canvasId, messageId) {
     chartInstances.set(canvasId, chart);
 }
 
+async function renderPlayerMetricHistory(url, label, valueKey, canvasId, messageId, color) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) {
+        return;
+    }
+    destroyChart(canvasId);
+    chartMessage(messageId, "Loading chart...");
+    const result = await fetchJson(url);
+    if (result.error) {
+        chartMessage(messageId, result.error, true);
+        return;
+    }
+    if (!result.data?.length) {
+        chartMessage(messageId, `No ${label} data is available for this player.`);
+        return;
+    }
+    chartMessage(messageId, `${label} loaded.`);
+    const chart = new Chart(canvas, {
+        type: "line",
+        data: {
+            labels: result.data.map((entry) => entry.timestamp),
+            datasets: [{
+                label,
+                data: result.data.map((entry) => entry[valueKey]),
+                borderColor: color,
+                backgroundColor: "rgba(220, 188, 113, 0.16)",
+                fill: true,
+                tension: 0.28,
+            }],
+        },
+        options: baseChartOptions(label, {
+            plugins: {
+                ...baseChartOptions(label).plugins,
+                legend: { display: false },
+            },
+        }),
+    });
+    chartInstances.set(canvasId, chart);
+}
+
+function initEhpHistoryPlayer() {
+    const container = document.querySelector("[data-player-ehp-player]");
+    if (!container) {
+        return;
+    }
+    const username = container.dataset.playerEhpPlayer;
+    renderPlayerMetricHistory(
+        `/charts/api/ehp-history?player=${encodeURIComponent(username)}`,
+        `${username} - EHP History`,
+        "ehp",
+        container.dataset.ehpTarget,
+        container.dataset.ehpMessage,
+        "#6fb2d6",
+    );
+}
+
+function initEhpHistorySelect() {
+    const container = document.querySelector("[data-player-ehp-select]");
+    if (!container) {
+        return;
+    }
+    const select = container.querySelector("select");
+    const canvasId = container.dataset.ehpTarget;
+    const messageId = container.dataset.ehpMessage;
+    if (!select) {
+        return;
+    }
+    select.addEventListener("change", () => {
+        if (!select.value) {
+            chartMessage(messageId, "Choose a player to load their EHP history.");
+            destroyChart(canvasId);
+            return;
+        }
+        renderPlayerMetricHistory(
+            `/charts/api/ehp-history?player=${encodeURIComponent(select.value)}`,
+            `${select.value} - EHP History`,
+            "ehp",
+            canvasId,
+            messageId,
+            "#6fb2d6",
+        );
+    });
+}
+
+function initGainsSelect() {
+    const container = document.querySelector("[data-player-gains-select]");
+    if (!container) {
+        return;
+    }
+    const select = container.querySelector("select");
+    const metricSelect = container.querySelector("[data-gains-metric]");
+    const canvasId = container.dataset.gainsTarget;
+    const messageId = container.dataset.gainsMessage;
+    if (!select) {
+        return;
+    }
+    const load = () => {
+        if (!select.value) {
+            chartMessage(messageId, "Choose a player to load their gains history.");
+            destroyChart(canvasId);
+            return;
+        }
+        const metric = metricSelect ? metricSelect.value : "overall";
+        renderPlayerMetricHistory(
+            `/charts/api/gains-history?player=${encodeURIComponent(select.value)}&metric=${encodeURIComponent(metric)}`,
+            `${select.value} - ${metric} gains`,
+            "gained",
+            canvasId,
+            messageId,
+            "#c8a24a",
+        );
+    };
+    select.addEventListener("change", load);
+    if (metricSelect) {
+        metricSelect.addEventListener("change", load);
+    }
+}
+
 function initHistorySelect() {
     const container = document.querySelector("[data-player-history-select]");
     if (!container) {
@@ -264,4 +382,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadTopPlayers();
     initHistorySelect();
     initHistoryPlayer();
+    initEhpHistoryPlayer();
+    initEhpHistorySelect();
+    initGainsSelect();
 });

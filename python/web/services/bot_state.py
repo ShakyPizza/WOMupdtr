@@ -39,4 +39,5 @@ class BotState:
     log_buffer: deque = field(default_factory=lambda: deque(maxlen=500))
     last_rank_check: Optional[datetime] = None
     last_group_refresh: Optional[datetime] = None
+    last_gains_snapshot: Optional[datetime] = None
     bot_started_at: Optional[datetime] = None

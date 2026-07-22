@@ -2,18 +2,20 @@
 
 from __future__ import annotations
 
-import configparser
 import logging
-import os
 from dataclasses import dataclass
 
-from utils.rank_utils import load_ranks, next_rank
+from utils.rank_utils import (
+    EHB_SECTION,
+    get_rank_thresholds as _get_rank_thresholds,
+    load_ranks,
+    next_rank,
+    next_rank_ehp,
+)
 
 from ..presentation import RANK_ORDER, canonicalize_rank_name
 
 logger = logging.getLogger(__name__)
-
-_RANKS_INI = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "ranks.ini")
 
 
 @dataclass
@@ -33,6 +35,9 @@ def _build_player(username: str, data: dict) -> dict:
         "username": username,
         "ehb": data.get("last_ehb", 0),
         "rank": canonicalize_rank_name(data.get("rank", "Unknown")),
+        # EHP fields default gracefully for pre-EHP rows.
+        "ehp": data.get("last_ehp", 0),
+        "ehp_rank": data.get("ehp_rank", "Unknown"),
     }
 
 
@@ -92,6 +97,7 @@ def get_player_detail(username: str, snapshot: RankSnapshot | None = None) -> di
             return {
                 **player,
                 "next_rank": next_rank(player["username"]),
+                "next_rank_ehp": next_rank_ehp(player["username"]),
             }
     return None
 
@@ -119,25 +125,13 @@ def search_players(query: str, sort: str = "ehb", snapshot: RankSnapshot | None 
     return players
 
 
-def get_rank_thresholds() -> list[dict]:
-    """Read ranks.ini and return ordered list of threshold dicts."""
-    config = configparser.ConfigParser()
-    config.read(_RANKS_INI)
-    thresholds = []
-    for range_key, rank_name in config["Group Ranking"].items():
-        if "+" in range_key:
-            lower = int(range_key.replace("+", ""))
-            thresholds.append({
-                "lower": lower,
-                "upper": None,
-                "name": canonicalize_rank_name(rank_name),
-            })
-        else:
-            lower, upper = map(int, range_key.split("-"))
-            thresholds.append({
-                "lower": lower,
-                "upper": upper,
-                "name": canonicalize_rank_name(rank_name),
-            })
-    thresholds.sort(key=lambda threshold: threshold["lower"])
-    return thresholds
+def get_rank_thresholds(section: str = EHB_SECTION) -> list[dict]:
+    """Read ranks.ini and return ordered list of threshold dicts for a section."""
+    return [
+        {
+            "lower": lower,
+            "upper": upper,
+            "name": canonicalize_rank_name(name),
+        }
+        for lower, upper, name in _get_rank_thresholds(section)
+    ]

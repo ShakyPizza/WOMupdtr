@@ -60,4 +60,60 @@
         <canvas id="playerChart"></canvas>
     </div>
 </article>
+
+<article class="surface-card"
+         data-player-ehp-select
+         data-ehp-target="playerEhpChart"
+         data-ehp-message="player-ehp-message">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Player drilldown</p>
+            <h2>Individual EHP history</h2>
+        </div>
+    </div>
+    <div class="control-row">
+        <label for="ehpPlayerSelect">Player</label>
+        <select id="ehpPlayerSelect">
+            <option value="">Select a player...</option>
+            {% for player in players %}
+            <option value="{{ player.username }}">{{ player.username }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <p id="player-ehp-message" class="chart-message">Choose a player to load their EHP history.</p>
+    <div class="chart-frame" data-chart-panel>
+        <canvas id="playerEhpChart"></canvas>
+    </div>
+</article>
+
+<article class="surface-card"
+         data-player-gains-select
+         data-gains-target="playerGainsChart"
+         data-gains-message="player-gains-message">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Player drilldown</p>
+            <h2>Gains history</h2>
+        </div>
+    </div>
+    <div class="control-row">
+        <label for="gainsPlayerSelect">Player</label>
+        <select id="gainsPlayerSelect">
+            <option value="">Select a player...</option>
+            {% for player in players %}
+            <option value="{{ player.username }}">{{ player.username }}</option>
+            {% endfor %}
+        </select>
+        <label for="gainsMetricSelect">Metric</label>
+        <select id="gainsMetricSelect" data-gains-metric>
+            {% for metric in gains_metrics %}
+            <option value="{{ metric }}">{{ metric }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <p id="player-gains-message" class="chart-message">Choose a player to load their gains history.</p>
+    <div class="chart-frame" data-chart-panel>
+        <canvas id="playerGainsChart"></canvas>
+    </div>
+</article>
 {% endblock %}

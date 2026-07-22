@@ -11,8 +11,22 @@ from typing import Optional
 from wom import Client as BaseClient
 
 from weeklyupdater import start_weekly_reporter, start_yearly_reporter
-from utils.database import count_players, import_csv_history, init_database, upsert_players
-from utils.rank_utils import load_ranks, save_ranks
+from gainstracker import start_gains_snapshotter
+from utils.database import (
+    count_players,
+    import_csv_history,
+    init_database,
+    upsert_players,
+    log_ehp_history,
+)
+from utils.rank_utils import (
+    load_ranks,
+    save_ranks,
+    get_rank_for_value,
+    get_ehp_rank,
+    compute_member_update,
+    EHB_SECTION,
+)
 from utils.log_csv import log_ehb_to_csv
 from utils.commands import setup_commands
 import uvicorn
@@ -81,6 +95,7 @@ discord_token       = config['discord']['token']
 channel_id          = int(config['discord']['channel_id'])
 weekly_channel_id   = int(config['discord'].get('weekly_channel_id', 0) or 0)
 yearly_channel_id   = int(config['discord'].get('yearly_channel_id', weekly_channel_id) or 0)
+gains_channel_id    = int(config['discord'].get('gains_channel_id', 0) or 0)
 group_id            = int(config['wiseoldman']['group_id'])
 group_passcode      = config['wiseoldman']['group_passcode']
 api_key             = config['wiseoldman'].get('api_key', '').strip() or None
@@ -91,6 +106,10 @@ print_csv_changes   = config['settings'].getboolean('print_csv_changes', True)
 post_to_discord     = config['settings'].getboolean('post_to_discord', True)
 silent              = config['settings'].getboolean('silent', False)
 debug               = config['settings'].getboolean('debug', False)
+track_ehp           = config['settings'].getboolean('track_ehp', False)
+gains_snapshot_interval = int(config['settings'].get('gains_snapshot_interval', 86400) or 86400)
+gains_window_days   = int(config['settings'].get('gains_window_days', 7) or 7)
+gains_metrics       = [m.strip() for m in config['settings'].get('gains_metrics', 'overall,ehb').split(',') if m.strip()]
 
 # Web interface settings
 web_enabled = config['web'].getboolean('enabled', False) if config.has_section('web') else False
@@ -126,6 +145,7 @@ wom_client = Client(api_key=api_key)
 
 weekly_report_task = None
 yearly_report_task = None
+gains_snapshot_task = None
 
 
 # Utility Functions
@@ -135,22 +155,10 @@ def get_rank(ehb, ranks_file=os.path.join(os.path.dirname(os.path.abspath(__file
     """
     Determines the rank based on the player's EHB using the ranges defined in ranks.ini.
     Ranges can be specified either as a range (e.g. "0-10") or as a lower bound (e.g. "1500+").
+
+    Thin wrapper over the consolidated ``rank_utils`` parser (single source of truth).
     """
-    try:
-        rank_config = configparser.ConfigParser()
-        rank_config.read(ranks_file)
-        for range_key, rank_name in rank_config['Group Ranking'].items():
-            if '+' in range_key:
-                lower_bound = int(range_key.replace('+', ''))
-                if ehb >= lower_bound:
-                    return rank_name
-            else:
-                lower_bound, upper_bound = map(int, range_key.split('-'))
-                if lower_bound <= ehb < upper_bound:
-                    return rank_name
-    except Exception as e:
-        log(f"Error reading ranks.ini: {e}")
-    return "Unknown"
+    return get_rank_for_value(ehb, EHB_SECTION, ranks_file)
 
 
 # Discord Events and Tasks
@@ -168,6 +176,25 @@ async def on_ready():
 
     global weekly_report_task
     global yearly_report_task
+    global gains_snapshot_task
+    if gains_snapshot_task is None:
+        if gains_channel_id or gains_metrics:
+            gains_snapshot_task = start_gains_snapshotter(
+                wom_client=wom_client,
+                discord_client=discord_client,
+                group_id=group_id,
+                channel_id=gains_channel_id,
+                metrics=gains_metrics,
+                window_days=gains_window_days,
+                interval_seconds=gains_snapshot_interval,
+                log=log,
+                on_snapshot=lambda: setattr(bot_state, "last_gains_snapshot", datetime.now()),
+                debug=debug,
+            )
+            log("Gains snapshot task started.")
+        else:
+            log("gains snapshot disabled (no metrics/channel configured).")
+
     if weekly_report_task is None:
         if weekly_channel_id:
             weekly_report_task = start_weekly_reporter(
@@ -235,31 +262,41 @@ async def check_for_rank_changes():
                     username = player.display_name
                     ehb = round(player.ehb, 2)
                     rank = get_rank(ehb)
-                    
 
-                    # Retrieve last known data
                     last_data = ranks_data.get(username, {})
-                    last_ehb = last_data.get("last_ehb", 0)
-                    last_rank = last_data.get("rank", "Unknown")
 
-                    # Compare and notify if rank has increased
-                    if ehb > last_ehb:
+                    ehp = None
+                    ehp_rank = None
+                    if track_ehp:
+                        ehp = round(getattr(player, "ehp", 0) or 0, 2)
+                        ehp_rank = get_ehp_rank(ehp)
+
+                    # Independent EHB / EHP evaluation merged into one entry.
+                    result = compute_member_update(
+                        last_data, ehb, rank, ehp=ehp, ehp_rank=ehp_rank, track_ehp=track_ehp
+                    )
+
+                    # --- EHB side effects ---
+                    if result["ehb_increase"]:
+                        last_ehb = last_data.get("last_ehb", 0)
                         log(f"Player {username} EHB increased from {last_ehb:.2f} to {ehb:.2f}")
-                        await send_rank_up_message(username, rank, last_rank, ehb)
+                        await send_rank_up_message(username, rank, result["ehb_old_rank"], ehb)
                         if debug:
                             log(f"Sent rank up message for {username} with {ehb} EHB for comparison in function.")
-
-                        # Update ranks data and log to CSV if enabled
-                        ranks_data[username] = {"last_ehb": ehb, "rank": rank}
                         if print_to_csv:
                             log_ehb_to_csv(username, ehb)
-                    elif rank != last_rank:
-                        # Rank label is stale (e.g. Unknown) but EHB hasn't changed — fix silently
-                        log(f"Correcting stale rank for {username}: '{last_rank}' -> '{rank}'")
-                        existing = ranks_data.get(username, {})
-                        existing["rank"] = rank
-                        ranks_data[username] = existing
+                    elif rank != result["ehb_old_rank"]:
+                        log(f"Correcting stale rank for {username}: '{result['ehb_old_rank']}' -> '{rank}'")
 
+                    # --- EHP side effects ---
+                    if track_ehp and result["ehp_increase"]:
+                        log(f"Player {username} EHP increased to {ehp:.2f}")
+                        await send_rank_up_message(
+                            username, ehp_rank, result["ehp_old_rank"], ehp, metric_label="EHP"
+                        )
+                        log_ehp_history(username, ehp)
+
+                    ranks_data[username] = result["entry"]
 
                 except Exception as e:
                     player_name = getattr(membership.player, "display_name", "Unknown")
@@ -372,7 +409,7 @@ async def refresh_group_task():
         if channel:
             await channel.send(msg)
 
-async def send_rank_up_message(username, new_rank, old_rank, ehb):
+async def send_rank_up_message(username, new_rank, old_rank, ehb, metric_label="EHB"):
     try:
         if debug:
             log(f"debug mode: Sending rank up message for {username}.")
@@ -382,9 +419,9 @@ async def send_rank_up_message(username, new_rank, old_rank, ehb):
             channel = get_messageable_channel(channel_id)
             if channel:
                 if post_to_discord:
-                    await channel.send(  
+                    await channel.send(
                         f'🎉 Congratulations **{username}** on moving up to the rank of **{new_rank}** '
-                        f'with **{ehb}** EHB! 🎉'
+                        f'with **{ehb}** {metric_label}! 🎉'
                     )
                     log(f"Sent rank up message for {username} to channel: {channel}")
             else:
