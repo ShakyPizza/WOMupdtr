@@ -14,16 +14,46 @@ import aiohttp
 from discord import app_commands, Interaction
 from discord.ext import commands
 
-from .rank_utils import load_ranks, save_ranks, next_rank
+from .rank_utils import (
+    load_ranks,
+    merge_manual_rank_update,
+    next_rank,
+    next_rank_ehp,
+    save_ranks,
+)
+from gainstracker import build_gains_lines, collect_gains_leaderboard, resolve_metric
 from weeklyupdater import (
+    generate_monthly_report_messages,
     generate_weekly_report_messages,
     generate_yearly_report_messages,
+    most_recent_month_end,
     most_recent_year_end,
     most_recent_week_end,
+    send_monthly_report,
     send_yearly_report,
     send_weekly_report,
     write_yearly_report_file,
 )
+
+
+def _chunk_code_block(lines: list[str], limit: int = 1990) -> list[str]:
+    """Wrap table lines in ``` code blocks, splitting to stay under Discord's cap."""
+    messages: list[str] = []
+    current: list[str] = []
+
+    def flush() -> None:
+        if current:
+            messages.append("```\n" + "\n".join(current) + "\n```")
+
+    for line in lines:
+        tentative = "\n".join(current + [line])
+        if len(tentative) + 8 > limit and current:
+            flush()
+            current.clear()
+        current.append(line)
+    flush()
+
+    return messages or ["```\n(no data)\n```"]
 
 
 def setup_commands(
@@ -31,6 +61,7 @@ def setup_commands(
     wom_client,
     GROUP_ID: int,
     weekly_channel_id: int,
+    monthly_channel_id: int,
     yearly_channel_id: int,
     get_rank,
     list_all_members_and_ranks,
@@ -50,11 +81,15 @@ def setup_commands(
         try:
             ranks_data = load_ranks()
             if username in ranks_data:
-                ehb = ranks_data[username]["last_ehb"]
-                rank = ranks_data[username]["rank"]
-                await interaction.response.send_message(
-                    f"**{username}**\n**Rank:** {rank} ({ehb} EHB)"
-                )
+                user_data = ranks_data[username]
+                ehb = user_data["last_ehb"]
+                rank = user_data["rank"]
+                message = f"**{username}**\n**Rank:** {rank} ({ehb} EHB)"
+                if "ehp_rank" in user_data:
+                    ehp = user_data.get("last_ehp", 0)
+                    ehp_rank = user_data.get("ehp_rank", "Unknown")
+                    message += f"\n**Skilling Rank:** {ehp_rank} ({ehp} EHP)"
+                await interaction.response.send_message(message)
                 if debug:
                     print(f"Listed {username}: {rank} ({ehb} EHB)")
             else:
@@ -129,10 +164,17 @@ def setup_commands(
                     rank = get_rank(ehb)
 
                     # Update ranks_data
-                    ranks_data[username] = {
-                        "last_ehb": ehb,
-                        "rank": rank,
-                    }
+                    rank_key = next(
+                        (
+                            stored_username
+                            for stored_username in ranks_data
+                            if stored_username.lower() == username.lower()
+                        ),
+                        username,
+                    )
+                    ranks_data[rank_key] = merge_manual_rank_update(
+                        ranks_data.get(rank_key, {}), ehb, rank
+                    )
                     save_ranks(ranks_data)
 
                     # Send formatted message to Discord
@@ -200,6 +242,37 @@ def setup_commands(
         except Exception as e:
             await interaction.followup.send(
                 f"❌ Error sending weekly report: {e}", ephemeral=True
+            )
+
+    # Command: /monthlyreport --- Posts the monthly report to the monthly channel.
+
+    @bot.tree.command(name="monthlyreport", description="Posts the most recent completed monthly report.")
+    async def monthlyreport(interaction: Interaction):
+        if not monthly_channel_id:
+            await interaction.response.send_message(
+                "❌ monthly_channel_id not configured.", ephemeral=True
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        try:
+            end_date = most_recent_month_end(datetime.now(timezone.utc))
+            messages = await generate_monthly_report_messages(
+                wom_client=wom_client,
+                group_id=GROUP_ID,
+                end_date=end_date,
+                log=log,
+            )
+            await send_monthly_report(
+                discord_client=bot,
+                channel_id=monthly_channel_id,
+                messages=messages,
+                log=log,
+            )
+            await interaction.followup.send("✅ Monthly report sent.", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ Error sending monthly report: {e}", ephemeral=True
             )
 
     # Command: /yearlyreport --- Posts the yearly report to the yearly channel.
@@ -322,6 +395,7 @@ def setup_commands(
             "/goodnight ➡️  Sends a good night message.",
             "/forcecheck ➡️     Forces check_for_rank_changes task to run.",
             "/weeklyupdate ➡️   Posts the weekly report to the weekly channel.",
+            "/monthlyreport ➡️   Posts the last completed monthly report.",
             "/yearlyreport [year] ➡️   Posts the yearly report to the yearly channel.",
             "/yearlyreportfile [year] [filename] ➡️   Writes the yearly report to a local file.",
             "/sendrankup_debug ➡️   Debugging command to simulate a rank up message.",
@@ -409,14 +483,104 @@ def setup_commands(
             current_ehb = user_data.get("last_ehb", 0)
             next_rank_info = next_rank(username)
 
-            await interaction.response.send_message(
+            message = (
                 f"🔹 **Player:** {username}\n"
                 f"🏅 **Current Rank:** {current_rank} ({current_ehb} EHB)\n"
                 f"📈 **Next Rank:** {next_rank_info}"
             )
+            if "ehp_rank" in user_data:
+                current_ehp_rank = user_data.get("ehp_rank", "Unknown")
+                current_ehp = user_data.get("last_ehp", 0)
+                message += (
+                    f"\n⛏️ **Current Skilling Rank:** {current_ehp_rank} ({current_ehp} EHP)\n"
+                    f"📈 **Next Skilling Rank:** {next_rank_ehp(username)}"
+                )
+            await interaction.response.send_message(message)
         except Exception as e:
             await interaction.response.send_message(
                 f"❌ An error occurred: {e}", ephemeral=True
             )
             if debug:
                 print(f"Error in /rankup command: {e}")
+
+    # Command: /ehpladder --- Lists players ranked by EHP (skilling).
+
+    @bot.tree.command(
+        name="ehpladder",
+        description="Lists players ranked by EHP (skilling efficiency).",
+    )
+    async def ehpladder(interaction: Interaction):
+        try:
+            ranks_data = load_ranks()
+            players = [
+                (
+                    username,
+                    data.get("ehp_rank", "Unknown"),
+                    round(float(data.get("last_ehp", 0) or 0), 2),
+                )
+                for username, data in ranks_data.items()
+            ]
+            players = [entry for entry in players if entry[2] > 0]
+            players.sort(key=lambda entry: entry[2], reverse=True)
+
+            if not players:
+                await interaction.response.send_message(
+                    "❌ No EHP data available yet. Enable `track_ehp` and let the bot run a check.",
+                    ephemeral=True,
+                )
+                return
+
+            lines = [f"{'#':<4}{'Player':<20}{'Skill Rank':<15}{'EHP':<10}", "-" * 50]
+            for index, (username, ehp_rank, ehp) in enumerate(players, start=1):
+                lines.append(f"{index:<4}{username:<20}{ehp_rank:<15}{ehp:<10}")
+
+            messages = _chunk_code_block(lines)
+            await interaction.response.send_message(messages[0])
+            for extra in messages[1:]:
+                await interaction.followup.send(extra)
+        except Exception as e:
+            await interaction.response.send_message(
+                f"❌ An error occurred: {e}", ephemeral=True
+            )
+            if debug:
+                print(f"Error in /ehpladder command: {e}")
+
+    # Command: /gains --- Live leaderboard of gains for a metric over a period.
+
+    @bot.tree.command(
+        name="gains",
+        description="Shows the top gainers for a metric over the last N days.",
+    )
+    @app_commands.describe(
+        metric="Metric name (e.g. overall, ehb, sailing, zulrah).",
+        days="Look-back window in days (default 7).",
+    )
+    async def gains(interaction: Interaction, metric: str, days: Optional[int] = 7):
+        window_days = days if days and days > 0 else 7
+        if resolve_metric(metric) is None:
+            await interaction.response.send_message(
+                f"❌ Unknown metric '{metric}'. Try `overall`, `ehb`, `sailing`, or a boss name.",
+                ephemeral=True,
+            )
+            return
+
+        await interaction.response.defer()
+        try:
+            await wom_client.start()
+            leaderboard = await collect_gains_leaderboard(
+                wom_client=wom_client,
+                group_id=GROUP_ID,
+                metric_name=metric,
+                window_days=window_days,
+                log=log,
+            )
+            lines = build_gains_lines(metric, window_days, leaderboard)
+            messages = _chunk_code_block(lines)
+            for message in messages:
+                await interaction.followup.send(message)
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ Error fetching gains: {e}", ephemeral=True
+            )
+            if debug:
+                print(f"Error in /gains command: {e}")

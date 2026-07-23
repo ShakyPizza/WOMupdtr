@@ -25,6 +25,18 @@
         <p class="mini-label">Next milestone</p>
         <p class="stat-value smaller">{{ player.next_rank if player.next_rank else "Max rank" }}</p>
     </article>
+    <article class="surface-card stat-card">
+        <p class="mini-label">Current EHP</p>
+        <p class="stat-value">{{ "%.2f"|format(player.ehp or 0) }}</p>
+    </article>
+    <article class="surface-card stat-card">
+        <p class="mini-label">Skilling rank</p>
+        <p class="stat-value smaller">{{ player.ehp_rank if player.ehp_rank else "Unknown" }}</p>
+    </article>
+    <article class="surface-card stat-card">
+        <p class="mini-label">Next skilling rank</p>
+        <p class="stat-value smaller">{{ player.next_rank_ehp if player.next_rank_ehp else "Max rank" }}</p>
+    </article>
 </section>
 
 <section class="content-grid">
@@ -45,6 +57,21 @@
         {% endif %}
         <div class="chart-frame" data-chart-panel>
             <canvas id="ehbChart"></canvas>
+        </div>
+    </article>
+    <article class="surface-card"
+             data-player-ehp-player="{{ player.username }}"
+             data-ehp-target="ehpChart"
+             data-ehp-message="ehp-chart-message">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Progression</p>
+                <h2>EHP history</h2>
+            </div>
+        </div>
+        <p id="ehp-chart-message" class="chart-message">Loading chart...</p>
+        <div class="chart-frame" data-chart-panel>
+            <canvas id="ehpChart"></canvas>
         </div>
     </article>
 </section>

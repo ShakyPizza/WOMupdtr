@@ -5,7 +5,10 @@ from __future__ import annotations
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from utils.database import read_player_ehp_history
+
 from ..services.csv_service import read_player_ehb_history
+from ..services.gains_service import list_available_metrics, read_player_gains_history
 from ..services.ranks_service import get_rank_snapshot
 from ..ui import render_template
 
@@ -23,6 +26,7 @@ async def charts_page(request: Request):
         request,
         "chart.html",
         players=snapshot.players,
+        gains_metrics=list_available_metrics(),
         data_error=snapshot.error,
     )
 
@@ -31,6 +35,16 @@ async def charts_page(request: Request):
 async def ehb_history_api(player: str = Query(...)):
     result = read_player_ehb_history(player)
     return JSONResponse(content=result.data, headers=_error_headers(result.error))
+
+
+@router.get("/api/ehp-history")
+async def ehp_history_api(player: str = Query(...)):
+    return JSONResponse(content=read_player_ehp_history(player))
+
+
+@router.get("/api/gains-history")
+async def gains_history_api(player: str = Query(...), metric: str = Query("overall")):
+    return JSONResponse(content=read_player_gains_history(player, metric))
 
 
 @router.get("/api/rank-distribution")

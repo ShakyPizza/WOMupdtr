@@ -29,6 +29,11 @@ def tmp_ranks_ini(tmp_path, monkeypatch):
         f.write("0-99 = Bronze\n")
         f.write("100-199 = Silver\n")
         f.write("200+ = Gold\n")
+        f.write("\n")
+        f.write("[Skilling Ranking]\n")
+        f.write("0-99 = Wood\n")
+        f.write("100-199 = Stone\n")
+        f.write("200+ = Steel\n")
 
     original_read = configparser.ConfigParser.read
 
