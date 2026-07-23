@@ -12,7 +12,9 @@ services:
       - ./python/ranks.ini:/app/python/ranks.ini:ro
       - ./data:/app/data
     ports:
-      - "127.0.0.1:8080:8080"
+      # Defaults to loopback-only. Set WOM_BIND_ADDR to the host's LAN IP when a
+      # reverse proxy runs on a different machine and must reach the dashboard.
+      - "${WOM_BIND_ADDR:-127.0.0.1}:8080:8080"
     dns:
       - 8.8.8.8
       - 1.1.1.1
