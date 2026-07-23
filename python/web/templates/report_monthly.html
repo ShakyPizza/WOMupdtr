@@ -1,20 +1,19 @@
 {% extends "base.html" %}
 
-{% block title %}Weekly Report - WOMupdtr{% endblock %}
+{% block title %}Monthly Report - WOMupdtr{% endblock %}
 
 {% block content %}
 <section class="hero-panel compact">
     <div>
         <p class="eyebrow">Reports</p>
-        <h1>Weekly Report</h1>
-        <p class="lede">Generate and inspect the most recent weekly rollup from the web dashboard.</p>
+        <h1>Monthly Report</h1>
+        <p class="lede">Inspect the most recent completed calendar-month rollup.</p>
     </div>
-    <a href="/reports/weekly?fresh=true" role="button" class="secondary">Generate fresh report</a>
 </section>
 
 <nav class="player-controls" aria-label="Report type">
-    <a href="/reports/weekly" role="button">Weekly</a>
-    <a href="/reports/monthly" role="button" class="secondary">Monthly</a>
+    <a href="/reports/weekly" role="button" class="secondary">Weekly</a>
+    <a href="/reports/monthly" role="button">Monthly</a>
     <a href="/reports/yearly" role="button" class="secondary">Yearly</a>
 </nav>
 
@@ -23,7 +22,7 @@
     <pre class="report-output">{% for line in report_lines %}{{ line }}
 {% endfor %}</pre>
     {% else %}
-    <p class="empty-state">No weekly report data is available yet.</p>
+    <p class="empty-state">No monthly report data is available yet.</p>
     {% endif %}
 </article>
 {% endblock %}

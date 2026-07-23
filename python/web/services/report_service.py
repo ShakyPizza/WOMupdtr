@@ -3,8 +3,10 @@
 from datetime import datetime, timezone
 
 from weeklyupdater import (
+    generate_monthly_report_messages,
     generate_weekly_report_messages,
     generate_yearly_report_messages,
+    most_recent_month_end,
     most_recent_week_end,
     most_recent_year_end,
 )
@@ -26,6 +28,22 @@ async def get_weekly_report(bot_state):
         log=log,
     )
     return messages
+
+
+async def get_monthly_report(bot_state):
+    """Generate the most recent completed calendar-month report."""
+    end_date = most_recent_month_end(datetime.now(timezone.utc))
+
+    def log(msg):
+        if bot_state.log_func:
+            bot_state.log_func(msg)
+
+    return await generate_monthly_report_messages(
+        wom_client=bot_state.wom_client,
+        group_id=bot_state.group_id,
+        end_date=end_date,
+        log=log,
+    )
 
 
 async def get_yearly_report(bot_state, year=None):

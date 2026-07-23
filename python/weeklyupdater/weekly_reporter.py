@@ -117,19 +117,27 @@ async def _get_group_gains(
     *,
     limit: int = 50,
 ) -> list:
-    result = await wom_client.groups.get_gains(
-        group_id,
-        metric,
-        start_date=start_date,
-        end_date=end_date,
-        limit=limit,
-        offset=0,
-    )
+    gains = []
+    offset = 0
+    while True:
+        result = await wom_client.groups.get_gains(
+            group_id,
+            metric,
+            start_date=start_date,
+            end_date=end_date,
+            limit=limit,
+            offset=offset,
+        )
+        if not result.is_ok:
+            return []
 
-    if not result.is_ok:
-        return []
+        page = list(result.unwrap())
+        gains.extend(page)
+        if len(page) < limit:
+            break
+        offset += limit
 
-    return list(result.unwrap())
+    return gains
 
 
 async def _get_group_achievements(
@@ -232,6 +240,11 @@ def _build_report_lines(
     name_changes: list,
     achievements: list,
     player_name_map: dict[int, str],
+    total_xp: t.Optional[float] = None,
+    active_members: t.Optional[int] = None,
+    total_ehb: t.Optional[float] = None,
+    ehp_top: t.Optional[list[tuple[str, float]]] = None,
+    total_ehp: t.Optional[float] = None,
 ) -> list[str]:
     header = (
         "Weekly Report"
@@ -240,6 +253,17 @@ def _build_report_lines(
     )
 
     lines = [header, ""]
+
+    if total_xp is not None:
+        lines.append("Week at a glance")
+        lines.append(f"- Group XP gained: {_format_int(total_xp)} xp")
+        if active_members is not None:
+            lines.append(f"- Active gainers: {active_members}/{len(player_name_map)} members")
+        if total_ehb is not None:
+            lines.append(f"- Group EHB gained: {_format_float(total_ehb)}")
+        if total_ehp is not None:
+            lines.append(f"- Group EHP gained: {_format_float(total_ehp)}")
+        lines.append("")
 
     if overall_top:
         lines.append(
@@ -256,6 +280,15 @@ def _build_report_lines(
             lines.append(f"{idx}. {name} (+{_format_float(gained)} EHB)")
     else:
         lines.append("Top EHB gainers: no data")
+
+    lines.append("")
+
+    if ehp_top:
+        lines.append("Top EHP gainers:")
+        for idx, (name, gained) in enumerate(ehp_top, start=1):
+            lines.append(f"{idx}. {name} (+{_format_float(gained)} EHP)")
+    else:
+        lines.append("Top EHP gainers: no data")
 
     lines.append("")
 
@@ -309,6 +342,9 @@ async def _generate_weekly_report(
     ehb_gains = await _get_group_gains(
         wom_client, group_id, enums.Metric.Ehb, start_date, end_date, limit=50
     )
+    ehp_gains = await _get_group_gains(
+        wom_client, group_id, enums.Metric.Ehp, start_date, end_date, limit=50
+    )
     sailing_gains = await _get_group_gains(
         wom_client, group_id, enums.Metric.Sailing, start_date, end_date, limit=50 # type: ignore
     )
@@ -322,6 +358,7 @@ async def _generate_weekly_report(
 
     overall_gains.sort(key=lambda entry: entry.data.gained, reverse=True)
     ehb_gains.sort(key=lambda entry: entry.data.gained, reverse=True)
+    ehp_gains.sort(key=lambda entry: entry.data.gained, reverse=True)
     sailing_gains.sort(key=lambda entry: entry.data.gained, reverse=True)
 
     overall_top = None
@@ -333,6 +370,9 @@ async def _generate_weekly_report(
 
     ehb_top = [
         (entry.player.display_name, entry.data.gained) for entry in ehb_gains[:3]
+    ]
+    ehp_top = [
+        (entry.player.display_name, entry.data.gained) for entry in ehp_gains[:3]
     ]
 
     sailing_top = None
@@ -367,6 +407,11 @@ async def _generate_weekly_report(
         name_changes=name_changes,
         achievements=achievements,
         player_name_map=player_name_map,
+        total_xp=sum(entry.data.gained for entry in overall_gains),
+        active_members=sum(1 for entry in overall_gains if entry.data.gained > 0),
+        total_ehb=sum(entry.data.gained for entry in ehb_gains),
+        ehp_top=ehp_top,
+        total_ehp=sum(entry.data.gained for entry in ehp_gains),
     )
 
     return _chunk_messages(lines)

@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import pytest
 
 from python.weeklyupdater import weekly_reporter
+from python.weeklyupdater import monthly_reporter
 from python.weeklyupdater import yearly_reporter
 
 
@@ -83,6 +84,46 @@ def test_most_recent_year_end_raises_for_naive_datetime():
 
 
 # ---------------------------------------------------------------------------
+# monthly_reporter — completed calendar-month boundaries and output
+# ---------------------------------------------------------------------------
+
+
+def test_most_recent_month_end_uses_current_month_boundary_after_noon():
+    now = datetime(2025, 6, 15, 8, 0, tzinfo=timezone.utc)
+    assert monthly_reporter.most_recent_month_end(now) == datetime(
+        2025, 6, 1, 12, 0, tzinfo=timezone.utc
+    )
+
+
+def test_most_recent_month_end_rolls_back_before_boundary():
+    now = datetime(2025, 6, 1, 11, 59, tzinfo=timezone.utc)
+    assert monthly_reporter.most_recent_month_end(now) == datetime(
+        2025, 5, 1, 12, 0, tzinfo=timezone.utc
+    )
+
+
+def test_monthly_report_includes_totals_and_ehp_leaders():
+    def gain(name, value):
+        player = types.SimpleNamespace(display_name=name)
+        return types.SimpleNamespace(player=player, data=types.SimpleNamespace(gained=value))
+
+    lines = monthly_reporter._build_report_lines(
+        start_date=datetime(2025, 5, 1, 12, 0, tzinfo=timezone.utc),
+        end_date=datetime(2025, 6, 1, 12, 0, tzinfo=timezone.utc),
+        overall_gains=[gain("Alice", 2_000_000)],
+        ehb_gains=[gain("Bob", 12.5)],
+        ehp_gains=[gain("Carol", 8.25)],
+        sailing_gains=[],
+        name_changes=[],
+        achievements=[],
+        player_name_map={1: "Alice", 2: "Bob"},
+    )
+    report = "\n".join(lines)
+    assert "Monthly Report - May 2025" in report
+    assert "Group XP gained: 2,000,000 xp" in report
+    assert "Carol (+8.25 EHP)" in report
+
+
 # weekly_reporter._chunk_messages
 # ---------------------------------------------------------------------------
 
@@ -220,6 +261,31 @@ def test_build_report_lines_includes_ehb_top_gainers():
     assert "Alice" in combined
     assert "12.50" in combined
     assert "Bob" in combined
+
+
+def test_build_report_lines_includes_weekly_totals_and_ehp_gainers():
+    start = datetime(2025, 6, 1, 18, 0, tzinfo=timezone.utc)
+    end = datetime(2025, 6, 8, 18, 0, tzinfo=timezone.utc)
+    lines = weekly_reporter._build_report_lines(
+        start_date=start,
+        end_date=end,
+        overall_top=("Alice", 2_000_000),
+        ehb_top=[],
+        sailing_top=None,
+        name_changes=[],
+        achievements=[],
+        player_name_map={1: "Alice", 2: "Bob"},
+        total_xp=3_000_000,
+        active_members=2,
+        total_ehb=10.5,
+        ehp_top=[("Bob", 7.25)],
+        total_ehp=12.0,
+    )
+    report = "\n".join(lines)
+    assert "Week at a glance" in report
+    assert "Group XP gained: 3,000,000 xp" in report
+    assert "Active gainers: 2/2 members" in report
+    assert "Bob (+7.25 EHP)" in report
 
 
 def test_build_report_lines_name_changes_rendered():

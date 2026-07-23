@@ -23,10 +23,13 @@ from .rank_utils import (
 )
 from gainstracker import build_gains_lines, collect_gains_leaderboard, resolve_metric
 from weeklyupdater import (
+    generate_monthly_report_messages,
     generate_weekly_report_messages,
     generate_yearly_report_messages,
+    most_recent_month_end,
     most_recent_year_end,
     most_recent_week_end,
+    send_monthly_report,
     send_yearly_report,
     send_weekly_report,
     write_yearly_report_file,
@@ -58,6 +61,7 @@ def setup_commands(
     wom_client,
     GROUP_ID: int,
     weekly_channel_id: int,
+    monthly_channel_id: int,
     yearly_channel_id: int,
     get_rank,
     list_all_members_and_ranks,
@@ -240,6 +244,37 @@ def setup_commands(
                 f"❌ Error sending weekly report: {e}", ephemeral=True
             )
 
+    # Command: /monthlyreport --- Posts the monthly report to the monthly channel.
+
+    @bot.tree.command(name="monthlyreport", description="Posts the most recent completed monthly report.")
+    async def monthlyreport(interaction: Interaction):
+        if not monthly_channel_id:
+            await interaction.response.send_message(
+                "❌ monthly_channel_id not configured.", ephemeral=True
+            )
+            return
+
+        await interaction.response.defer(ephemeral=True)
+        try:
+            end_date = most_recent_month_end(datetime.now(timezone.utc))
+            messages = await generate_monthly_report_messages(
+                wom_client=wom_client,
+                group_id=GROUP_ID,
+                end_date=end_date,
+                log=log,
+            )
+            await send_monthly_report(
+                discord_client=bot,
+                channel_id=monthly_channel_id,
+                messages=messages,
+                log=log,
+            )
+            await interaction.followup.send("✅ Monthly report sent.", ephemeral=True)
+        except Exception as e:
+            await interaction.followup.send(
+                f"❌ Error sending monthly report: {e}", ephemeral=True
+            )
+
     # Command: /yearlyreport --- Posts the yearly report to the yearly channel.
 
     @bot.tree.command(name="yearlyreport", description="Posts the yearly report to the yearly channel.")
@@ -360,6 +395,7 @@ def setup_commands(
             "/goodnight ➡️  Sends a good night message.",
             "/forcecheck ➡️     Forces check_for_rank_changes task to run.",
             "/weeklyupdate ➡️   Posts the weekly report to the weekly channel.",
+            "/monthlyreport ➡️   Posts the last completed monthly report.",
             "/yearlyreport [year] ➡️   Posts the yearly report to the yearly channel.",
             "/yearlyreportfile [year] [filename] ➡️   Writes the yearly report to a local file.",
             "/sendrankup_debug ➡️   Debugging command to simulate a rank up message.",

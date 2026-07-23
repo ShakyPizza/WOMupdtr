@@ -1,4 +1,4 @@
-"""Reports router - weekly and yearly reports."""
+"""Reports router - weekly, monthly, and yearly reports."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from fastapi.responses import HTMLResponse
 
 from ..dependencies import get_bot_state
 from ..services.bot_state import BotState
-from ..services.report_service import get_weekly_report, get_yearly_report
+from ..services.report_service import get_monthly_report, get_weekly_report, get_yearly_report
 from ..ui import render_template
 
 router = APIRouter()
@@ -54,5 +54,23 @@ async def yearly_report(
         "report_yearly.html",
         report_lines=report_lines,
         year=year,
+        data_error=error,
+    )
+
+
+@router.get("/monthly", response_class=HTMLResponse)
+async def monthly_report(request: Request, state: BotState = Depends(get_bot_state)):
+    try:
+        messages = await get_monthly_report(state)
+        report_lines = [line for message in messages for line in message.split("\n")]
+        error = None
+    except Exception as exc:
+        report_lines = []
+        error = f"Error generating monthly report: {exc}"
+
+    return render_template(
+        request,
+        "report_monthly.html",
+        report_lines=report_lines,
         data_error=error,
     )

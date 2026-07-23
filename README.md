@@ -55,8 +55,7 @@ A Discord bot that integrates with the Wise Old Man API to track EHB-based ranks
    ```
 
 Notes:
-- `weekly_channel_id` and `yearly_channel_id` enable scheduled report posts. Set to `0` to disable.
-- `monthly_channel_id` is currently unused; keep it at `0` if you are not using it.
+- `weekly_channel_id`, `monthly_channel_id`, and `yearly_channel_id` enable scheduled report posts. Set any channel to `0` to disable it. Monthly reports post at 12:00 UTC on the first day of each month.
 - `group_passcode` is only required for `/refreshgroup` (Wise Old Man update-all).
 - `api_key` is optional but helps with Wise Old Man rate limits.
 - EHP collection is opt-in. Set `track_ehp = true` to populate EHP ranks and history.

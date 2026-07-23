@@ -10,7 +10,7 @@ import contextlib
 from typing import Optional
 from wom import Client as BaseClient
 
-from weeklyupdater import start_weekly_reporter, start_yearly_reporter
+from weeklyupdater import start_monthly_reporter, start_weekly_reporter, start_yearly_reporter
 from gainstracker import start_gains_snapshotter
 from utils.database import (
     count_players,
@@ -94,6 +94,7 @@ config.read(config_file)
 discord_token       = config['discord']['token']
 channel_id          = int(config['discord']['channel_id'])
 weekly_channel_id   = int(config['discord'].get('weekly_channel_id', 0) or 0)
+monthly_channel_id  = int(config['discord'].get('monthly_channel_id', weekly_channel_id) or 0)
 yearly_channel_id   = int(config['discord'].get('yearly_channel_id', weekly_channel_id) or 0)
 gains_channel_id    = int(config['discord'].get('gains_channel_id', 0) or 0)
 group_id            = int(config['wiseoldman']['group_id'])
@@ -144,6 +145,7 @@ discord_client = IPv4Bot(command_prefix=commands.when_mentioned, intents=intents
 wom_client = Client(api_key=api_key)
 
 weekly_report_task = None
+monthly_report_task = None
 yearly_report_task = None
 gains_snapshot_task = None
 
@@ -175,6 +177,7 @@ async def on_ready():
     await wom_client.start()
 
     global weekly_report_task
+    global monthly_report_task
     global yearly_report_task
     global gains_snapshot_task
     if gains_snapshot_task is None:
@@ -208,6 +211,20 @@ async def on_ready():
             log("Weekly report task started.")
         else:
             log("weekly_channel_id not configured; weekly report disabled.")
+
+    if monthly_report_task is None:
+        if monthly_channel_id:
+            monthly_report_task = start_monthly_reporter(
+                wom_client=wom_client,
+                discord_client=discord_client,
+                group_id=group_id,
+                channel_id=monthly_channel_id,
+                log=log,
+                debug=debug,
+            )
+            log("Monthly report task started.")
+        else:
+            log("monthly_channel_id not configured; monthly report disabled.")
 
     if yearly_report_task is None:
         if yearly_channel_id:
@@ -452,6 +469,7 @@ setup_commands(
     wom_client,
     group_id,
     weekly_channel_id,
+    monthly_channel_id,
     yearly_channel_id,
     get_rank,
     list_all_members_and_ranks,
