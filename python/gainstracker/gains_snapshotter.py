@@ -39,35 +39,22 @@ async def _collect_gains(
     metric: enums.Metric,
     start_date: datetime,
     end_date: datetime,
-    *,
-    page_size: int = 50,
 ) -> list:
-    """Paginate ``get_gains`` over ``offset`` so groups larger than 50 aren't truncated."""
-    entries: list = []
-    offset = 0
-    while True:
-        result = await wom_client.groups.get_gains(
-            group_id,
-            metric,
-            start_date=start_date,
-            end_date=end_date,
-            limit=page_size,
-            offset=offset,
-        )
-        if not result.is_ok:
-            error = result.unwrap_err()
-            raise RuntimeError(
-                f"Failed to fetch gains for metric '{metric.value}' "
-                f"at offset {offset}: {error}"
-            )
-        page = list(result.unwrap())
-        if not page:
-            break
-        entries.extend(page)
-        if len(page) < page_size:
-            break
-        offset += page_size
-    return entries
+    """Fetch all group gains in one request.
+
+    WOM's group-gains endpoint does not support pagination and always returns the
+    full member list. Supplying an offset is ignored by the API.
+    """
+    result = await wom_client.groups.get_gains(
+        group_id,
+        metric,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    if not result.is_ok:
+        error = result.unwrap_err()
+        raise RuntimeError(f"Failed to fetch gains for metric '{metric.value}': {error}")
+    return list(result.unwrap())
 
 
 def _build_gains_rows(

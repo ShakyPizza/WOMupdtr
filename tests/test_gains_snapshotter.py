@@ -122,7 +122,7 @@ def test_snapshot_gains_once_multi_metric(fake_wom_client, tmp_path):
     assert database.read_latest_gains("overall")
 
 
-def test_snapshot_gains_once_paginates_beyond_50(fake_wom_client):
+def test_snapshot_gains_once_accepts_full_response_beyond_50(fake_wom_client):
     entries = [make_gains_entry(make_player(f"p{i}"), gained=float(i)) for i in range(120)]
     client = fake_wom_client(gains={"overall": entries})
 
@@ -130,6 +130,9 @@ def test_snapshot_gains_once_paginates_beyond_50(fake_wom_client):
         wom_client=client, group_id=1, metrics=["overall"], window_days=7, log=_log, now=NOW,
     ))
     assert inserted == 120
+    assert client.groups.calls == [
+        ("get_gains", gains_snapshotter.resolve_metric("overall"), None, None)
+    ]
 
 
 def test_collect_gains_leaderboard_sorted(fake_wom_client):
@@ -153,7 +156,7 @@ def test_collect_gains_leaderboard_sorted(fake_wom_client):
 def test_snapshot_gains_first_page_failure_writes_nothing(fake_wom_client):
     client = fake_wom_client(gains_errors={("overall", 0): "WOM unavailable"})
 
-    with pytest.raises(RuntimeError, match="overall.*offset 0.*WOM unavailable"):
+    with pytest.raises(RuntimeError, match="overall.*WOM unavailable"):
         run(gains_snapshotter.snapshot_gains_once(
             wom_client=client,
             group_id=1,
@@ -166,24 +169,25 @@ def test_snapshot_gains_first_page_failure_writes_nothing(fake_wom_client):
     assert database.read_latest_gains("overall") == []
 
 
-def test_snapshot_gains_later_page_failure_discards_partial_rows(fake_wom_client):
+def test_snapshot_gains_does_not_request_later_pages(fake_wom_client):
     entries = [make_gains_entry(make_player(f"p{i}"), gained=float(i)) for i in range(75)]
     client = fake_wom_client(
         gains={"overall": entries},
         gains_errors={("overall", 50): "page failed"},
     )
 
-    with pytest.raises(RuntimeError, match="overall.*offset 50.*page failed"):
-        run(gains_snapshotter.snapshot_gains_once(
-            wom_client=client,
-            group_id=1,
-            metrics=["overall"],
-            window_days=7,
-            log=_log,
-            now=NOW,
-        ))
+    inserted = run(gains_snapshotter.snapshot_gains_once(
+        wom_client=client,
+        group_id=1,
+        metrics=["overall"],
+        window_days=7,
+        log=_log,
+        now=NOW,
+    ))
 
-    assert database.read_latest_gains("overall") == []
+    assert inserted == 75
+    assert len(database.read_latest_gains("overall", limit=100)) == 75
+    assert len(client.groups.calls) == 1
 
 
 def test_snapshot_gains_multi_metric_failure_is_atomic(fake_wom_client):
@@ -192,7 +196,7 @@ def test_snapshot_gains_multi_metric_failure_is_atomic(fake_wom_client):
         gains_errors={("ehb", 0): "EHB failed"},
     )
 
-    with pytest.raises(RuntimeError, match="ehb.*offset 0.*EHB failed"):
+    with pytest.raises(RuntimeError, match="ehb.*EHB failed"):
         run(gains_snapshotter.snapshot_gains_once(
             wom_client=client,
             group_id=1,
@@ -223,7 +227,7 @@ def test_snapshot_gains_requires_at_least_one_valid_metric(fake_wom_client):
 def test_live_gains_leaderboard_propagates_api_failure(fake_wom_client):
     client = fake_wom_client(gains_errors={("overall", 0): "live failed"})
 
-    with pytest.raises(RuntimeError, match="overall.*offset 0.*live failed"):
+    with pytest.raises(RuntimeError, match="overall.*live failed"):
         run(gains_snapshotter.collect_gains_leaderboard(
             wom_client=client,
             group_id=1,
