@@ -251,6 +251,8 @@ async function renderPlayerMetricHistory(url, label, valueKey, canvasId, message
             labels: result.data.map((entry) => entry.timestamp),
             datasets: [{
                 label,
+                // valueKey is a fixed, developer-supplied metric name (not user input); entry is our own API row.
+                // eslint-disable-next-line security/detect-object-injection
                 data: result.data.map((entry) => entry[valueKey]),
                 borderColor: color,
                 backgroundColor: "rgba(220, 188, 113, 0.16)",

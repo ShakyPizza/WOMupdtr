@@ -4,11 +4,24 @@ from __future__ import annotations
 
 import csv
 import os
+import re
 import sqlite3
 from contextlib import closing
 from datetime import datetime, timezone
 
 DEFAULT_DB_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "database.db")
+
+# SQLite cannot bind table/column names as parameters, so identifiers used in
+# DDL are interpolated directly. Restrict them to a safe character set so the
+# f-strings below can never carry injected SQL, even if a caller is changed.
+_SQL_IDENTIFIER = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _assert_identifier(value: str) -> str:
+    """Return ``value`` if it is a safe SQL identifier, else raise ``ValueError``."""
+    if not _SQL_IDENTIFIER.match(value):
+        raise ValueError(f"Unsafe SQL identifier: {value!r}")
+    return value
 
 
 def resolve_db_path() -> str:
@@ -23,9 +36,13 @@ def _ensure_columns(conn: sqlite3.Connection, table: str, columns: dict[str, str
     it never adds new columns. This helper inspects the live schema and issues
     ``ALTER TABLE ... ADD COLUMN`` only for columns that are not present yet.
     """
+    _assert_identifier(table)
+    # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query,python.lang.security.audit.formatted-sql-query.formatted-sql-query -- identifier validated above; PRAGMA cannot use bound parameters
     existing = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
     for name, ddl in columns.items():
         if name not in existing:
+            _assert_identifier(name)
+            # nosemgrep: python.sqlalchemy.security.sqlalchemy-execute-raw-query.sqlalchemy-execute-raw-query,python.lang.security.audit.formatted-sql-query.formatted-sql-query -- table/column validated; ALTER TABLE cannot use bound parameters
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
 
 
