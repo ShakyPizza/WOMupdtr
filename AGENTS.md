@@ -40,10 +40,10 @@ Shared bot/web state lives in `python/web/services/bot_state.py` (`BotState`). T
 1. Fetch group member details from WOM.
 2. Calculate EHB rank from `[Group Ranking]`; when `track_ehp = true`, calculate EHP rank from `[Skilling Ranking]`.
 3. Use `rank_utils.compute_member_update()` to evaluate EHB and EHP independently and merge them without discarding other per-player fields.
-4. On EHB increase, notify Discord, append to the legacy EHB CSV when enabled, and update JSON/SQLite.
+4. On EHB increase, notify Discord, append to the legacy EHB CSV when enabled, and update SQLite.
 5. On EHP increase, notify Discord with an EHP label and append to SQLite `ehp_history`.
 
-`python/player_ranks.json` remains the rank snapshot used by the bot and web UI. Entries always contain `last_ehb` and `rank`; EHP-enabled entries also contain `last_ehp` and `ehp_rank`. `save_ranks()` mirrors changed snapshots into SQLite while preserving optional/future fields. Manual `/update` changes only the EHB fields.
+The SQLite `players` table is the authoritative rank snapshot used by the bot and web UI. Rows always contain `last_ehb` and `rank`; EHP-enabled snapshots also surface `last_ehp` and `ehp_rank`. On an empty database, `load_ranks()` imports a legacy `python/utils/player_ranks.json` snapshot when present, then falls back to the legacy EHB CSV. Manual `/update` changes only the EHB fields.
 
 ### Gains tracking
 
@@ -71,7 +71,7 @@ The dashboard now exposes EHP and gains data:
 |---|---|
 | `python/WOM.py` | Entry point, bot lifecycle, rank checks, and periodic task startup |
 | `python/utils/commands.py` | Discord slash commands, including `/ehpladder` and live `/gains` |
-| `python/utils/rank_utils.py` | Shared EHB/EHP threshold parsing, state merging, JSON persistence, and next-rank helpers |
+| `python/utils/rank_utils.py` | Shared EHB/EHP threshold parsing, state merging, legacy snapshot migration, and next-rank helpers |
 | `python/utils/database.py` | SQLite schema/migrations and EHB, EHP, boss, gains, and player persistence |
 | `python/gainstracker/` | WOM gains collection, formatting, persistence, and scheduler |
 | `python/utils/log_csv.py` | Legacy append-only EHB CSV logging |

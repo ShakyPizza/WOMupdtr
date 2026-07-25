@@ -106,35 +106,35 @@ def test_merge_manual_rank_update_does_not_add_ehp_to_legacy_row():
 def test_save_ranks_preserves_ehp_fields(tmp_path, monkeypatch):
     ranks_file = tmp_path / "player_ranks.json"
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
-    monkeypatch.setattr(rank_utils, "upsert_players", lambda players: None)
 
     data = {"player": {"last_ehb": 42, "rank": "Bronze", "last_ehp": 120, "ehp_rank": "Stone"}}
     rank_utils.save_ranks(data)
 
-    assert json.loads(ranks_file.read_text()) == data
+    assert rank_utils.load_ranks() == data
+    assert not ranks_file.exists()
 
 
-def test_save_ranks_preserves_future_fields(tmp_path, monkeypatch):
+def test_save_ranks_persists_supported_fields_from_future_compatible_entry(tmp_path, monkeypatch):
     ranks_file = tmp_path / "player_ranks.json"
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
-    monkeypatch.setattr(rank_utils, "upsert_players", lambda players: None)
     data = {"player": {"last_ehb": 42, "rank": "Bronze", "future_field": "keep-me"}}
 
     rank_utils.save_ranks(data)
 
-    assert json.loads(ranks_file.read_text()) == data
+    assert rank_utils.load_ranks() == {
+        "player": {"last_ehb": 42, "rank": "Bronze"}
+    }
 
 
 def test_save_ranks_omits_ehp_for_pre_ehp_rows(tmp_path, monkeypatch):
-    """Rows without EHP keys round-trip byte-for-byte (backward compatible)."""
+    """Rows without EHP keys remain distinguishable after a database round trip."""
     ranks_file = tmp_path / "player_ranks.json"
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
-    monkeypatch.setattr(rank_utils, "upsert_players", lambda players: None)
 
     data = {"player": {"last_ehb": 42, "rank": "Bronze"}}
     rank_utils.save_ranks(data)
 
-    assert json.loads(ranks_file.read_text()) == {"player": {"last_ehb": 42, "rank": "Bronze"}}
+    assert rank_utils.load_ranks() == data
 
 
 def test_save_ranks_syncs_on_ehp_change(tmp_path, monkeypatch):

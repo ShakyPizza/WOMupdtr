@@ -7,7 +7,8 @@
 ## Configuration & Data
 - `python/config.ini`: Central configuration for Discord credentials, Wise Old Man group info, and runtime toggles (e.g., check interval, logging preferences).
 - `python/ranks.ini`: Defines EHB thresholds mapped to rank names that drive promotions.
-- `python/utils/player_ranks.json`: Cache of member rank data used to detect rank changes.
+- SQLite `players` table: Persistent member rank snapshot used to detect rank changes.
+- `python/utils/player_ranks.json`: Legacy snapshot imported only when the SQLite `players` table is empty.
 
 ## Runtime Behavior
 - Discord client initializes message intents and slash command support; background tasks refresh Wise Old Man group data.

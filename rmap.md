@@ -14,7 +14,7 @@ A reference document for a repo-wide refactor. Use this as a living guide — ch
 
 **Tech stack**: discord.py, wom.py, aiohttp, FastAPI, Uvicorn, Jinja2, SQLite, pytest
 
-**Data stores**: `player_ranks.json` (local JSON), `ehb_log.csv` (append-only log), `database.db` (local SQLite)
+**Data stores**: `database.db` (authoritative SQLite snapshots/history), `ehb_log.csv` (legacy append-only EHB log), and `player_ranks.json` (legacy one-time migration source)
 
 ---
 
@@ -28,7 +28,7 @@ A reference document for a repo-wide refactor. Use this as a living guide — ch
 | `log` | `log(message: str)` | Timestamped print + optional GUI queue push |
 | `get_rank` | `get_rank(ehb, ranks_file)` | **DUPLICATE** — same logic as `rank_utils._get_rank_for_ehb()`. Delete this. |
 | `on_ready` | Discord event | Syncs slash commands, starts WOM session, spawns all background tasks |
-| `check_for_rank_changes` | `@tasks.loop` async | Core loop: fetch WOM group → compare EHB → log CSV → update JSON → post Discord |
+| `check_for_rank_changes` | `@tasks.loop` async | Core loop: fetch WOM group → compare EHB/EHP → log history → update SQLite → post Discord |
 | `list_all_members_and_ranks` | `async def` | Fetch all members, format ranked table, chunk to Discord 2000-char limit |
 | `refresh_group_data` | `async def` | POST to WOM update-all API with passcode; handles 200/401/429 responses |
 | `refresh_group_task` | `@tasks.loop` async | Periodic group refresh (default every 172800s / 48h) |
@@ -44,9 +44,9 @@ A reference document for a repo-wide refactor. Use this as a living guide — ch
 
 | Function | Signature | Purpose |
 |---|---|---|
-| `_bootstrap_ranks_from_csv` | `() -> None` | Seeds `player_ranks.json` from `ehb_log.csv` when JSON is missing |
-| `load_ranks` | `() -> dict` | Reads the latest rank snapshot JSON |
-| `save_ranks` | `(data: dict) -> None` | Writes JSON; syncs changed player snapshot rows to SQLite |
+| `_bootstrap_ranks_from_csv` | `() -> dict` | Builds legacy EHB snapshots from `ehb_log.csv` when SQLite and JSON are empty |
+| `load_ranks` | `() -> dict` | Reads SQLite snapshots, importing legacy JSON/CSV only when the table is empty |
+| `save_ranks` | `(data: dict) -> None` | Writes the latest player snapshot to SQLite |
 | `next_rank` | `(username: str) -> str` | Returns formatted "Rank at X EHB" progress string |
 | `_get_rank_for_ehb` | `(ehb: float) -> str` | Parses `ranks.ini`, returns rank name — **re-reads file every call** (no cache) |
 

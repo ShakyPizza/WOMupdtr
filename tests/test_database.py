@@ -97,6 +97,7 @@ def test_init_database_migrates_pre_existing_players_table(tmp_path):
         "last_ehp",
         "ehp_rank",
         "total_xp",
+        "snapshot_initialized",
         "player_id",
         "wom_status",
         "last_changed_at",
@@ -160,3 +161,39 @@ def test_upsert_players_persists_total_xp_without_erasing_it_when_omitted(tmp_pa
             "SELECT last_ehb, total_xp FROM players WHERE username = 'alice'"
         ).fetchone()
     assert row == (43.0, 123456789)
+
+
+def test_read_player_snapshots_returns_persisted_rank_state(tmp_path):
+    db_path = tmp_path / "database.db"
+    database.upsert_players(
+        {
+            "alice": {
+                "last_ehb": 42.5,
+                "rank": "Silver",
+                "last_ehp": 300.0,
+                "ehp_rank": "Adept",
+                "total_xp": 123456789,
+            }
+        },
+        db_path=str(db_path),
+    )
+
+    assert database.read_player_snapshots(db_path=str(db_path)) == {
+        "alice": {
+            "last_ehb": 42.5,
+            "rank": "Silver",
+            "last_ehp": 300.0,
+            "ehp_rank": "Adept",
+            "total_xp": 123456789,
+        }
+    }
+
+
+def test_read_player_snapshots_ignores_status_only_rows(tmp_path):
+    db_path = tmp_path / "database.db"
+    database.upsert_player_status(
+        [{"username": "status-only", "wom_status": "active"}],
+        db_path=str(db_path),
+    )
+
+    assert database.read_player_snapshots(db_path=str(db_path)) == {}
