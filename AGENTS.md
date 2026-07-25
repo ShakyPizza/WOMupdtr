@@ -106,3 +106,13 @@ The dashboard now exposes EHP and gains data:
 - `WOM.py:get_rank()` is now only a compatibility wrapper over `rank_utils.get_rank_for_value()`; callers can eventually use the shared helper directly.
 - Global state (`bot_state`, task handles) in `WOM.py` could be moved into a class.
 - A monthly channel setting exists, but a monthly reporter is not implemented.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+This repository uses the single-context layout. See `docs/agents/domain.md`.
