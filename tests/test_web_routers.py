@@ -358,6 +358,20 @@ def test_players_page_shows_ehp_columns(monkeypatch, sample_players):
 # HTML routes
 # ---------------------------------------------------------------------------
 
+def test_robots_txt_exposes_crawler_policy():
+    """Crawler policy is served from the required root URL."""
+    with TestClient(_make_app(_make_bot_state())) as client:
+        response = client.get("/robots.txt")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert "User-agent: *" in response.text
+    assert "Disallow: /admin/" in response.text
+    assert "Disallow: /charts/api/" in response.text
+    assert "Disallow: /players/*/history" in response.text
+    assert "Allow: /" in response.text
+
+
 def test_dashboard_marks_dashboard_nav_active(monkeypatch, sample_players, sample_csv_file):
     """Dashboard page sets aria-current on the active nav item."""
     from web.services import ranks_service, csv_service

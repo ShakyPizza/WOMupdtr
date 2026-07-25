@@ -2,7 +2,7 @@
 
 ## Core Components
 - `python/WOM.py`: Discord bot entry point; coordinates Wise Old Man API calls, commands, and Discord events.
-- `python/utils/`: Helper modules for rank persistence (`rank_utils.py`), CSV logging (`log_csv.py`), Discord command wiring (`commands.py`), and Baserow integrations (`baserow_connect.py`).
+- `python/utils/`: Helper modules for SQLite-backed rank persistence (`rank_utils.py` and `database.py`), CSV logging (`log_csv.py`), and Discord command wiring (`commands.py`).
 
 ## Configuration & Data
 - `python/config.ini`: Central configuration for Discord credentials, Wise Old Man group info, and runtime toggles (e.g., check interval, logging preferences).
