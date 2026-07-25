@@ -43,7 +43,7 @@ Shared bot/web state lives in `python/web/services/bot_state.py` (`BotState`). T
 4. On EHB increase, notify Discord, append to the legacy EHB CSV when enabled, and update JSON/SQLite.
 5. On EHP increase, notify Discord with an EHP label and append to SQLite `ehp_history`.
 
-`python/player_ranks.json` remains the rank snapshot used by the bot and web UI. Entries always contain `last_ehb` and `rank`; EHP-enabled entries also contain `last_ehp` and `ehp_rank`. `save_ranks()` mirrors changed snapshots into SQLite while preserving optional/future fields. Manual `/update` changes only the EHB fields.
+`python/utils/player_ranks.json` remains the rank snapshot used by the bot and web UI. Entries always contain `last_ehb` and `rank`; EHP-enabled entries also contain `last_ehp` and `ehp_rank`. `save_ranks()` mirrors changed snapshots into SQLite while preserving optional/future fields. Manual `/update` changes only the EHB fields.
 
 ### Gains tracking
 
@@ -53,6 +53,14 @@ Shared bot/web state lives in `python/web/services/bot_state.py` (`BotState`). T
 - `/gains <metric> [days]` queries WOM live and returns a current leaderboard. It does not read the persisted snapshots.
 
 The scheduler runs immediately and then every `gains_snapshot_interval` seconds (minimum sleep 60s). It optionally posts the first configured metric's latest leaderboard to `gains_channel_id`; channel `0` still permits SQLite collection.
+
+### Official OSRS hiscores fallback reference
+
+If Wise Old Man is unavailable, an individual player's raw hiscores can be fetched from the official OSRS JSON endpoint:
+
+`https://secure.runescape.com/m=hiscore_oldschool/index_lite.json?player={player}`
+
+URL-encode the player name before substituting it. The response contains `skills` (`rank`, `level`, and `xp`) and `activities` (`rank` and `score`, including boss kill counts). This is a fallback reference only and is not currently wired into the bot. It cannot replace WOM group endpoints or WOM-computed values such as EHB and EHP.
 
 ### Persistence and web dashboard
 

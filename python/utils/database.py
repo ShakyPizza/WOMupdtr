@@ -173,6 +173,73 @@ def init_database(db_path: str | None = None) -> str:
             "CREATE INDEX IF NOT EXISTS idx_gains_user_metric_ts ON gains_history (username, metric, snapshot_time)"
         )
 
+        # Phase 1 achievement retention uses WOM's stable numeric player ID.
+        # The existing username-keyed ``players`` table remains the rank
+        # projection for backward compatibility.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS wom_players (
+                player_id INTEGER PRIMARY KEY,
+                current_username TEXT,
+                display_name TEXT,
+                account_type TEXT,
+                build TEXT,
+                status TEXT,
+                overall_xp INTEGER,
+                ehp REAL,
+                ehb REAL,
+                ttm REAL,
+                tt200m REAL,
+                registered_at TEXT,
+                wom_updated_at TEXT,
+                last_changed_at TEXT,
+                last_imported_at TEXT,
+                first_seen_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS player_aliases (
+                player_id INTEGER NOT NULL,
+                normalized_name TEXT NOT NULL,
+                display_name TEXT NOT NULL,
+                first_seen_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL,
+                PRIMARY KEY (player_id, normalized_name)
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_player_aliases_name ON player_aliases (normalized_name)"
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS achievements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                player_id INTEGER NOT NULL,
+                source_group_id INTEGER NOT NULL,
+                metric TEXT NOT NULL,
+                measure TEXT NOT NULL,
+                threshold INTEGER NOT NULL,
+                name TEXT NOT NULL,
+                achieved_at TEXT,
+                accuracy_ms INTEGER,
+                legacy INTEGER NOT NULL DEFAULT 0,
+                first_seen_at TEXT NOT NULL,
+                last_seen_at TEXT NOT NULL,
+                UNIQUE(player_id, metric, measure, threshold)
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_achievements_player_ts ON achievements (player_id, achieved_at)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_achievements_metric_ts ON achievements (metric, measure, achieved_at)"
+        )
+
         conn.commit()
 
     return resolved_path
@@ -277,6 +344,164 @@ def read_player_status_rows(db_path: str | None = None) -> list[dict]:
             """
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def upsert_achievement_events(rows: list[dict], db_path: str | None = None) -> int:
+    """Persist normalized WOM players, aliases, and achievement events.
+
+    Achievement identity intentionally excludes display text and timestamps:
+    WOM can recalculate ``achieved_at``/``accuracy_ms`` without creating a new
+    milestone. The stable key is player + metric + measure + threshold.
+    Returns the number of newly inserted achievement rows.
+    """
+    if not rows:
+        return 0
+
+    resolved_path = init_database(db_path)
+    observed_at = datetime.now(timezone.utc).isoformat()
+    inserted = 0
+
+    with closing(connect_db(resolved_path)) as conn:
+        for row in rows:
+            try:
+                player_id = int(row["player_id"])
+                source_group_id = int(row["source_group_id"])
+                metric = str(row["metric"]).strip().lower()
+                measure = str(row["measure"]).strip().lower()
+                threshold = int(row["threshold"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            if not metric or not measure:
+                continue
+
+            current_username = row.get("current_username")
+            display_name = row.get("display_name") or current_username
+            legacy_value = row.get("legacy")
+            legacy_for_update = (
+                None if legacy_value is None else (1 if legacy_value else 0)
+            )
+            conn.execute(
+                """
+                INSERT INTO wom_players (
+                    player_id, current_username, display_name, account_type,
+                    build, status, overall_xp, ehp, ehb, ttm, tt200m,
+                    registered_at, wom_updated_at, last_changed_at,
+                    last_imported_at, first_seen_at, last_seen_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(player_id) DO UPDATE SET
+                    current_username = COALESCE(excluded.current_username, wom_players.current_username),
+                    display_name = COALESCE(excluded.display_name, wom_players.display_name),
+                    account_type = COALESCE(excluded.account_type, wom_players.account_type),
+                    build = COALESCE(excluded.build, wom_players.build),
+                    status = COALESCE(excluded.status, wom_players.status),
+                    overall_xp = COALESCE(excluded.overall_xp, wom_players.overall_xp),
+                    ehp = COALESCE(excluded.ehp, wom_players.ehp),
+                    ehb = COALESCE(excluded.ehb, wom_players.ehb),
+                    ttm = COALESCE(excluded.ttm, wom_players.ttm),
+                    tt200m = COALESCE(excluded.tt200m, wom_players.tt200m),
+                    registered_at = COALESCE(excluded.registered_at, wom_players.registered_at),
+                    wom_updated_at = COALESCE(excluded.wom_updated_at, wom_players.wom_updated_at),
+                    last_changed_at = COALESCE(excluded.last_changed_at, wom_players.last_changed_at),
+                    last_imported_at = COALESCE(excluded.last_imported_at, wom_players.last_imported_at),
+                    last_seen_at = excluded.last_seen_at
+                """,
+                (
+                    player_id,
+                    current_username,
+                    display_name,
+                    row.get("account_type"),
+                    row.get("build"),
+                    row.get("status"),
+                    row.get("overall_xp"),
+                    row.get("ehp"),
+                    row.get("ehb"),
+                    row.get("ttm"),
+                    row.get("tt200m"),
+                    row.get("registered_at"),
+                    row.get("wom_updated_at"),
+                    row.get("last_changed_at"),
+                    row.get("last_imported_at"),
+                    observed_at,
+                    observed_at,
+                ),
+            )
+
+            if display_name:
+                normalized_name = str(display_name).strip().casefold()
+                if normalized_name:
+                    conn.execute(
+                        """
+                        INSERT INTO player_aliases (
+                            player_id, normalized_name, display_name,
+                            first_seen_at, last_seen_at
+                        )
+                        VALUES (?, ?, ?, ?, ?)
+                        ON CONFLICT(player_id, normalized_name) DO UPDATE SET
+                            display_name = excluded.display_name,
+                            last_seen_at = excluded.last_seen_at
+                        """,
+                        (
+                            player_id,
+                            normalized_name,
+                            str(display_name).strip(),
+                            observed_at,
+                            observed_at,
+                        ),
+                    )
+
+            cursor = conn.execute(
+                """
+                INSERT OR IGNORE INTO achievements (
+                    player_id, source_group_id, metric, measure, threshold,
+                    name, achieved_at, accuracy_ms, legacy,
+                    first_seen_at, last_seen_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    player_id,
+                    source_group_id,
+                    metric,
+                    measure,
+                    threshold,
+                    str(row.get("name") or f"{threshold} {metric} {measure}"),
+                    row.get("achieved_at"),
+                    row.get("accuracy_ms"),
+                    legacy_for_update or 0,
+                    observed_at,
+                    observed_at,
+                ),
+            )
+            inserted += cursor.rowcount
+            if cursor.rowcount == 0:
+                conn.execute(
+                    """
+                    UPDATE achievements
+                    SET source_group_id = ?,
+                        name = ?,
+                        achieved_at = COALESCE(?, achieved_at),
+                        accuracy_ms = COALESCE(?, accuracy_ms),
+                        legacy = COALESCE(?, legacy),
+                        last_seen_at = ?
+                    WHERE player_id = ? AND metric = ? AND measure = ? AND threshold = ?
+                    """,
+                    (
+                        source_group_id,
+                        str(row.get("name") or f"{threshold} {metric} {measure}"),
+                        row.get("achieved_at"),
+                        row.get("accuracy_ms"),
+                        legacy_for_update,
+                        observed_at,
+                        player_id,
+                        metric,
+                        measure,
+                        threshold,
+                    ),
+                )
+
+        conn.commit()
+    return inserted
 
 
 def log_ehb_history(username: str, ehb: float, timestamp: str | None = None, db_path: str | None = None) -> None:

@@ -9,6 +9,11 @@ import typing as t
 from wom import enums
 from wom.models.players.enums import AchievementMeasure
 
+from .achievement_retention import (
+    append_milestone_sections,
+    categorize_additional_milestones,
+    persist_fetched_achievements,
+)
 
 RATE_LIMIT_DELAY_SECONDS = 1.5
 _SKILL_METRIC_VALUES = {getattr(metric, "value", metric) for metric in enums.Skills}
@@ -250,6 +255,9 @@ def _build_report_lines(
     achievements_max_total: list,
     player_name_map: dict[int, str],
     group_stats,
+    boss_kc_achievements: t.Optional[list] = None,
+    xp_achievements: t.Optional[list] = None,
+    level_achievements: t.Optional[list] = None,
 ) -> list[str]:
     year_label = start_date.strftime("%Y")
     header = (
@@ -337,6 +345,14 @@ def _build_report_lines(
             lines.append(f"- {player_name}: {details}")
     else:
         lines.append("New 99s: none")
+
+    append_milestone_sections(
+        lines,
+        boss_kc=boss_kc_achievements or [],
+        xp=xp_achievements or [],
+        level=level_achievements or [],
+        player_name_map=player_name_map,
+    )
     lines.append("")
 
     if name_changes:
@@ -410,6 +426,13 @@ async def _generate_yearly_report(
     achievements = await _get_group_achievements(
         wom_client, group_id, start_date, end_date, log, limit=50
     )
+    persist_fetched_achievements(
+        achievements,
+        group_id=group_id,
+        player_name_map=player_name_map,
+        log=log,
+    )
+    milestone_categories = categorize_additional_milestones(achievements)
     await asyncio.sleep(RATE_LIMIT_DELAY_SECONDS)
     group_stats = await _get_group_statistics(wom_client, group_id, log)
 
@@ -440,6 +463,16 @@ async def _generate_yearly_report(
         and _matches_threshold(achievement.threshold, 2376)
     ]
     achievements_max_total.sort(key=lambda item: item.created_at)
+    milestone_categories["level"] = [
+        achievement
+        for achievement in milestone_categories["level"]
+        if not (
+            achievement.metric == enums.Metric.Overall
+            and _matches_threshold(achievement.threshold, 2376)
+        )
+    ]
+    for category in milestone_categories.values():
+        category.sort(key=lambda item: item.created_at)
 
     name_changes.sort(key=lambda item: item.created_at)
 
@@ -465,6 +498,9 @@ async def _generate_yearly_report(
         achievements_max_total=achievements_max_total,
         player_name_map=player_name_map,
         group_stats=group_stats,
+        boss_kc_achievements=milestone_categories["boss_kc"],
+        xp_achievements=milestone_categories["xp"],
+        level_achievements=milestone_categories["level"],
     )
 
     return _chunk_messages(lines)

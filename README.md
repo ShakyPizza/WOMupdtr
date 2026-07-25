@@ -1,16 +1,17 @@
 # WOMupdtr
 
-A Discord bot that integrates with the Wise Old Man API to track EHB-based ranks, post updates to Discord, and generate scheduled clan reports.
+A Discord bot that integrates with the Wise Old Man API to track EHB and optional EHP-based ranks, post updates to Discord, and generate scheduled clan reports.
 
 ## Highlights
 - EHB rank tracking with automatic rank-up notifications.
+- Optional EHP rank tracking and configurable gains snapshots.
 - Slash-command interface (no prefix commands).
 - Group refresh via Wise Old Man update-all, plus periodic refresh.
-- Weekly and yearly report generation (auto-scheduled or on-demand).
+- Weekly, monthly, and yearly report generation (auto-scheduled or on-demand).
 - Local SQLite storage bootstrapped automatically on startup.
 - CSV logging with auto-bootstrap of ranks from `ehb_log.csv` when JSON storage is missing.
 - FastAPI web dashboard (players, reports, charts, admin, group pages).
-- Docker support with persisted CSV logs — runs bot + web dashboard on port 8080.
+- Docker support with persisted CSV logs and SQLite data — runs bot + web dashboard on port 8080.
 
 ## Requirements
 - Python 3.11+ (recommended)
@@ -106,6 +107,8 @@ General:
 - `/lookup <username>` - Shows locally stored rank, EHB, EHP, and total XP for a player.
 - `/update <username>` - Updates rank/EHB for one player (case-insensitive).
 - `/rankup <username>` - Shows next rank threshold.
+- `/ehpladder` - Lists players by EHP and skilling rank.
+- `/gains <metric> [days]` - Shows live gains for a metric over a look-back window (defaults to 7 days).
 - `/goodnight` - Sends a good night message.
 
 Group management:
@@ -114,6 +117,7 @@ Group management:
 
 Reports:
 - `/weeklyupdate` - Posts a weekly report to the configured weekly channel.
+- `/monthlyreport` - Posts the most recent completed monthly report to the configured monthly channel.
 - `/yearlyreport [year]` - Posts a yearly report (defaults to last completed year).
 - `/yearlyreportfile [year] [filename]` - Writes a yearly report to a local file.
 
@@ -124,15 +128,16 @@ Debug:
 ## Web Dashboard
 When running via Docker, the web dashboard is available at `http://localhost:8080`. You can also start it manually alongside the bot. Pages:
 - `/` — overview dashboard
-- `/players` — full member list with EHB history and search
-- `/group` — group totals, rank distribution, and rank thresholds
-- `/reports` — weekly and yearly report views
+- `/players` — full member list with EHB/EHP ranks, history, and search
+- `/group` — group totals, member stats, rank distribution, and rank thresholds
+- `/reports/weekly`, `/reports/monthly`, `/reports/yearly` — report views
 - `/charts` — rank distribution plus EHB, EHP, and gains history charts
 - `/admin` — settings editor, log viewer, and bot controls
 
-## Weekly and Yearly Reports
+## Weekly, Monthly, and Yearly Reports
 The report system summarizes group activity using Wise Old Man gains/achievements data:
 - Weekly: top overall XP gainer, top 3 EHB gainers, top Sailing gainer, and recent achievements.
+- Monthly: group XP/EHB/EHP totals, active gainers, top XP/EHB/EHP/Sailing gainers, new 99s, and name changes.
 - Yearly: top overall XP, EHB, and EHP gainers, Sailing highlights, 99s, max total achievements, name changes, and group stats.
 
 Reports can be scheduled automatically (when channel IDs are set) or run on demand via slash commands.

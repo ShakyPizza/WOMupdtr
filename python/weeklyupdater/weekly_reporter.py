@@ -9,6 +9,12 @@ import typing as t
 from wom import enums
 from wom.models.players.enums import AchievementMeasure
 
+from .achievement_retention import (
+    append_milestone_sections,
+    categorize_additional_milestones,
+    persist_fetched_achievements,
+)
+
 _SKILL_METRIC_VALUES = {getattr(metric, "value", metric) for metric in enums.Skills}
 _LEVEL_99_XP = 13_034_431
 
@@ -245,6 +251,9 @@ def _build_report_lines(
     total_ehb: t.Optional[float] = None,
     ehp_top: t.Optional[list[tuple[str, float]]] = None,
     total_ehp: t.Optional[float] = None,
+    boss_kc_achievements: t.Optional[list] = None,
+    xp_achievements: t.Optional[list] = None,
+    level_achievements: t.Optional[list] = None,
 ) -> list[str]:
     header = (
         "Weekly Report"
@@ -322,6 +331,14 @@ def _build_report_lines(
     else:
         lines.append("New 99s: none")
 
+    append_milestone_sections(
+        lines,
+        boss_kc=boss_kc_achievements or [],
+        xp=xp_achievements or [],
+        level=level_achievements or [],
+        player_name_map=player_name_map,
+    )
+
     return lines
 
 
@@ -352,9 +369,18 @@ async def _generate_weekly_report(
     name_changes = await _get_group_name_changes(
         wom_client, group_id, start_date, end_date, log, limit=50
     )
-    achievements = await _get_group_achievements(
+    raw_achievements = await _get_group_achievements(
         wom_client, group_id, start_date, end_date, log, limit=50
     )
+    persist_fetched_achievements(
+        raw_achievements,
+        group_id=group_id,
+        player_name_map=player_name_map,
+        log=log,
+    )
+    milestone_categories = categorize_additional_milestones(raw_achievements)
+    for category in milestone_categories.values():
+        category.sort(key=lambda item: item.created_at)
 
     overall_gains.sort(key=lambda entry: entry.data.gained, reverse=True)
     ehb_gains.sort(key=lambda entry: entry.data.gained, reverse=True)
@@ -384,7 +410,7 @@ async def _generate_weekly_report(
 
     achievements = [
         achievement
-        for achievement in achievements
+        for achievement in raw_achievements
         if _is_skill_metric(achievement.metric)
         and (
             (_is_level_measure(achievement.measure) and _matches_threshold(achievement.threshold, 99))
@@ -412,6 +438,9 @@ async def _generate_weekly_report(
         total_ehb=sum(entry.data.gained for entry in ehb_gains),
         ehp_top=ehp_top,
         total_ehp=sum(entry.data.gained for entry in ehp_gains),
+        boss_kc_achievements=milestone_categories["boss_kc"],
+        xp_achievements=milestone_categories["xp"],
+        level_achievements=milestone_categories["level"],
     )
 
     return _chunk_messages(lines)
