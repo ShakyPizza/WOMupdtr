@@ -1,13 +1,18 @@
 """Tests for pure / deterministic helper functions in the weekly and yearly reporters."""
 
+import asyncio
+import os
+import sqlite3
 import types
 from datetime import datetime, timezone
 
 import pytest
+from wom import enums
 
 from python.weeklyupdater import weekly_reporter
 from python.weeklyupdater import monthly_reporter
 from python.weeklyupdater import yearly_reporter
+from python.weeklyupdater import achievement_retention
 
 
 # ---------------------------------------------------------------------------
@@ -179,11 +184,39 @@ def _fake_name_change(old_name, new_name, status_value, dt):
     )
 
 
-def _fake_achievement(player_id, metric_value, dt):
+def _fake_achievement(
+    player_id,
+    metric_value,
+    dt,
+    *,
+    measure_value=None,
+    threshold=None,
+    name=None,
+):
+    player = types.SimpleNamespace(
+        username="hero player",
+        display_name="Hero Player",
+        type=types.SimpleNamespace(value="regular"),
+        build=types.SimpleNamespace(value="main"),
+        status=types.SimpleNamespace(value="active"),
+        exp=123_456,
+        ehp=12.5,
+        ehb=3.5,
+    )
     return types.SimpleNamespace(
         player_id=player_id,
-        metric=types.SimpleNamespace(value=metric_value),
+        metric=enums.Metric(str(metric_value).lower()),
+        measure=(
+            types.SimpleNamespace(value=measure_value)
+            if measure_value is not None
+            else None
+        ),
+        threshold=threshold,
+        name=name,
         created_at=dt,
+        accuracy=500,
+        legacy=False,
+        player=player,
     )
 
 
@@ -328,4 +361,174 @@ def test_build_report_lines_achievements_rendered():
     )
     combined = "\n".join(lines)
     assert "HeroPlayer" in combined
-    assert "Attack" in combined
+    assert "attack" in combined.lower()
+
+
+def test_additional_achievement_categories_exclude_99s():
+    dt = datetime(2025, 6, 4, tzinfo=timezone.utc)
+    achievements = [
+        _fake_achievement(
+            42,
+            "zulrah",
+            dt,
+            measure_value="kills",
+            threshold=500,
+            name="500 Zulrah kills",
+        ),
+        _fake_achievement(
+            42,
+            "agility",
+            dt,
+            measure_value="experience",
+            threshold=50_000_000,
+            name="50m Agility",
+        ),
+        _fake_achievement(
+            42,
+            "overall",
+            dt,
+            measure_value="levels",
+            threshold=2000,
+            name="2000 Total Level",
+        ),
+        _fake_achievement(
+            42,
+            "attack",
+            dt,
+            measure_value="experience",
+            threshold=13_034_431,
+            name="99 Attack",
+        ),
+    ]
+
+    categories = achievement_retention.categorize_additional_milestones(achievements)
+
+    assert [item.name for item in categories["boss_kc"]] == ["500 Zulrah kills"]
+    assert [item.name for item in categories["xp"]] == ["50m Agility"]
+    assert [item.name for item in categories["level"]] == ["2000 Total Level"]
+
+
+def test_weekly_report_renders_and_persists_boss_kc_from_existing_fetch(monkeypatch):
+    dt = datetime(2025, 6, 4, tzinfo=timezone.utc)
+    achievement = _fake_achievement(
+        42,
+        "zulrah",
+        dt,
+        measure_value="kills",
+        threshold=500,
+        name="500 Zulrah kills",
+    )
+    # wom.py's Achievement model may omit the embedded Player even though the
+    # group endpoint supplies player_id; the already-fetched member map fills
+    # the stable identity/alias in that case.
+    achievement.player = None
+
+    async def no_gains(*_args, **_kwargs):
+        return []
+
+    async def member_map(*_args, **_kwargs):
+        return {42: "Hero Player"}
+
+    async def no_changes(*_args, **_kwargs):
+        return []
+
+    async def achievements(*_args, **_kwargs):
+        return [achievement]
+
+    monkeypatch.setattr(weekly_reporter, "_get_group_gains", no_gains)
+    monkeypatch.setattr(weekly_reporter, "_get_group_member_map", member_map)
+    monkeypatch.setattr(weekly_reporter, "_get_group_name_changes", no_changes)
+    monkeypatch.setattr(weekly_reporter, "_get_group_achievements", achievements)
+
+    report = "\n".join(
+        asyncio.run(
+            weekly_reporter._generate_weekly_report(
+                wom_client=object(),
+                group_id=7,
+                end_date=datetime(2025, 6, 8, 18, 0, tzinfo=timezone.utc),
+                log=lambda _message: None,
+            )
+        )
+    )
+
+    assert "Boss KC milestones" in report
+    assert "500 Zulrah kills" in report
+    with sqlite3.connect(os.environ["WOM_DATABASE_PATH"]) as conn:
+        row = conn.execute(
+            "SELECT player_id, metric, measure, threshold FROM achievements"
+        ).fetchone()
+        player = conn.execute(
+            "SELECT player_id, display_name FROM wom_players"
+        ).fetchone()
+        alias = conn.execute(
+            "SELECT normalized_name FROM player_aliases"
+        ).fetchone()
+    assert row == (42, "zulrah", "kills", 500)
+    assert player == (42, "Hero Player")
+    assert alias == ("hero player",)
+
+
+@pytest.mark.parametrize("reporter_name", ["monthly", "yearly"])
+def test_longer_reports_persist_existing_achievement_fetches(monkeypatch, reporter_name):
+    dt = datetime(2024, 6, 4, tzinfo=timezone.utc)
+    achievement = _fake_achievement(
+        42,
+        "agility",
+        dt,
+        measure_value="experience",
+        threshold=50_000_000,
+        name="50m Agility",
+    )
+
+    async def no_gains(*_args, **_kwargs):
+        return []
+
+    async def member_map(*_args, **_kwargs):
+        return {42: "Hero Player"}
+
+    if reporter_name == "monthly":
+        async def dated_pages(*_args, **kwargs):
+            return [achievement] if kwargs["label"] == "achievements" else []
+
+        monkeypatch.setattr(monthly_reporter, "_get_group_gains", no_gains)
+        monkeypatch.setattr(monthly_reporter, "_get_group_member_map", member_map)
+        monkeypatch.setattr(monthly_reporter, "_get_dated_pages", dated_pages)
+        messages = asyncio.run(
+            monthly_reporter._generate_monthly_report(
+                wom_client=types.SimpleNamespace(groups=object()),
+                group_id=7,
+                end_date=datetime(2024, 7, 1, 12, 0, tzinfo=timezone.utc),
+                log=lambda _message: None,
+            )
+        )
+    else:
+        async def no_changes(*_args, **_kwargs):
+            return []
+
+        async def achievements(*_args, **_kwargs):
+            return [achievement]
+
+        async def no_stats(*_args, **_kwargs):
+            return None
+
+        async def no_sleep(*_args, **_kwargs):
+            return None
+
+        monkeypatch.setattr(yearly_reporter, "_get_group_gains", no_gains)
+        monkeypatch.setattr(yearly_reporter, "_get_group_member_map", member_map)
+        monkeypatch.setattr(yearly_reporter, "_get_group_name_changes", no_changes)
+        monkeypatch.setattr(yearly_reporter, "_get_group_achievements", achievements)
+        monkeypatch.setattr(yearly_reporter, "_get_group_statistics", no_stats)
+        monkeypatch.setattr(yearly_reporter.asyncio, "sleep", no_sleep)
+        messages = asyncio.run(
+            yearly_reporter._generate_yearly_report(
+                wom_client=object(),
+                group_id=7,
+                end_date=datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc),
+                log=lambda _message: None,
+            )
+        )
+
+    assert "XP milestones" in "\n".join(messages)
+    with sqlite3.connect(os.environ["WOM_DATABASE_PATH"]) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM achievements").fetchone()[0] == 1

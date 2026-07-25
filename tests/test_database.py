@@ -16,7 +16,13 @@ def test_init_database_creates_expected_tables(tmp_path):
             row[0]
             for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")
         }
-    assert {"players", "ehb_history"}.issubset(tables)
+    assert {
+        "players",
+        "ehb_history",
+        "wom_players",
+        "player_aliases",
+        "achievements",
+    }.issubset(tables)
 
 
 def test_upsert_players_writes_snapshot_rows(tmp_path):
@@ -160,3 +166,125 @@ def test_upsert_players_persists_total_xp_without_erasing_it_when_omitted(tmp_pa
             "SELECT last_ehb, total_xp FROM players WHERE username = 'alice'"
         ).fetchone()
     assert row == (43.0, 123456789)
+
+
+def test_upsert_achievement_events_normalizes_identity_and_alias(tmp_path):
+    db_path = tmp_path / "database.db"
+    row = {
+        "player_id": 42,
+        "source_group_id": 7,
+        "current_username": "hero player",
+        "display_name": "Hero Player",
+        "account_type": "ironman",
+        "build": "main",
+        "status": "active",
+        "overall_xp": 123_456_789,
+        "metric": "Wintertodt",
+        "measure": "Kills",
+        "threshold": 500,
+        "name": "500 Wintertodt kills",
+        "achieved_at": "2025-01-02T03:04:05+00:00",
+        "accuracy_ms": 1200,
+        "legacy": False,
+    }
+
+    assert database.upsert_achievement_events([row], db_path=str(db_path)) == 1
+
+    with sqlite3.connect(db_path) as conn:
+        player = conn.execute(
+            "SELECT player_id, display_name, account_type, overall_xp FROM wom_players"
+        ).fetchone()
+        alias = conn.execute(
+            "SELECT player_id, normalized_name, display_name FROM player_aliases"
+        ).fetchone()
+        achievement = conn.execute(
+            """
+            SELECT player_id, source_group_id, metric, measure, threshold,
+                   name, accuracy_ms, legacy
+            FROM achievements
+            """
+        ).fetchone()
+
+    assert player == (42, "Hero Player", "ironman", 123_456_789)
+    assert alias == (42, "hero player", "Hero Player")
+    assert achievement == (
+        42,
+        7,
+        "wintertodt",
+        "kills",
+        500,
+        "500 Wintertodt kills",
+        1200,
+        0,
+    )
+
+
+def test_upsert_achievement_events_deduplicates_and_updates_mutable_fields(tmp_path):
+    db_path = tmp_path / "database.db"
+    base = {
+        "player_id": 42,
+        "source_group_id": 7,
+        "display_name": "Old Name",
+        "metric": "agility",
+        "measure": "experience",
+        "threshold": 50_000_000,
+        "name": "50m Agility",
+        "achieved_at": "2025-01-01T00:00:00+00:00",
+        "accuracy_ms": 5000,
+        "legacy": False,
+    }
+    assert database.upsert_achievement_events([base], db_path=str(db_path)) == 1
+
+    updated = {
+        **base,
+        "display_name": "New Name",
+        "achieved_at": "2025-01-01T01:00:00+00:00",
+        "accuracy_ms": 1000,
+        "legacy": True,
+    }
+    assert database.upsert_achievement_events([updated], db_path=str(db_path)) == 0
+    missing_optional_fields = {
+        **updated,
+        "achieved_at": None,
+        "accuracy_ms": None,
+        "legacy": None,
+    }
+    assert (
+        database.upsert_achievement_events(
+            [missing_optional_fields],
+            db_path=str(db_path),
+        )
+        == 0
+    )
+
+    with sqlite3.connect(db_path) as conn:
+        count = conn.execute("SELECT COUNT(*) FROM achievements").fetchone()[0]
+        achievement = conn.execute(
+            "SELECT achieved_at, accuracy_ms, legacy FROM achievements"
+        ).fetchone()
+        aliases = {
+            row[0] for row in conn.execute("SELECT normalized_name FROM player_aliases")
+        }
+
+    assert count == 1
+    assert achievement == ("2025-01-01T01:00:00+00:00", 1000, 1)
+    assert aliases == {"old name", "new name"}
+
+
+def test_achievement_dedup_key_includes_threshold(tmp_path):
+    db_path = tmp_path / "database.db"
+    base = {
+        "player_id": 42,
+        "source_group_id": 7,
+        "metric": "zulrah",
+        "measure": "kills",
+        "name": "Zulrah milestone",
+    }
+    inserted = database.upsert_achievement_events(
+        [
+            {**base, "threshold": 100},
+            {**base, "threshold": 500},
+        ],
+        db_path=str(db_path),
+    )
+    assert inserted == 2
