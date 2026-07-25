@@ -43,7 +43,7 @@ Shared bot/web state lives in `python/web/services/bot_state.py` (`BotState`). T
 4. On EHB increase, notify Discord, append to the legacy EHB CSV when enabled, and update JSON/SQLite.
 5. On EHP increase, notify Discord with an EHP label and append to SQLite `ehp_history`.
 
-`python/player_ranks.json` remains the rank snapshot used by the bot and web UI. Entries always contain `last_ehb` and `rank`; EHP-enabled entries also contain `last_ehp` and `ehp_rank`. `save_ranks()` mirrors changed snapshots into SQLite while preserving optional/future fields. Manual `/update` changes only the EHB fields.
+`python/utils/player_ranks.json` remains the rank snapshot used by the bot and web UI. Entries always contain `last_ehb` and `rank`; EHP-enabled entries also contain `last_ehp` and `ehp_rank`. `save_ranks()` mirrors changed snapshots into SQLite while preserving optional/future fields. Manual `/update` changes only the EHB fields.
 
 ### Gains tracking
 
