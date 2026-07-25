@@ -98,8 +98,9 @@ def load_ranks():
 def _sanitize_player_entry(pdata):
     """Return a persisted player entry, preserving optional and future fields.
 
-    Preserving EHP keys conditionally keeps the JSON backward-compatible: pre-EHP
-    rows round-trip byte-for-byte, while EHP-tracked rows retain their fields.
+    Preserving optional keys conditionally keeps the JSON backward-compatible:
+    legacy rows round-trip without fabricated values, while tracked rows retain
+    their EHP and total-XP fields.
     """
     pdata = pdata or {}
     entry = dict(pdata)
@@ -108,6 +109,9 @@ def _sanitize_player_entry(pdata):
     if "last_ehp" in pdata or "ehp_rank" in pdata:
         entry.setdefault("last_ehp", 0)
         entry.setdefault("ehp_rank", "Unknown")
+    if "total_xp" in pdata:
+        total_xp = pdata.get("total_xp")
+        entry["total_xp"] = int(total_xp) if total_xp is not None else None
     return entry
 
 
@@ -126,7 +130,7 @@ def save_ranks(data):
         for username, pdata in data.items()
     }
 
-    # Load existing data to compare EHB / EHP values
+    # Load existing data to compare EHB / EHP / total XP values
     old_data = {}
     if os.path.exists(RANKS_FILE):
         try:
@@ -147,6 +151,7 @@ def save_ranks(data):
             or old_data.get(username, {}).get("rank") != pdata.get("rank")
             or old_data.get(username, {}).get("last_ehp") != pdata.get("last_ehp")
             or old_data.get(username, {}).get("ehp_rank") != pdata.get("ehp_rank")
+            or old_data.get(username, {}).get("total_xp") != pdata.get("total_xp")
         }
         if changed_rows:
             upsert_players(changed_rows)
@@ -172,8 +177,16 @@ def _next_rank_for(current_rank, section, unit_label):
     return "Unknown"
 
 
-def compute_member_update(last_data, ehb, rank, ehp=None, ehp_rank=None, track_ehp=False):
-    """Merge new EHB/EHP values into a member's stored entry (pure).
+def compute_member_update(
+    last_data,
+    ehb,
+    rank,
+    ehp=None,
+    ehp_rank=None,
+    track_ehp=False,
+    total_xp=None,
+):
+    """Merge new EHB/EHP/total-XP values into a member's stored entry (pure).
 
     Returns a dict with the merged ``entry`` plus decision flags the caller uses
     to drive side effects (Discord notifications, CSV/DB logging). EHB and EHP are
@@ -200,6 +213,9 @@ def compute_member_update(last_data, ehb, rank, ehp=None, ehp_rank=None, track_e
         if ehp_increase or ehp_rank != last_ehp_rank:
             entry["last_ehp"] = ehp
             entry["ehp_rank"] = ehp_rank
+
+    if total_xp is not None:
+        entry["total_xp"] = int(total_xp)
 
     return {
         "entry": entry,

@@ -56,6 +56,27 @@ def _chunk_code_block(lines: list[str], limit: int = 1990) -> list[str]:
     return messages or ["```\n(no data)\n```"]
 
 
+def _format_lookup_message(username: str, user_data: dict) -> str:
+    """Format locally persisted rank metrics for the Discord lookup response."""
+    ehb = user_data["last_ehb"]
+    rank = user_data["rank"]
+    message = f"**{username}**\n**Rank:** {rank} ({ehb} EHB)"
+    if "ehp_rank" in user_data:
+        ehp = user_data.get("last_ehp", 0)
+        ehp_rank = user_data.get("ehp_rank", "Unknown")
+        message += f"\n**Skilling Rank:** {ehp_rank} ({ehp} EHP)"
+
+    total_xp = user_data.get("total_xp")
+    if total_xp is None:
+        xp_display = "Not available yet (run a rank refresh)"
+    else:
+        try:
+            xp_display = f"{int(total_xp):,}"
+        except (TypeError, ValueError):
+            xp_display = "Not available yet (run a rank refresh)"
+    return f"{message}\n**Total XP:** {xp_display}"
+
+
 def setup_commands(
     bot: commands.Bot,
     wom_client,
@@ -73,9 +94,9 @@ def setup_commands(
 ):
     """Register slash commands on the provided bot."""
 
-    # Command: /lookup --- Lists the rank and EHB for a specific user.
+    # Command: /lookup --- Lists locally persisted rank metrics for a specific user.
 
-    @bot.tree.command(name="lookup", description="Lists the rank and EHB for a specific user.")
+    @bot.tree.command(name="lookup", description="Lists rank, EHB, EHP, and total XP for a user.")
     @app_commands.describe(username="Wise Old Man username")
     async def lookup(interaction: Interaction, username: str):
         try:
@@ -84,11 +105,7 @@ def setup_commands(
                 user_data = ranks_data[username]
                 ehb = user_data["last_ehb"]
                 rank = user_data["rank"]
-                message = f"**{username}**\n**Rank:** {rank} ({ehb} EHB)"
-                if "ehp_rank" in user_data:
-                    ehp = user_data.get("last_ehp", 0)
-                    ehp_rank = user_data.get("ehp_rank", "Unknown")
-                    message += f"\n**Skilling Rank:** {ehp_rank} ({ehp} EHP)"
+                message = _format_lookup_message(username, user_data)
                 await interaction.response.send_message(message)
                 if debug:
                     print(f"Listed {username}: {rank} ({ehb} EHB)")

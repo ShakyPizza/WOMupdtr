@@ -95,7 +95,7 @@ def init_database(db_path: str | None = None) -> str:
             "CREATE INDEX IF NOT EXISTS idx_ehb_history_username_ts ON ehb_history (username, timestamp)"
         )
 
-        # Feature 2 (EHP) + Feature 3 (inactivity/status) add columns to the
+        # EHP, total XP, and inactivity/status tracking add columns to the
         # existing ``players`` table. On a fresh database the CREATE above does
         # not include them, and on a deployed database the CREATE is a no-op, so
         # the migration helper is the single source of truth for these columns.
@@ -106,6 +106,7 @@ def init_database(db_path: str | None = None) -> str:
                 # Feature 2 — skilling (EHP) rank ladder
                 "last_ehp": "REAL NOT NULL DEFAULT 0",
                 "ehp_rank": "TEXT NOT NULL DEFAULT 'Unknown'",
+                "total_xp": "INTEGER",
                 # Feature 3 — inactivity / status detection
                 "player_id": "INTEGER",
                 "wom_status": "TEXT",
@@ -178,7 +179,7 @@ def init_database(db_path: str | None = None) -> str:
 
 
 def upsert_players(players: dict[str, dict], db_path: str | None = None) -> None:
-    """Persist the latest player rank snapshot (EHB + EHP) to SQLite."""
+    """Persist the latest player rank snapshot (EHB + EHP + total XP) to SQLite."""
     if not players:
         return
 
@@ -187,13 +188,16 @@ def upsert_players(players: dict[str, dict], db_path: str | None = None) -> None
     with closing(connect_db(resolved_path)) as conn:
         conn.executemany(
             """
-            INSERT INTO players (username, last_ehb, rank, last_ehp, ehp_rank, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO players (
+                username, last_ehb, rank, last_ehp, ehp_rank, total_xp, updated_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(username) DO UPDATE SET
                 last_ehb = excluded.last_ehb,
                 rank = excluded.rank,
                 last_ehp = excluded.last_ehp,
                 ehp_rank = excluded.ehp_rank,
+                total_xp = COALESCE(excluded.total_xp, players.total_xp),
                 updated_at = excluded.updated_at
             """,
             [
@@ -203,6 +207,7 @@ def upsert_players(players: dict[str, dict], db_path: str | None = None) -> None
                     str(data.get("rank", "Unknown")),
                     float(data.get("last_ehp", 0)),
                     str(data.get("ehp_rank", "Unknown")),
+                    int(data["total_xp"]) if data.get("total_xp") is not None else None,
                     timestamp,
                 )
                 for username, data in players.items()

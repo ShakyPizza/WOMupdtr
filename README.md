@@ -97,7 +97,7 @@ python python/WOM.py
 General:
 - `/commands` - Lists all available commands.
 - `/refresh` - Posts current group rankings.
-- `/lookup <username>` - Shows rank/EHB for a player.
+- `/lookup <username>` - Shows locally stored rank, EHB, EHP, and total XP for a player.
 - `/update <username>` - Updates rank/EHB for one player (case-insensitive).
 - `/rankup <username>` - Shows next rank threshold.
 - `/goodnight` - Sends a good night message.

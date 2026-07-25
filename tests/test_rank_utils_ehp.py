@@ -188,6 +188,29 @@ def test_compute_member_update_ehp_only_increase_not_swallowed():
     assert result["entry"]["ehp_rank"] == "Steel"
 
 
+def test_compute_member_update_persists_total_xp_without_changing_ehp_behavior():
+    result = rank_utils.compute_member_update(
+        {
+            "last_ehb": 10,
+            "rank": "Bronze",
+            "last_ehp": 100,
+            "ehp_rank": "Stone",
+        },
+        10,
+        "Bronze",
+        ehp=100,
+        ehp_rank="Stone",
+        track_ehp=True,
+        total_xp=987654321,
+    )
+
+    assert result["ehb_increase"] is False
+    assert result["ehp_increase"] is False
+    assert result["entry"]["last_ehp"] == 100
+    assert result["entry"]["ehp_rank"] == "Stone"
+    assert result["entry"]["total_xp"] == 987654321
+
+
 def test_compute_member_update_ehp_untracked_leaves_ehp_alone():
     result = rank_utils.compute_member_update(
         {"last_ehb": 10, "rank": "Bronze", "last_ehp": 100, "ehp_rank": "Stone"},
