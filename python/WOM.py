@@ -279,6 +279,8 @@ async def check_for_rank_changes():
                     username = player.display_name
                     ehb = round(player.ehb, 2)
                     rank = get_rank(ehb)
+                    player_exp = getattr(player, "exp", None)
+                    total_xp = int(player_exp) if player_exp is not None else None
 
                     last_data = ranks_data.get(username, {})
 
@@ -290,7 +292,13 @@ async def check_for_rank_changes():
 
                     # Independent EHB / EHP evaluation merged into one entry.
                     result = compute_member_update(
-                        last_data, ehb, rank, ehp=ehp, ehp_rank=ehp_rank, track_ehp=track_ehp
+                        last_data,
+                        ehb,
+                        rank,
+                        ehp=ehp,
+                        ehp_rank=ehp_rank,
+                        track_ehp=track_ehp,
+                        total_xp=total_xp,
                     )
 
                     # --- EHB side effects ---

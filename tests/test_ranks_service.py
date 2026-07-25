@@ -51,6 +51,22 @@ def test_get_all_players_sorted_defaults_missing_fields(monkeypatch):
 
     assert result[0]["ehb"] == 0
     assert result[0]["rank"] == "Unknown"
+    assert result[0]["ehp_tracked"] is False
+    assert result[0]["ehp"] is None
+    assert result[0]["ehp_rank"] is None
+
+
+def test_get_all_players_sorted_marks_persisted_ehp_as_tracked(monkeypatch):
+    """A real persisted zero EHP remains tracked rather than becoming a fallback."""
+    monkeypatch.setattr(ranks_service, "load_ranks", lambda: {
+        "tracked": {"last_ehb": 10, "rank": "Opal", "last_ehp": 0, "ehp_rank": "Novice"}
+    })
+
+    result = ranks_service.get_all_players_sorted()
+
+    assert result[0]["ehp_tracked"] is True
+    assert result[0]["ehp"] == 0
+    assert result[0]["ehp_rank"] == "Novice"
 
 
 def test_get_rank_snapshot_reports_load_errors(monkeypatch, caplog):

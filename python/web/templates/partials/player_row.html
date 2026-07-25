@@ -5,8 +5,8 @@
     <td><a href="/players/{{ player.username }}">{{ player.username }}</a></td>
     <td><span class="rank-badge rank-{{ player.rank|rank_slug }}">{{ player.rank }}</span></td>
     <td>{{ "%.2f"|format(player.ehb) }}</td>
-    <td>{{ player.ehp_rank if player.ehp_rank else "Unknown" }}</td>
-    <td>{{ "%.2f"|format(player.ehp or 0) }}</td>
+    <td>{{ player.ehp_rank if player.ehp_tracked else "Not tracked" }}</td>
+    <td>{{ "%.2f"|format(player.ehp) if player.ehp_tracked else "—" }}</td>
 </tr>
 {% endfor %}
 {% else %}

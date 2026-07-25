@@ -28,6 +28,10 @@ In `docker-compose.yml`, `./data` is mounted to `/app/data`, so the database sur
 
 `python/WOM.py` calls `init_database()` during startup before the Discord bot and web server are started. The helper creates the database directory and tables if they are missing.
 
+For existing databases, initialization idempotently adds a nullable
+`total_xp INTEGER` column to `players`. Legacy rows remain valid with no
+total-XP value until the next rank refresh.
+
 The schema is defined in:
 
 ```text
@@ -44,7 +48,7 @@ Startup also seeds SQLite from existing local state:
 
 ### `players`
 
-Stores the latest rank snapshot for each player.
+Stores the latest rank snapshot and total XP for each player.
 
 ```sql
 CREATE TABLE IF NOT EXISTS players (
@@ -63,10 +67,11 @@ Columns:
 | `last_ehb` | `REAL NOT NULL DEFAULT 0` | Latest known Efficient Hours Bossed value. |
 | `rank` | `TEXT NOT NULL DEFAULT 'Unknown'` | Rank name calculated from `python/ranks.ini`. |
 | `updated_at` | `TEXT NOT NULL` | UTC timestamp for the latest SQLite snapshot write. |
+| `total_xp` | `INTEGER` | Latest overall experience returned by Wise Old Man; nullable for legacy rows. |
 
 Writes:
 
-- `save_ranks()` writes changed player snapshots through `upsert_players()`.
+- `save_ranks()` writes changed rank and total-XP snapshots through `upsert_players()`.
 - `WOM.py` also upserts the full JSON snapshot at startup.
 
 ### `ehb_history`
@@ -119,7 +124,7 @@ Writes:
 ```text
 Wise Old Man API
   -> WOM.py rank check loop
-  -> player_ranks.json latest snapshot
+  -> player_ranks.json latest EHB/total-XP snapshot
   -> players table
 
 Rank EHB increase

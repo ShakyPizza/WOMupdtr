@@ -26,11 +26,7 @@ def list_available_metrics() -> list[str]:
 
 def read_player_gains_history(username: str, metric: str) -> list[dict]:
     """Return ``[{timestamp, gained}]`` gains history for a player + metric."""
-    try:
-        return read_gains_history(username, metric)
-    except Exception:
-        logger.exception("Failed to read gains history for %s/%s", username, metric)
-        return []
+    return read_gains_history(username, metric)
 
 
 def read_latest_gains_leaderboard(metric: str, limit: int = 20) -> list[dict]:

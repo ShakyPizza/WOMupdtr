@@ -145,6 +145,29 @@ def test_save_ranks_skips_update_when_ehb_unchanged(tmp_path, monkeypatch):
     assert "called" not in called
 
 
+def test_save_ranks_persists_and_upserts_total_xp_change(tmp_path, monkeypatch):
+    ranks_file = tmp_path / "player_ranks.json"
+    ranks_file.write_text(
+        json.dumps({"player": {"last_ehb": 42, "rank": "Bronze"}})
+    )
+    monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+
+    calls = []
+    monkeypatch.setattr(rank_utils, "upsert_players", lambda players: calls.append(players))
+
+    updated = {
+        "player": {
+            "last_ehb": 42,
+            "rank": "Bronze",
+            "total_xp": 123456789,
+        }
+    }
+    rank_utils.save_ranks(updated)
+
+    assert json.loads(ranks_file.read_text()) == updated
+    assert calls == [updated]
+
+
 def test_load_ranks_returns_empty_on_corrupt_json(tmp_path, monkeypatch):
     ranks_file = tmp_path / "player_ranks.json"
     with open(ranks_file, "w") as f:

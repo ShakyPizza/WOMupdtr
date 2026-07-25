@@ -93,8 +93,20 @@ def test_init_database_migrates_pre_existing_players_table(tmp_path):
 
     with sqlite3.connect(db_path) as conn:
         columns = {row[1] for row in conn.execute("PRAGMA table_info(players)")}
-    for expected in {"last_ehp", "ehp_rank", "player_id", "wom_status", "last_changed_at"}:
+    for expected in {
+        "last_ehp",
+        "ehp_rank",
+        "total_xp",
+        "player_id",
+        "wom_status",
+        "last_changed_at",
+    }:
         assert expected in columns
+    with sqlite3.connect(db_path) as conn:
+        total_xp = conn.execute(
+            "SELECT total_xp FROM players WHERE username = 'alice'"
+        ).fetchone()[0]
+    assert total_xp is None
 
 
 def test_init_database_is_idempotent(tmp_path):
@@ -130,3 +142,21 @@ def test_upsert_players_persists_ehp_fields(tmp_path):
             "SELECT last_ehp, ehp_rank FROM players WHERE username = 'alice'"
         ).fetchone()
     assert row == (300.0, "Adept")
+
+
+def test_upsert_players_persists_total_xp_without_erasing_it_when_omitted(tmp_path):
+    db_path = tmp_path / "database.db"
+    database.upsert_players(
+        {"alice": {"last_ehb": 42.5, "rank": "Silver", "total_xp": 123456789}},
+        db_path=str(db_path),
+    )
+    database.upsert_players(
+        {"alice": {"last_ehb": 43.0, "rank": "Silver"}},
+        db_path=str(db_path),
+    )
+
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT last_ehb, total_xp FROM players WHERE username = 'alice'"
+        ).fetchone()
+    assert row == (43.0, 123456789)
