@@ -31,13 +31,14 @@ class RankSnapshot:
 
 
 def _build_player(username: str, data: dict) -> dict:
+    ehp_tracked = "last_ehp" in data and "ehp_rank" in data
     return {
         "username": username,
         "ehb": data.get("last_ehb", 0),
         "rank": canonicalize_rank_name(data.get("rank", "Unknown")),
-        # EHP fields default gracefully for pre-EHP rows.
-        "ehp": data.get("last_ehp", 0),
-        "ehp_rank": data.get("ehp_rank", "Unknown"),
+        "ehp_tracked": ehp_tracked,
+        "ehp": data.get("last_ehp") if ehp_tracked else None,
+        "ehp_rank": data.get("ehp_rank") if ehp_tracked else None,
     }
 
 
@@ -94,11 +95,12 @@ def get_player_detail(username: str, snapshot: RankSnapshot | None = None) -> di
     players = (snapshot or get_rank_snapshot()).players
     for player in players:
         if player["username"].lower() == username.lower():
-            return {
+            detail = {
                 **player,
                 "next_rank": next_rank(player["username"]),
-                "next_rank_ehp": next_rank_ehp(player["username"]),
             }
+            detail["next_rank_ehp"] = next_rank_ehp(player["username"]) if player["ehp_tracked"] else None
+            return detail
     return None
 
 
