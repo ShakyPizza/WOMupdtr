@@ -55,12 +55,13 @@
             {% endfor %}
         </select>
     </div>
-    <p id="player-history-message" class="chart-message">Choose a player to load their history chart.</p>
+    <p id="player-history-message" class="chart-message" role="status" aria-live="polite">Choose a player to load their history chart.</p>
     <div class="chart-frame" data-chart-panel>
         <canvas id="playerChart"></canvas>
     </div>
 </article>
 
+{% if ehp_players %}
 <article class="surface-card"
          data-player-ehp-select
          data-ehp-target="playerEhpChart"
@@ -75,16 +76,17 @@
         <label for="ehpPlayerSelect">Player</label>
         <select id="ehpPlayerSelect">
             <option value="">Select a player...</option>
-            {% for player in players %}
+            {% for player in ehp_players %}
             <option value="{{ player.username }}">{{ player.username }}</option>
             {% endfor %}
         </select>
     </div>
-    <p id="player-ehp-message" class="chart-message">Choose a player to load their EHP history.</p>
+    <p id="player-ehp-message" class="chart-message" role="status" aria-live="polite">Choose a player to load their EHP history.</p>
     <div class="chart-frame" data-chart-panel>
         <canvas id="playerEhpChart"></canvas>
     </div>
 </article>
+{% endif %}
 
 <article class="surface-card"
          data-player-gains-select
@@ -111,7 +113,7 @@
             {% endfor %}
         </select>
     </div>
-    <p id="player-gains-message" class="chart-message">Choose a player to load their gains history.</p>
+    <p id="player-gains-message" class="chart-message" role="status" aria-live="polite">Choose a player to load their gains history.</p>
     <div class="chart-frame" data-chart-panel>
         <canvas id="playerGainsChart"></canvas>
     </div>

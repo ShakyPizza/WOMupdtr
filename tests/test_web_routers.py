@@ -2,13 +2,16 @@
 
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+import re
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from web import create_app
 from web.services.bot_state import BotState
-from web.routers import admin, charts, dashboard, group, players
+from web.routers import admin, charts, dashboard, group, players, reports
+from web.services.csv_service import CsvReadResult
 from utils import database
 
 
@@ -341,6 +344,54 @@ def test_gains_history_endpoint_returns_list():
     assert data == [{"timestamp": "2025-01-08 00:00:00", "gained": 5000.0}]
 
 
+@pytest.mark.parametrize(
+    ("endpoint", "reader_name", "expected_error"),
+    [
+        (
+            "/charts/api/ehp-history?player=alice",
+            "read_player_ehp_history",
+            "EHP history could not be loaded.",
+        ),
+        (
+            "/charts/api/gains-history?player=alice&metric=overall",
+            "read_player_gains_history",
+            "Gains history could not be loaded.",
+        ),
+    ],
+)
+def test_database_history_endpoints_surface_read_errors(
+    monkeypatch, endpoint, reader_name, expected_error
+):
+    """SQLite chart failures use a consistent status, payload, and error header."""
+    def explode(*args):
+        raise OSError("database unavailable")
+
+    monkeypatch.setattr(charts, reader_name, explode)
+
+    with TestClient(_make_app(_make_bot_state())) as client:
+        response = client.get(endpoint)
+
+    assert response.status_code == 503
+    assert response.json() == []
+    assert response.headers["X-Data-Error"].startswith(expected_error)
+
+
+def test_ehb_history_endpoint_normalizes_service_errors(monkeypatch):
+    """CSV chart failures use the same 503 + error-header contract."""
+    monkeypatch.setattr(
+        charts,
+        "read_player_ehb_history",
+        lambda player: CsvReadResult([], "EHB history could not be loaded."),
+    )
+
+    with TestClient(_make_app(_make_bot_state())) as client:
+        response = client.get("/charts/api/ehb-history?player=alice")
+
+    assert response.status_code == 503
+    assert response.json() == []
+    assert response.headers["X-Data-Error"] == "EHB history could not be loaded."
+
+
 def test_players_page_shows_ehp_columns(monkeypatch, sample_players):
     """Players table renders the Skill Rank / EHP columns."""
     from web.services import ranks_service
@@ -352,6 +403,28 @@ def test_players_page_shows_ehp_columns(monkeypatch, sample_players):
     assert response.status_code == 200
     assert "Skill Rank" in response.text
     assert "Adept" in response.text  # silver_sam's ehp_rank from the fixture
+
+
+def test_legacy_player_uses_not_tracked_ehp_fallback(monkeypatch):
+    """Players without persisted EHP fields do not display synthetic zero/rank data."""
+    from web.services import ranks_service
+
+    monkeypatch.setattr(
+        ranks_service,
+        "load_ranks",
+        lambda: {"legacy_player": {"last_ehb": 25.0, "rank": "Opal"}},
+    )
+    monkeypatch.setattr(ranks_service, "next_rank", lambda username: "Sapphire at 50 EHB")
+
+    with TestClient(_make_app(_make_bot_state())) as client:
+        list_response = client.get("/players/")
+        detail_response = client.get("/players/legacy_player")
+        charts_response = client.get("/charts/")
+
+    assert "Not tracked" in list_response.text
+    assert "Current EHP" not in detail_response.text
+    assert "EHP history" not in detail_response.text
+    assert "Individual EHP history" not in charts_response.text
 
 
 # ---------------------------------------------------------------------------
@@ -372,6 +445,61 @@ def test_robots_txt_exposes_crawler_policy():
     assert "Allow: /" in response.text
 
 
+def test_full_app_serves_all_pages_and_static_assets(monkeypatch, sample_players, sample_csv_file):
+    """The production app factory wires every page router plus static files."""
+    from web.services import csv_service, ranks_service
+
+    async def fake_report(*args, **kwargs):
+        return ["Report ready"]
+
+    monkeypatch.setattr(ranks_service, "load_ranks", lambda: sample_players)
+    monkeypatch.setattr(csv_service, "_resolve_csv_path", lambda _: str(sample_csv_file))
+    monkeypatch.setattr(reports, "get_weekly_report", fake_report)
+    monkeypatch.setattr(reports, "get_monthly_report", fake_report)
+    monkeypatch.setattr(reports, "get_yearly_report", fake_report)
+
+    app = create_app(_make_bot_state(), log_func=lambda message: None)
+    with TestClient(app) as client:
+        responses = {
+            path: client.get(path)
+            for path in (
+                "/",
+                "/players/",
+                "/players/goblin_gaz",
+                "/reports/weekly",
+                "/reports/monthly",
+                "/reports/yearly",
+                "/charts/",
+                "/admin/",
+                "/group/",
+                "/static/css/style.css",
+                "/static/js/app.js",
+            )
+        }
+
+    assert all(response.status_code == 200 for response in responses.values())
+    assert "Report ready" in responses["/reports/weekly"].text
+    assert responses["/static/css/style.css"].headers["content-type"].startswith("text/css")
+    assert "javascript" in responses["/static/js/app.js"].headers["content-type"]
+
+
+def test_weekly_report_has_no_ignored_fresh_action(monkeypatch):
+    """Weekly report copy reflects that the report is generated on page load."""
+    async def fake_report(*args, **kwargs):
+        return ["Report ready"]
+
+    monkeypatch.setattr(reports, "get_weekly_report", fake_report)
+    app = create_app(_make_bot_state(), log_func=lambda message: None)
+
+    with TestClient(app) as client:
+        response = client.get("/reports/weekly")
+
+    assert response.status_code == 200
+    assert "generated when this page loads" in response.text
+    assert "fresh=true" not in response.text
+    assert "Generate fresh report" not in response.text
+
+
 def test_dashboard_marks_dashboard_nav_active(monkeypatch, sample_players, sample_csv_file):
     """Dashboard page sets aria-current on the active nav item."""
     from web.services import ranks_service, csv_service
@@ -383,7 +511,7 @@ def test_dashboard_marks_dashboard_nav_active(monkeypatch, sample_players, sampl
         response = client.get("/")
 
     assert response.status_code == 200
-    assert 'href="/" aria-current="page"' in response.text
+    assert re.search(r'href="/"\s+aria-current="page"', response.text)
 
 
 def test_players_page_marks_players_nav_active(monkeypatch, sample_players):
@@ -396,7 +524,7 @@ def test_players_page_marks_players_nav_active(monkeypatch, sample_players):
         response = client.get("/players/")
 
     assert response.status_code == 200
-    assert 'href="/players/" aria-current="page"' in response.text
+    assert re.search(r'href="/players/"\s+aria-current="page"', response.text)
 
 
 def test_players_search_empty_state(monkeypatch, sample_players):

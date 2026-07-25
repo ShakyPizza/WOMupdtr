@@ -53,6 +53,11 @@ A Discord bot that integrates with the Wise Old Man API to track EHB and optiona
    gains_snapshot_interval = 86400
    gains_window_days = 7
    gains_metrics = overall,ehb
+
+   [web]
+   enabled = true
+   host = 0.0.0.0
+   port = 8080
    ```
 
 Notes:
@@ -61,6 +66,7 @@ Notes:
 - `api_key` is optional but helps with Wise Old Man rate limits.
 - EHP collection is opt-in. Set `track_ehp = true` to populate EHP ranks and history.
 - Gains snapshots default to a 7-day window collected daily. `gains_channel_id = 0` keeps the snapshots in SQLite without posting a Discord digest.
+- The web dashboard is disabled unless `[web] enabled = true`. Use `host = 0.0.0.0` in Docker so the published port can reach it; Docker Compose binds that port to host loopback by default. For a direct local run that should only be reachable from the same machine, use `host = 127.0.0.1`.
 - Keep your token/API values out of Git history.
 
 4. Copy `python/ranks.ini.example` to `python/ranks.ini`, then adjust the rank thresholds if needed:
@@ -122,10 +128,10 @@ Debug:
 ## Web Dashboard
 When running via Docker, the web dashboard is available at `http://localhost:8080`. You can also start it manually alongside the bot. Pages:
 - `/` — overview dashboard
-- `/players` — full member list with EHB/EHP ranks and search
-- `/group` — group stats and member list
+- `/players` — full member list with EHB/EHP ranks, history, and search
+- `/group` — group totals, member stats, rank distribution, and rank thresholds
 - `/reports/weekly`, `/reports/monthly`, `/reports/yearly` — report views
-- `/charts` — EHB/EHP history, gains, and rank distribution charts
+- `/charts` — rank distribution plus EHB, EHP, and gains history charts
 - `/admin` — settings editor, log viewer, and bot controls
 
 ## Weekly, Monthly, and Yearly Reports
