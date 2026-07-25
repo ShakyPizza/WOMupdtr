@@ -1,10 +1,10 @@
 import json
 import os
 import configparser
-from .database import upsert_players
+from .database import read_player_snapshots, upsert_players
 from .log_csv import load_latest_ehb_from_csv
 
-# JSON file for storing player ranks
+# Legacy JSON snapshot retained only as a one-time migration source.
 RANKS_FILE = os.path.join(os.path.dirname(__file__), 'player_ranks.json')
 RANKS_INI = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'ranks.ini')
 
@@ -84,31 +84,44 @@ def _bootstrap_ranks_from_csv():
     return ranks_data
 
 def load_ranks():
-    """Load ranks from a JSON file."""
+    """Load rank snapshots from SQLite, importing legacy storage when empty."""
+    persisted = read_player_snapshots()
+    if persisted:
+        return persisted
+
     if os.path.exists(RANKS_FILE):
         try:
             with open(RANKS_FILE, 'r') as f:
-                return json.load(f)
+                legacy_data = json.load(f)
 
         except (json.JSONDecodeError, ValueError):
-            print(f"Error: {RANKS_FILE} is empty or corrupted. Resetting data.")
-            return _bootstrap_ranks_from_csv()
-    return _bootstrap_ranks_from_csv()
+            print(f"Error: {RANKS_FILE} is empty or corrupted. Trying legacy CSV.")
+        else:
+            if legacy_data:
+                sanitized_data = {
+                    username: _sanitize_player_entry(pdata)
+                    for username, pdata in legacy_data.items()
+                }
+                upsert_players(sanitized_data)
+                print(f"Imported legacy rank snapshots from {RANKS_FILE} into SQLite.")
+                return sanitized_data
+
+    legacy_data = _bootstrap_ranks_from_csv()
+    if legacy_data:
+        upsert_players(legacy_data)
+        print("Imported legacy EHB snapshots from CSV into SQLite.")
+    return legacy_data
 
 def _sanitize_player_entry(pdata):
-    """Return a persisted player entry, preserving optional and future fields.
-
-    Preserving optional keys conditionally keeps the JSON backward-compatible:
-    legacy rows round-trip without fabricated values, while tracked rows retain
-    their EHP and total-XP fields.
-    """
+    """Return the supported rank fields for SQLite persistence."""
     pdata = pdata or {}
-    entry = dict(pdata)
-    entry.setdefault("last_ehb", 0)
-    entry.setdefault("rank", "Unknown")
+    entry = {
+        "last_ehb": pdata.get("last_ehb", 0),
+        "rank": pdata.get("rank", "Unknown"),
+    }
     if "last_ehp" in pdata or "ehp_rank" in pdata:
-        entry.setdefault("last_ehp", 0)
-        entry.setdefault("ehp_rank", "Unknown")
+        entry["last_ehp"] = pdata.get("last_ehp", 0)
+        entry["ehp_rank"] = pdata.get("ehp_rank", "Unknown")
     if "total_xp" in pdata:
         total_xp = pdata.get("total_xp")
         entry["total_xp"] = int(total_xp) if total_xp is not None else None
@@ -124,39 +137,13 @@ def merge_manual_rank_update(last_data: dict, ehb: float, rank: str) -> dict:
 
 
 def save_ranks(data):
-    """Save ranks to ``player_ranks.json`` and sync the latest snapshot to SQLite."""
+    """Persist the latest sanitized rank snapshot to SQLite."""
     sanitized_data = {
         username: _sanitize_player_entry(pdata)
         for username, pdata in data.items()
     }
 
-    # Load existing data to compare EHB / EHP / total XP values
-    old_data = {}
-    if os.path.exists(RANKS_FILE):
-        try:
-            with open(RANKS_FILE, "r") as f:
-                old_data = json.load(f)
-        except (json.JSONDecodeError, ValueError):
-            old_data = {}
-
-    # Write the new data to disk
-    with open(RANKS_FILE, "w") as f:
-        json.dump(sanitized_data, f, indent=4)
-
-    try:
-        changed_rows = {
-            username: pdata
-            for username, pdata in sanitized_data.items()
-            if old_data.get(username, {}).get("last_ehb") != pdata.get("last_ehb")
-            or old_data.get(username, {}).get("rank") != pdata.get("rank")
-            or old_data.get(username, {}).get("last_ehp") != pdata.get("last_ehp")
-            or old_data.get(username, {}).get("ehp_rank") != pdata.get("ehp_rank")
-            or old_data.get(username, {}).get("total_xp") != pdata.get("total_xp")
-        }
-        if changed_rows:
-            upsert_players(changed_rows)
-    except Exception as e:
-        print(f"Error updating SQLite player snapshot: {e}")
+    upsert_players(sanitized_data)
 
 def _next_rank_for(current_rank, section, unit_label):
     """Return the next-rank description for a current rank within a ranks section."""

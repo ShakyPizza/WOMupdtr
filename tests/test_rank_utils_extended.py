@@ -40,11 +40,11 @@ def tmp_ranks_ini(tmp_path, monkeypatch):
 
 
 # ---------------------------------------------------------------------------
-# save_ranks — first run (no existing JSON)
+# save_ranks — first run (no existing SQLite rows)
 # ---------------------------------------------------------------------------
 
-def test_save_ranks_creates_file_on_first_run(tmp_path, monkeypatch):
-    """save_ranks writes a new file when player_ranks.json does not yet exist."""
+def test_save_ranks_does_not_create_legacy_file_on_first_run(tmp_path, monkeypatch):
+    """save_ranks writes through SQLite without recreating player_ranks.json."""
     json_path = tmp_path / "player_ranks.json"
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(json_path))
 
@@ -54,9 +54,8 @@ def test_save_ranks_creates_file_on_first_run(tmp_path, monkeypatch):
     data = {"alice": {"last_ehb": 50.0, "rank": "Bronze"}}
     rank_utils.save_ranks(data)
 
-    assert json_path.exists()
-    saved = json.loads(json_path.read_text())
-    assert saved["alice"]["last_ehb"] == 50.0
+    assert calls == [data]
+    assert not json_path.exists()
 
 
 def test_save_ranks_syncs_to_sqlite_on_first_run(tmp_path, monkeypatch):
@@ -171,8 +170,8 @@ def test_load_ranks_empty_file_falls_back_to_bootstrap(tmp_path, monkeypatch):
     assert result == {}
 
 
-def test_load_ranks_preserves_unrecognized_fields(tmp_path, monkeypatch):
-    """load_ranks returns stored JSON without schema mutation."""
+def test_load_ranks_imports_only_supported_snapshot_fields(tmp_path, monkeypatch):
+    """Legacy JSON metadata outside the SQLite snapshot schema is ignored."""
     json_path = tmp_path / "player_ranks.json"
     data = {"dan": {"last_ehb": 10.0, "rank": "Bronze", "note": "legacy"}}
     json_path.write_text(json.dumps(data))
@@ -180,7 +179,7 @@ def test_load_ranks_preserves_unrecognized_fields(tmp_path, monkeypatch):
 
     result = rank_utils.load_ranks()
 
-    assert result == data
+    assert result == {"dan": {"last_ehb": 10.0, "rank": "Bronze"}}
 
 
 def test_load_ranks_missing_optional_fields_is_accepted(tmp_path, monkeypatch):

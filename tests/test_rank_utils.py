@@ -61,6 +61,90 @@ def test_load_ranks_preserves_json_payload(tmp_path, monkeypatch):
     assert result == data
 
 
+def test_load_ranks_restores_ehp_baseline_from_sqlite_after_restart(tmp_path, monkeypatch):
+    """A missing container-local JSON file must not reset persisted EHP state."""
+    ranks_file = tmp_path / "missing-player-ranks.json"
+    monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+    rank_utils.upsert_players(
+        {
+            "alice": {
+                "last_ehb": 42.5,
+                "rank": "Silver",
+                "last_ehp": 300.0,
+                "ehp_rank": "Adept",
+                "total_xp": 123456789,
+            }
+        }
+    )
+
+    ranks = rank_utils.load_ranks()
+    update = rank_utils.compute_member_update(
+        ranks["alice"],
+        ehb=42.5,
+        rank="Silver",
+        ehp=300.0,
+        ehp_rank="Adept",
+        track_ehp=True,
+        total_xp=123456789,
+    )
+
+    assert update["ehp_increase"] is False
+    assert update["ehp_old_rank"] == "Adept"
+    assert not ranks_file.exists()
+
+
+def test_load_ranks_migrates_legacy_json_when_database_is_empty(tmp_path, monkeypatch):
+    legacy = {
+        "alice": {
+            "last_ehb": 42.5,
+            "rank": "Silver",
+            "last_ehp": 300.0,
+            "ehp_rank": "Adept",
+        }
+    }
+    ranks_file = tmp_path / "player_ranks.json"
+    ranks_file.write_text(json.dumps(legacy))
+    monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+
+    assert rank_utils.load_ranks() == legacy
+
+    ranks_file.unlink()
+    assert rank_utils.load_ranks() == legacy
+
+
+def test_status_only_database_rows_do_not_block_legacy_migration(tmp_path, monkeypatch):
+    from python.utils.database import upsert_player_status
+
+    upsert_player_status([{"username": "status-only", "wom_status": "active"}])
+    legacy = {"alice": {"last_ehb": 42.5, "rank": "Silver"}}
+    ranks_file = tmp_path / "player_ranks.json"
+    ranks_file.write_text(json.dumps(legacy))
+    monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+
+    assert rank_utils.load_ranks() == legacy
+
+
+def test_save_ranks_does_not_recreate_legacy_json(tmp_path, monkeypatch):
+    ranks_file = tmp_path / "player_ranks.json"
+    monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
+
+    data = {"alice": {"last_ehb": 42.5, "rank": "Silver"}}
+    rank_utils.save_ranks(data)
+
+    assert rank_utils.load_ranks()["alice"]["last_ehb"] == 42.5
+    assert not ranks_file.exists()
+
+
+def test_save_ranks_propagates_sqlite_failures(monkeypatch):
+    def fail_write(_players):
+        raise OSError("database is read-only")
+
+    monkeypatch.setattr(rank_utils, "upsert_players", fail_write)
+
+    with pytest.raises(OSError, match="database is read-only"):
+        rank_utils.save_ranks({"alice": {"last_ehb": 42.5, "rank": "Silver"}})
+
+
 def test_next_rank_returns_correct_next_rank(tmp_path, monkeypatch):
     ranks_data = {
         "player": {"last_ehb": 150, "rank": "Silver"}
@@ -88,10 +172,8 @@ def test_next_rank_returns_correct_next_rank(tmp_path, monkeypatch):
     assert result == "Gold at 200 EHB"
 
 
-def test_save_ranks_updates_sqlite_snapshot_when_ehb_changes(tmp_path, monkeypatch):
-    """upsert_players should be called when EHB differs from file."""
-
-    # Existing data with different EHB
+def test_save_ranks_updates_sqlite_snapshot(tmp_path, monkeypatch):
+    """save_ranks sends the sanitized snapshot to SQLite without rewriting JSON."""
     initial = {"player": {"last_ehb": 10, "rank": "Bronze"}}
     ranks_file = tmp_path / "player_ranks.json"
     with open(ranks_file, "w") as f:
@@ -119,11 +201,11 @@ def test_save_ranks_updates_sqlite_snapshot_when_ehb_changes(tmp_path, monkeypat
         "ehb": 42,
     }
     with open(ranks_file) as f:
-        assert json.load(f) == updated
+        assert json.load(f) == initial
 
 
-def test_save_ranks_skips_update_when_ehb_unchanged(tmp_path, monkeypatch):
-    """upsert_players should not be called if EHB has not changed."""
+def test_save_ranks_persists_complete_snapshot_when_ehb_unchanged(tmp_path, monkeypatch):
+    """SQLite receives the complete snapshot so it remains authoritative."""
 
     data = {"player": {"last_ehb": 42, "rank": "Bronze"}}
     ranks_file = tmp_path / "player_ranks.json"
@@ -132,17 +214,16 @@ def test_save_ranks_skips_update_when_ehb_unchanged(tmp_path, monkeypatch):
 
     monkeypatch.setattr(rank_utils, "RANKS_FILE", str(ranks_file))
 
-    called = {}
+    calls = []
 
     def fake_update(players):
-        called["called"] = True
+        calls.append(players)
 
     monkeypatch.setattr(rank_utils, "upsert_players", fake_update)
 
-    # Saving the same data again should not trigger an update
     rank_utils.save_ranks(data)
 
-    assert "called" not in called
+    assert calls == [data]
 
 
 def test_save_ranks_persists_and_upserts_total_xp_change(tmp_path, monkeypatch):
@@ -164,8 +245,10 @@ def test_save_ranks_persists_and_upserts_total_xp_change(tmp_path, monkeypatch):
     }
     rank_utils.save_ranks(updated)
 
-    assert json.loads(ranks_file.read_text()) == updated
     assert calls == [updated]
+    assert json.loads(ranks_file.read_text()) == {
+        "player": {"last_ehb": 42, "rank": "Bronze"}
+    }
 
 
 def test_load_ranks_returns_empty_on_corrupt_json(tmp_path, monkeypatch):
@@ -220,7 +303,7 @@ def test_next_rank_returns_max_rank_when_at_top(tmp_path, monkeypatch):
     assert result == "Max Rank Achieved 👑"
 
 
-def test_save_ranks_updates_only_changed_ehb(tmp_path, monkeypatch):
+def test_save_ranks_persists_all_players_in_one_batch(tmp_path, monkeypatch):
     old_data = {
         "alpha": {"last_ehb": 10, "rank": "Bronze"},
         "beta": {"last_ehb": 20, "rank": "Silver"},
@@ -245,7 +328,10 @@ def test_save_ranks_updates_only_changed_ehb(tmp_path, monkeypatch):
 
     rank_utils.save_ranks(new_data)
 
-    assert calls == [("beta", "Silver", 25)]
+    assert calls == [
+        ("alpha", "Bronze", 10),
+        ("beta", "Silver", 25),
+    ]
 
 
 # --- _get_rank_for_ehb ---
