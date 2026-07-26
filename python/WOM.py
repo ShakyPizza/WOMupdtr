@@ -96,8 +96,8 @@ async def diagnose_group_details_fetch() -> str:
     url = f"https://api.wiseoldman.net/v2/groups/{group_id}"
     headers = {
         "Accept": "application/json",
-        "User-Agent": "WOMupdtr diagnostics",
-        "x-user-agent": "WOMupdtr diagnostics",
+        "User-Agent": wom_user_agent,
+        "x-user-agent": wom_user_agent,
     }
     if api_key:
         headers["x-api-key"] = api_key
@@ -134,7 +134,8 @@ gains_channel_id    = int(config['discord'].get('gains_channel_id', 0) or 0)
 group_id            = int(config['wiseoldman']['group_id'])
 group_passcode      = config['wiseoldman']['group_passcode']
 api_key             = config['wiseoldman'].get('api_key', '').strip() or None
-check_interval      = int(config['settings']['check_interval'])
+wom_user_agent      = config['wiseoldman'].get('user_agent', '').strip() or 'orri0995'
+check_interval      = max(int(config['settings']['check_interval']), 3600)
 run_at_startup      = config['settings'].getboolean('run_at_startup', True)
 print_to_csv        = config['settings'].getboolean('print_to_csv', True)
 print_csv_changes   = config['settings'].getboolean('print_csv_changes', True)
@@ -176,7 +177,7 @@ intents.message_content = True  # Enable message content intent
 # Use slash commands via app commands; prefix commands are disabled
 discord_client = IPv4Bot(command_prefix=commands.when_mentioned, intents=intents)
 
-wom_client = Client(api_key=api_key)
+wom_client = Client(api_key=api_key, user_agent=wom_user_agent)
 
 weekly_report_task = None
 monthly_report_task = None
@@ -224,6 +225,7 @@ async def on_ready():
                 metrics=gains_metrics,
                 window_days=gains_window_days,
                 interval_seconds=gains_snapshot_interval,
+                initial_delay_seconds=60,
                 log=log,
                 on_snapshot=lambda: setattr(bot_state, "last_gains_snapshot", datetime.now()),
                 debug=debug,
@@ -442,7 +444,13 @@ async def list_all_members_and_ranks():
 async def refresh_group_data():
     """Refreshes the group's data using the WiseOldMan API."""
     url = f"https://api.wiseoldman.net/v2/groups/{group_id}/update-all"
-    headers = {"Content-Type": "application/json"}
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": wom_user_agent,
+        "x-user-agent": wom_user_agent,
+    }
+    if api_key:
+        headers["x-api-key"] = api_key
     payload = {"verificationCode": group_passcode}
     msg = "❌ Failed to refresh group: unknown error."
 
@@ -471,7 +479,7 @@ async def refresh_group_data():
 
     log(msg)
     return msg
-@tasks.loop(seconds=check_interval * 48)
+@tasks.loop(hours=48)
 async def refresh_group_task():
     msg = await refresh_group_data()
     bot_state.last_group_refresh = datetime.now()
@@ -479,6 +487,12 @@ async def refresh_group_task():
         channel = get_messageable_channel(channel_id)
         if channel:
             await channel.send(msg)
+
+
+@refresh_group_task.before_loop
+async def stagger_refresh_group_task():
+    await asyncio.sleep(120)
+
 
 async def send_rank_up_message(username, new_rank, old_rank, ehb, metric_label="EHB"):
     try:

@@ -268,3 +268,31 @@ def test_snapshot_loop_does_not_publish_or_mark_failed_cycle(fake_wom_client, mo
     assert snapshot_calls == []
     assert channel_lookups == []
     assert any("scheduled failure" in message for message in logs)
+
+
+def test_snapshot_loop_honors_initial_delay_before_recurring_interval(fake_wom_client, monkeypatch):
+    client = fake_wom_client()
+    sleep_calls = []
+
+    async def stop_after_recurring_sleep(seconds):
+        sleep_calls.append(seconds)
+        if len(sleep_calls) == 2:
+            raise asyncio.CancelledError
+
+    monkeypatch.setattr(gains_snapshotter.asyncio, "sleep", stop_after_recurring_sleep)
+    discord_client = types.SimpleNamespace(get_channel=lambda _channel_id: None)
+
+    with pytest.raises(asyncio.CancelledError):
+        run(gains_snapshotter._gains_snapshot_loop(
+            wom_client=client,
+            discord_client=discord_client,
+            group_id=1,
+            channel_id=0,
+            metrics=["overall"],
+            window_days=7,
+            interval_seconds=300,
+            initial_delay_seconds=60,
+            log=_log,
+        ))
+
+    assert sleep_calls == [60, 300]

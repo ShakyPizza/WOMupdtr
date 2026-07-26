@@ -174,10 +174,14 @@ async def _gains_snapshot_loop(
     metrics: list[str],
     window_days: int,
     interval_seconds: int,
+    initial_delay_seconds: int = 0,
     log,
     on_snapshot=None,
     debug: bool = False,
 ) -> None:
+    if initial_delay_seconds > 0:
+        await asyncio.sleep(initial_delay_seconds)
+
     while True:
         try:
             inserted = await snapshot_gains_once(
@@ -216,6 +220,7 @@ def start_gains_snapshotter(
     metrics: list[str],
     window_days: int,
     interval_seconds: int,
+    initial_delay_seconds: int = 0,
     log,
     on_snapshot=None,
     debug: bool = False,
@@ -230,6 +235,7 @@ def start_gains_snapshotter(
             metrics=metrics,
             window_days=window_days,
             interval_seconds=interval_seconds,
+            initial_delay_seconds=initial_delay_seconds,
             log=log,
             on_snapshot=on_snapshot,
             debug=debug,

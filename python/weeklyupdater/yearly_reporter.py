@@ -20,23 +20,23 @@ _SKILL_METRIC_VALUES = {getattr(metric, "value", metric) for metric in enums.Ski
 _LEVEL_99_XP = 13_034_431
 
 
-def _year_boundary_1200_utc(year: int) -> datetime:
-    return datetime(year, 1, 1, 12, 0, tzinfo=timezone.utc)
+def _year_boundary_1800_utc(year: int) -> datetime:
+    return datetime(year, 1, 1, 18, 0, tzinfo=timezone.utc)
 
 
-def _most_recent_jan1_1200_utc(now: datetime) -> datetime:
+def _most_recent_jan1_1800_utc(now: datetime) -> datetime:
     if now.tzinfo is None:
         raise ValueError("now must be timezone-aware")
 
-    boundary = _year_boundary_1200_utc(now.year)
+    boundary = _year_boundary_1800_utc(now.year)
     if now < boundary:
-        boundary = _year_boundary_1200_utc(now.year - 1)
+        boundary = _year_boundary_1800_utc(now.year - 1)
     return boundary
 
 
-def _next_jan1_1200_utc(now: datetime) -> datetime:
-    boundary = _most_recent_jan1_1200_utc(now)
-    return _year_boundary_1200_utc(boundary.year + 1)
+def _next_jan1_1800_utc(now: datetime) -> datetime:
+    boundary = _most_recent_jan1_1800_utc(now)
+    return _year_boundary_1800_utc(boundary.year + 1)
 
 
 def _format_int(value: t.Union[int, float]) -> str:
@@ -398,7 +398,7 @@ async def _generate_yearly_report(
     end_date: datetime,
     log,
 ) -> list[str]:
-    start_date = _year_boundary_1200_utc(end_date.year - 1)
+    start_date = _year_boundary_1800_utc(end_date.year - 1)
 
     player_name_map = await _get_group_member_map(wom_client, group_id, log)
 
@@ -527,7 +527,7 @@ async def _yearly_report_loop(
 ) -> None:
     while True:
         now = datetime.now(timezone.utc)
-        next_run = _next_jan1_1200_utc(now)
+        next_run = _next_jan1_1800_utc(now)
         sleep_seconds = max((next_run - now).total_seconds(), 1)
         if debug:
             log(f"Yearly report scheduled for {next_run.isoformat()}")
@@ -564,8 +564,8 @@ def start_yearly_reporter(
 
 
 def most_recent_year_end(now: datetime) -> datetime:
-    """Return the most recent Jan 1 12:00 UTC before or at now."""
-    return _most_recent_jan1_1200_utc(now)
+    """Return the most recent Jan 1 18:00 UTC before or at now."""
+    return _most_recent_jan1_1800_utc(now)
 
 
 async def generate_yearly_report_messages(

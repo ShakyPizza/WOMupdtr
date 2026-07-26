@@ -57,28 +57,28 @@ def test_most_recent_week_end_raises_for_naive_datetime():
 
 
 # ---------------------------------------------------------------------------
-# yearly_reporter — most_recent_year_end / _most_recent_jan1_1200_utc
+# yearly_reporter — most_recent_year_end / _most_recent_jan1_1800_utc
 # ---------------------------------------------------------------------------
 
-def test_most_recent_year_end_returns_current_year_jan1_after_noon():
-    """Called on Jan 1 2026 at 13:00 UTC it returns Jan 1 2026 12:00 UTC."""
-    now = datetime(2026, 1, 1, 13, 0, tzinfo=timezone.utc)
+def test_most_recent_year_end_returns_current_year_jan1_after_1800():
+    """Called on Jan 1 after 18:00 UTC it returns the current year's boundary."""
+    now = datetime(2026, 1, 1, 19, 0, tzinfo=timezone.utc)
     result = yearly_reporter.most_recent_year_end(now)
-    assert result == datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    assert result == datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc)
 
 
-def test_most_recent_year_end_returns_previous_year_before_noon_on_jan1():
-    """Called on Jan 1 2026 before noon it returns Jan 1 2025 12:00 UTC."""
-    now = datetime(2026, 1, 1, 11, 0, tzinfo=timezone.utc)
+def test_most_recent_year_end_returns_previous_year_before_1800_on_jan1():
+    """Called on Jan 1 before 18:00 UTC it returns the previous year's boundary."""
+    now = datetime(2026, 1, 1, 17, 0, tzinfo=timezone.utc)
     result = yearly_reporter.most_recent_year_end(now)
-    assert result == datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
+    assert result == datetime(2025, 1, 1, 18, 0, tzinfo=timezone.utc)
 
 
 def test_most_recent_year_end_mid_year_returns_current_year_jan1():
     """Called mid-year (e.g. June) it returns Jan 1 of the current year."""
     now = datetime(2025, 6, 15, 12, 0, tzinfo=timezone.utc)
     result = yearly_reporter.most_recent_year_end(now)
-    assert result == datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc)
+    assert result == datetime(2025, 1, 1, 18, 0, tzinfo=timezone.utc)
 
 
 def test_most_recent_year_end_raises_for_naive_datetime():
@@ -93,17 +93,17 @@ def test_most_recent_year_end_raises_for_naive_datetime():
 # ---------------------------------------------------------------------------
 
 
-def test_most_recent_month_end_uses_current_month_boundary_after_noon():
+def test_most_recent_month_end_uses_current_month_boundary_after_1800():
     now = datetime(2025, 6, 15, 8, 0, tzinfo=timezone.utc)
     assert monthly_reporter.most_recent_month_end(now) == datetime(
-        2025, 6, 1, 12, 0, tzinfo=timezone.utc
+        2025, 6, 1, 18, 0, tzinfo=timezone.utc
     )
 
 
 def test_most_recent_month_end_rolls_back_before_boundary():
-    now = datetime(2025, 6, 1, 11, 59, tzinfo=timezone.utc)
+    now = datetime(2025, 6, 1, 17, 59, tzinfo=timezone.utc)
     assert monthly_reporter.most_recent_month_end(now) == datetime(
-        2025, 5, 1, 12, 0, tzinfo=timezone.utc
+        2025, 5, 1, 18, 0, tzinfo=timezone.utc
     )
 
 
@@ -497,7 +497,7 @@ def test_longer_reports_persist_existing_achievement_fetches(monkeypatch, report
             monthly_reporter._generate_monthly_report(
                 wom_client=types.SimpleNamespace(groups=object()),
                 group_id=7,
-                end_date=datetime(2024, 7, 1, 12, 0, tzinfo=timezone.utc),
+                end_date=datetime(2024, 7, 1, 18, 0, tzinfo=timezone.utc),
                 log=lambda _message: None,
             )
         )
@@ -524,7 +524,7 @@ def test_longer_reports_persist_existing_achievement_fetches(monkeypatch, report
             yearly_reporter._generate_yearly_report(
                 wom_client=object(),
                 group_id=7,
-                end_date=datetime(2025, 1, 1, 12, 0, tzinfo=timezone.utc),
+                end_date=datetime(2025, 1, 1, 18, 0, tzinfo=timezone.utc),
                 log=lambda _message: None,
             )
         )

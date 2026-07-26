@@ -27,20 +27,20 @@ from .weekly_reporter import (
 )
 
 
-def _month_boundary_1200_utc(year: int, month: int) -> datetime:
-    return datetime(year, month, 1, 12, 0, tzinfo=timezone.utc)
+def _month_boundary_1800_utc(year: int, month: int) -> datetime:
+    return datetime(year, month, 1, 18, 0, tzinfo=timezone.utc)
 
 
 def _previous_month_boundary(boundary: datetime) -> datetime:
     if boundary.month == 1:
-        return _month_boundary_1200_utc(boundary.year - 1, 12)
-    return _month_boundary_1200_utc(boundary.year, boundary.month - 1)
+        return _month_boundary_1800_utc(boundary.year - 1, 12)
+    return _month_boundary_1800_utc(boundary.year, boundary.month - 1)
 
 
 def _most_recent_month_end(now: datetime) -> datetime:
     if now.tzinfo is None:
         raise ValueError("now must be timezone-aware")
-    boundary = _month_boundary_1200_utc(now.year, now.month)
+    boundary = _month_boundary_1800_utc(now.year, now.month)
     if now < boundary:
         boundary = _previous_month_boundary(boundary)
     return boundary
@@ -49,8 +49,8 @@ def _most_recent_month_end(now: datetime) -> datetime:
 def _next_month_end(now: datetime) -> datetime:
     boundary = _most_recent_month_end(now)
     if boundary.month == 12:
-        return _month_boundary_1200_utc(boundary.year + 1, 1)
-    return _month_boundary_1200_utc(boundary.year, boundary.month + 1)
+        return _month_boundary_1800_utc(boundary.year + 1, 1)
+    return _month_boundary_1800_utc(boundary.year, boundary.month + 1)
 
 
 async def _get_group_member_map(wom_client, group_id: int, log) -> dict[int, str]:
@@ -286,7 +286,7 @@ def start_monthly_reporter(*, wom_client, discord_client, group_id: int, channel
 
 
 def most_recent_month_end(now: datetime) -> datetime:
-    """Return the most recent first-of-month 12:00 UTC boundary."""
+    """Return the most recent first-of-month 18:00 UTC boundary."""
     return _most_recent_month_end(now)
 
 
