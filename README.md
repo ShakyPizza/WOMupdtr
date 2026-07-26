@@ -54,8 +54,8 @@ A Discord bot that integrates with the Wise Old Man API to track EHB-based ranks
    gains_metrics = overall,ehb
 
    [web]
-   enabled = true
-   host = 0.0.0.0
+   enabled = false
+   host = 127.0.0.1
    port = 8080
    ```
 
@@ -65,7 +65,7 @@ Notes:
 - `api_key` is optional but helps with Wise Old Man rate limits.
 - EHP collection is opt-in. Set `track_ehp = true` to populate EHP ranks and history.
 - Gains snapshots default to a 7-day window collected daily. `gains_channel_id = 0` keeps the snapshots in SQLite without posting a Discord digest.
-- The web dashboard is disabled unless `[web] enabled = true`. Use `host = 0.0.0.0` in Docker so the published port can reach it; Docker Compose binds that port to host loopback by default. For a direct local run that should only be reachable from the same machine, use `host = 127.0.0.1`.
+- The web dashboard includes unauthenticated administrative controls, so it is disabled and bound to loopback by default. Only use `host = 0.0.0.0` inside Docker, where Docker Compose binds the published port to host loopback by default. Do not expose the dashboard to an untrusted network.
 - Keep your token/API values out of Git history.
 
 4. Copy `python/ranks.ini.example` to `python/ranks.ini`, then adjust the rank thresholds if needed:
