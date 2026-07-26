@@ -107,6 +107,7 @@ def init_database(db_path: str | None = None) -> str:
                 "last_ehp": "REAL NOT NULL DEFAULT 0",
                 "ehp_rank": "TEXT NOT NULL DEFAULT 'Unknown'",
                 "total_xp": "INTEGER",
+                "snapshot_initialized": "INTEGER NOT NULL DEFAULT 0",
                 # Feature 3 — inactivity / status detection
                 "player_id": "INTEGER",
                 "wom_status": "TEXT",
@@ -115,6 +116,20 @@ def init_database(db_path: str | None = None) -> str:
                 "last_progressed_at": "TEXT",
                 "status_captured_at": "TEXT",
             },
+        )
+        # Existing databases predate the explicit snapshot marker. Infer it
+        # from non-default rank data without marking status-only player rows.
+        conn.execute(
+            """
+            UPDATE players
+            SET snapshot_initialized = 1
+            WHERE snapshot_initialized = 0
+              AND (
+                  last_ehb != 0 OR rank != 'Unknown'
+                  OR last_ehp != 0 OR ehp_rank != 'Unknown'
+                  OR total_xp IS NOT NULL
+              )
+            """
         )
 
         # Feature 2 — EHP history (mirror of ehb_history)
@@ -256,15 +271,17 @@ def upsert_players(players: dict[str, dict], db_path: str | None = None) -> None
         conn.executemany(
             """
             INSERT INTO players (
-                username, last_ehb, rank, last_ehp, ehp_rank, total_xp, updated_at
+                username, last_ehb, rank, last_ehp, ehp_rank, total_xp,
+                snapshot_initialized, updated_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, 1, ?)
             ON CONFLICT(username) DO UPDATE SET
                 last_ehb = excluded.last_ehb,
                 rank = excluded.rank,
                 last_ehp = excluded.last_ehp,
                 ehp_rank = excluded.ehp_rank,
                 total_xp = COALESCE(excluded.total_xp, players.total_xp),
+                snapshot_initialized = 1,
                 updated_at = excluded.updated_at
             """,
             [
@@ -281,6 +298,33 @@ def upsert_players(players: dict[str, dict], db_path: str | None = None) -> None
             ],
         )
         conn.commit()
+
+
+def read_player_snapshots(db_path: str | None = None) -> dict[str, dict]:
+    """Return the latest persisted EHB, EHP, and total-XP state by username."""
+    resolved_path = init_database(db_path)
+    with closing(connect_db(resolved_path)) as conn:
+        rows = conn.execute(
+            """
+            SELECT username, last_ehb, rank, last_ehp, ehp_rank, total_xp
+            FROM players
+            WHERE snapshot_initialized = 1
+            """
+        ).fetchall()
+
+    snapshots = {}
+    for row in rows:
+        snapshot = {
+            "last_ehb": row["last_ehb"],
+            "rank": row["rank"],
+        }
+        if row["last_ehp"] != 0 or row["ehp_rank"] != "Unknown":
+            snapshot["last_ehp"] = row["last_ehp"]
+            snapshot["ehp_rank"] = row["ehp_rank"]
+        if row["total_xp"] is not None:
+            snapshot["total_xp"] = row["total_xp"]
+        snapshots[row["username"]] = snapshot
+    return snapshots
 
 
 def upsert_player_status(rows: list[dict], db_path: str | None = None) -> None:

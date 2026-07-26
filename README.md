@@ -9,7 +9,7 @@ A Discord bot that integrates with the Wise Old Man API to track EHB and optiona
 - Group refresh via Wise Old Man update-all, plus periodic refresh.
 - Weekly, monthly, and yearly report generation (auto-scheduled or on-demand).
 - Local SQLite storage bootstrapped automatically on startup.
-- CSV logging with auto-bootstrap of ranks from `ehb_log.csv` when JSON storage is missing.
+- CSV logging with legacy rank bootstrap into SQLite when no player snapshots exist.
 - FastAPI web dashboard (players, reports, charts, admin, group pages).
 - Docker support with persisted CSV logs and SQLite data — runs bot + web dashboard on port 8080.
 
@@ -147,7 +147,8 @@ Reports can be scheduled automatically (when channel IDs are set) or run on dema
 - Set `EHB_LOG_PATH` to override the CSV location (useful in Docker).
 - SQLite data is stored in `python/database.db` by default.
 - Set `WOM_DATABASE_PATH` to override the SQLite location. In Docker this defaults to `/app/data/database.db`.
-- `player_ranks.json` stores the latest rank snapshot and is auto-bootstrapped from the CSV if missing.
+- The SQLite `players` table stores the latest EHB/EHP rank snapshot used by the bot and dashboard.
+- Existing `player_ranks.json` data is imported automatically only when the `players` table is empty; the CSV is the final legacy fallback.
 
 ## Docker
 Build and run:
