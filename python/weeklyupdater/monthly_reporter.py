@@ -8,6 +8,11 @@ from datetime import datetime, timezone
 
 from wom import enums
 
+from .achievement_retention import (
+    append_milestone_sections,
+    categorize_additional_milestones,
+    persist_fetched_achievements,
+)
 from .weekly_reporter import (
     _chunk_messages,
     _format_float,
@@ -94,6 +99,9 @@ def _build_report_lines(
     name_changes: list,
     achievements: list,
     player_name_map: dict[int, str],
+    boss_kc_achievements: list | None = None,
+    xp_achievements: list | None = None,
+    level_achievements: list | None = None,
 ) -> list[str]:
     month_label = f"{calendar.month_name[start_date.month]} {start_date.year}"
     lines = [
@@ -143,6 +151,14 @@ def _build_report_lines(
             lines.append(f"- {name}: {', '.join(grouped[name])}")
     else:
         lines.append("New 99s: none")
+
+    append_milestone_sections(
+        lines,
+        boss_kc=boss_kc_achievements or [],
+        xp=xp_achievements or [],
+        level=level_achievements or [],
+        player_name_map=player_name_map,
+    )
     lines.append("")
 
     if name_changes:
@@ -192,6 +208,13 @@ async def _generate_monthly_report(*, wom_client, group_id: int, end_date: datet
         log=log,
         label="achievements",
     )
+    persist_fetched_achievements(
+        raw_achievements,
+        group_id=group_id,
+        player_name_map=player_name_map,
+        log=log,
+    )
+    milestone_categories = categorize_additional_milestones(raw_achievements)
     achievements = [
         item
         for item in raw_achievements
@@ -204,6 +227,8 @@ async def _generate_monthly_report(*, wom_client, group_id: int, end_date: datet
 
     for gains in (overall_gains, ehb_gains, ehp_gains, sailing_gains):
         gains.sort(key=lambda entry: entry.data.gained, reverse=True)
+    for category in milestone_categories.values():
+        category.sort(key=lambda item: item.created_at)
     achievements.sort(key=lambda item: item.created_at)
     name_changes.sort(key=lambda item: item.created_at)
 
@@ -218,6 +243,9 @@ async def _generate_monthly_report(*, wom_client, group_id: int, end_date: datet
             name_changes=name_changes,
             achievements=achievements,
             player_name_map=player_name_map,
+            boss_kc_achievements=milestone_categories["boss_kc"],
+            xp_achievements=milestone_categories["xp"],
+            level_achievements=milestone_categories["level"],
         )
     )
 

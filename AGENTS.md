@@ -54,6 +54,14 @@ The SQLite `players` table is the authoritative rank snapshot used by the bot an
 
 The scheduler runs immediately and then every `gains_snapshot_interval` seconds (minimum sleep 60s). It optionally posts the first configured metric's latest leaderboard to `gains_channel_id`; channel `0` still permits SQLite collection.
 
+### Official OSRS hiscores fallback reference
+
+If Wise Old Man is unavailable, an individual player's raw hiscores can be fetched from the official OSRS JSON endpoint:
+
+`https://secure.runescape.com/m=hiscore_oldschool/index_lite.json?player={player}`
+
+URL-encode the player name before substituting it. The response contains `skills` (`rank`, `level`, and `xp`) and `activities` (`rank` and `score`, including boss kill counts). This is a fallback reference only and is not currently wired into the bot. It cannot replace WOM group endpoints or WOM-computed values such as EHB and EHP.
+
 ### Persistence and web dashboard
 
 `python/utils/database.py` owns SQLite initialization and idempotent schema upgrades. The database path defaults to `python/database.db` and can be overridden with `WOM_DATABASE_PATH`. Relevant tables are `players`, `ehb_history`, `ehp_history`, `boss_kills_history`, and `gains_history`.
@@ -98,3 +106,13 @@ The dashboard now exposes EHP and gains data:
 - `WOM.py:get_rank()` is now only a compatibility wrapper over `rank_utils.get_rank_for_value()`; callers can eventually use the shared helper directly.
 - Global state (`bot_state`, task handles) in `WOM.py` could be moved into a class.
 - A monthly channel setting exists, but a monthly reporter is not implemented.
+
+## Agent skills
+
+### Issue tracker
+
+Issues and PRDs are tracked in GitHub Issues. See `docs/agents/issue-tracker.md`.
+
+### Domain docs
+
+This repository uses the single-context layout. See `docs/agents/domain.md`.

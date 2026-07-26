@@ -1,0 +1,11 @@
+# Public dashboard pages may be crawled; operational and data endpoints may not.
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /charts/api/
+Disallow: /group/api/
+Disallow: /players/search
+Disallow: /players/*/history
+Disallow: /docs
+Disallow: /redoc
+Disallow: /openapi.json

@@ -431,8 +431,22 @@ def test_legacy_player_uses_not_tracked_ehp_fallback(monkeypatch):
 # HTML routes
 # ---------------------------------------------------------------------------
 
+def test_robots_txt_exposes_crawler_policy():
+    """Crawler policy is served from the required root URL."""
+    with TestClient(_make_app(_make_bot_state())) as client:
+        response = client.get("/robots.txt")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    assert "User-agent: *" in response.text
+    assert "Disallow: /admin/" in response.text
+    assert "Disallow: /charts/api/" in response.text
+    assert "Disallow: /players/*/history" in response.text
+    assert "Allow: /" in response.text
+
+
 def test_full_app_serves_all_pages_and_static_assets(monkeypatch, sample_players, sample_csv_file):
-    """The production app factory wires every page router plus robots and static files."""
+    """The production app factory wires every page router plus static files."""
     from web.services import csv_service, ranks_service
 
     async def fake_report(*args, **kwargs):
