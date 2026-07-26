@@ -35,26 +35,26 @@ from web.services.bot_state import BotState
 
 
 class Client(BaseClient):
-    def __init__(self, api_key: str | None = None):
-        self._session = None
-        self._connector = None
-        super().__init__(api_key=api_key)
-    
     async def start(self):
-        if self._session is None or self._session.closed:
+        http = self._http
+        if not hasattr(http, "_session") or http._session.closed:
             # Prefer IPv4 inside containers where IPv6 DNS answers exist but
             # outbound IPv6 connectivity is not actually configured.
-            self._connector = aiohttp.TCPConnector(family=socket.AF_INET)
-            self._session = aiohttp.ClientSession(connector=self._connector)
-        return await super().start()
+            connector = aiohttp.TCPConnector(family=socket.AF_INET)
+            http._session = aiohttp.ClientSession(
+                connector=connector,
+                json_serialize=lambda o: http._encoder.encode(o).decode(),
+            )
+            http._method_mapping = {
+                "GET": http._session.get,
+                "POST": http._session.post,
+                "PUT": http._session.put,
+                "PATCH": http._session.patch,
+                "DELETE": http._session.delete,
+            }
     
     async def close(self):
-        if self._session and not self._session.closed:
-            await self._session.close()
-            self._session = None
-        if self._connector and not self._connector.closed:
-            await self._connector.close()
-            self._connector = None
+        await super().close()
 
     async def __aenter__(self):
         await self.start()
@@ -81,6 +81,40 @@ def get_messageable_channel(channel_id: int) -> Optional[discord.abc.Messageable
     if isinstance(channel, (discord.TextChannel, discord.Thread, discord.DMChannel, discord.GroupChannel)):
         return channel
     return None
+
+
+def _trim_response_preview(body: str, limit: int = 220) -> str:
+    """Return a single-line response preview suitable for logs."""
+    preview = " ".join(body.split())
+    if len(preview) > limit:
+        return preview[:limit] + "..."
+    return preview
+
+
+async def diagnose_group_details_fetch() -> str:
+    """Fetch group details directly to expose HTTP status/body on client decode errors."""
+    url = f"https://api.wiseoldman.net/v2/groups/{group_id}"
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "WOMupdtr diagnostics",
+        "x-user-agent": "WOMupdtr diagnostics",
+    }
+    if api_key:
+        headers["x-api-key"] = api_key
+
+    try:
+        connector = aiohttp.TCPConnector(family=socket.AF_INET)
+        async with aiohttp.ClientSession(connector=connector) as session:
+            async with session.get(url, headers=headers) as response:
+                body = await response.text(errors="replace")
+                content_type = response.headers.get("content-type", "unknown")
+                preview = _trim_response_preview(body)
+                return (
+                    f"WOM group details HTTP {response.status} ({content_type}); "
+                    f"body starts with: {preview!r}"
+                )
+    except Exception as diagnostic_error:
+        return f"WOM group details diagnostic request failed: {diagnostic_error}"
 
 
 # Configuration Loading
@@ -268,7 +302,13 @@ async def check_for_rank_changes():
             log("debug mode on ")
             log("Starting player comparison...")
         ranks_data = load_ranks()
-        result = await wom_client.groups.get_details(group_id)
+        try:
+            result = await wom_client.groups.get_details(group_id)
+        except Exception as fetch_error:
+            diagnostic = await diagnose_group_details_fetch()
+            log(f"Failed to fetch group details: {fetch_error}. {diagnostic}")
+            return
+
         if result.is_ok:
             group = result.unwrap()
             if not silent:
@@ -339,7 +379,13 @@ async def check_for_rank_changes():
 async def list_all_members_and_ranks():
     try:
         await wom_client.start()
-        result = await wom_client.groups.get_details(group_id)
+        try:
+            result = await wom_client.groups.get_details(group_id)
+        except Exception as fetch_error:
+            diagnostic = await diagnose_group_details_fetch()
+            log(f"Failed to fetch group details: {fetch_error}. {diagnostic}")
+            return
+
         if result.is_ok:
             group = result.unwrap()
             memberships = group.memberships
