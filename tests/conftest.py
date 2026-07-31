@@ -112,14 +112,18 @@ class FakeGroupService:
 
     async def get_gains(self, group_id, metric, *, period=None, start_date=None,
                         end_date=None, limit=None, offset=None):
+        """Mirrors WOM's real ``groups/{id}/gains`` endpoint: ``offset``/``limit``
+        are accepted but ignored, and the full member list is always returned.
+        Callers that try to paginate on this endpoint will loop forever against
+        the real API, so this fake intentionally can't be paginated either.
+        """
         self.calls.append(("get_gains", metric, limit, offset))
         key = getattr(metric, "value", metric)
         error = self._gains_errors.get((key, offset or 0))
         if error is not None:
             return FakeResult(err=error)
         entries = list(self._gains.get(key, []))
-        page = entries[(offset or 0): (offset or 0) + (limit or len(entries))]
-        return FakeResult(value=page)
+        return FakeResult(value=entries)
 
     async def get_hiscores(self, group_id, metric, *, limit=None, offset=None):
         self.calls.append(("get_hiscores", metric, limit, offset))

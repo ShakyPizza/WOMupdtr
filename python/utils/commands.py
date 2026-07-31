@@ -91,8 +91,14 @@ def setup_commands(
     refresh_group_func,
     log,
     debug: bool,
+    reports_enabled: bool = True,
 ):
     """Register slash commands on the provided bot."""
+
+    _REPORTS_DISABLED_MESSAGE = (
+        "❌ Weekly/monthly/yearly reports are temporarily disabled "
+        "(see REPORTS_ENABLED in WOM.py)."
+    )
 
     # Command: /lookup --- Lists locally persisted rank metrics for a specific user.
 
@@ -233,6 +239,9 @@ def setup_commands(
 
     @bot.tree.command(name="weeklyupdate", description="Posts the weekly report to the weekly channel.")
     async def weeklyupdate(interaction: Interaction):
+        if not reports_enabled:
+            await interaction.response.send_message(_REPORTS_DISABLED_MESSAGE, ephemeral=True)
+            return
         if not weekly_channel_id:
             await interaction.response.send_message(
                 "❌ weekly_channel_id not configured.", ephemeral=True
@@ -265,6 +274,9 @@ def setup_commands(
 
     @bot.tree.command(name="monthlyreport", description="Posts the most recent completed monthly report.")
     async def monthlyreport(interaction: Interaction):
+        if not reports_enabled:
+            await interaction.response.send_message(_REPORTS_DISABLED_MESSAGE, ephemeral=True)
+            return
         if not monthly_channel_id:
             await interaction.response.send_message(
                 "❌ monthly_channel_id not configured.", ephemeral=True
@@ -297,6 +309,9 @@ def setup_commands(
     @bot.tree.command(name="yearlyreport", description="Posts the yearly report to the yearly channel.")
     @app_commands.describe(year="Report year (2020 to last completed year).")
     async def yearlyreport(interaction: Interaction, year: Optional[int] = None):
+        if not reports_enabled:
+            await interaction.response.send_message(_REPORTS_DISABLED_MESSAGE, ephemeral=True)
+            return
         if not yearly_channel_id:
             await interaction.response.send_message(
                 "❌ yearly_channel_id not configured.", ephemeral=True
@@ -351,6 +366,9 @@ def setup_commands(
         year: Optional[int] = None,
         filename: Optional[str] = None,
     ):
+        if not reports_enabled:
+            await interaction.response.send_message(_REPORTS_DISABLED_MESSAGE, ephemeral=True)
+            return
         await interaction.response.defer(ephemeral=True)
 
         try:

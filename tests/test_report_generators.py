@@ -408,6 +408,33 @@ def test_additional_achievement_categories_exclude_99s():
     assert [item.name for item in categories["level"]] == ["2000 Total Level"]
 
 
+# ---------------------------------------------------------------------------
+# weekly_reporter._get_group_gains — regression test for the offset/pagination
+# incident (WOM's gains endpoint ignores `offset` and always returns the full
+# member list, so a paginating `while True` loop against it never terminates).
+# ---------------------------------------------------------------------------
+
+
+def test_get_group_gains_fetches_full_group_in_a_single_request(fake_wom_client):
+    from tests.conftest import make_gains_entry, make_player
+
+    entries = [make_gains_entry(make_player(f"p{i}"), gained=float(i)) for i in range(120)]
+    client = fake_wom_client(gains={"overall": entries})
+
+    gains = asyncio.run(
+        weekly_reporter._get_group_gains(
+            client,
+            group_id=7,
+            metric=enums.Metric.Overall,
+            start_date=datetime(2025, 6, 1, tzinfo=timezone.utc),
+            end_date=datetime(2025, 6, 8, tzinfo=timezone.utc),
+        )
+    )
+
+    assert len(gains) == 120
+    assert client.groups.calls == [("get_gains", enums.Metric.Overall, None, None)]
+
+
 def test_weekly_report_renders_and_persists_boss_kc_from_existing_fetch(monkeypatch):
     dt = datetime(2025, 6, 4, tzinfo=timezone.utc)
     achievement = _fake_achievement(

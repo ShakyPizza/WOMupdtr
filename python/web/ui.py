@@ -41,10 +41,13 @@ def current_page_key(path: str) -> str:
 def build_context(request: Request, **context: Any) -> dict[str, Any]:
     """Return a base template context with global UI metadata."""
     page_key = current_page_key(request.url.path)
+    bot_state = getattr(request.app.state, "bot_state", None)
+    reports_enabled = getattr(bot_state, "reports_enabled", True)
     nav_items = [
         {
             **item,
             "active": item["key"] == page_key,
+            "label": f"{item['label']} (disabled)" if item["key"] == "reports" and not reports_enabled else item["label"],
         }
         for item in _NAV_ITEMS
     ]

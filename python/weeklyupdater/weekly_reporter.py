@@ -120,30 +120,23 @@ async def _get_group_gains(
     metric: enums.Metric,
     start_date: datetime,
     end_date: datetime,
-    *,
-    limit: int = 50,
 ) -> list:
-    gains = []
-    offset = 0
-    while True:
-        result = await wom_client.groups.get_gains(
-            group_id,
-            metric,
-            start_date=start_date,
-            end_date=end_date,
-            limit=limit,
-            offset=offset,
-        )
-        if not result.is_ok:
-            return []
+    """Fetch all group gains in one request.
 
-        page = list(result.unwrap())
-        gains.extend(page)
-        if len(page) < limit:
-            break
-        offset += limit
+    WOM's group-gains endpoint does not support pagination and always returns the
+    full member list. Supplying an offset is ignored by the API, so paginating on
+    ``offset``/``limit`` here never terminates for groups over the page size.
+    """
+    result = await wom_client.groups.get_gains(
+        group_id,
+        metric,
+        start_date=start_date,
+        end_date=end_date,
+    )
+    if not result.is_ok:
+        return []
 
-    return gains
+    return list(result.unwrap())
 
 
 async def _get_group_achievements(
@@ -354,16 +347,16 @@ async def _generate_weekly_report(
     player_name_map = await _get_group_member_map(wom_client, group_id, log)
 
     overall_gains = await _get_group_gains(
-        wom_client, group_id, enums.Metric.Overall, start_date, end_date, limit=50
+        wom_client, group_id, enums.Metric.Overall, start_date, end_date
     )
     ehb_gains = await _get_group_gains(
-        wom_client, group_id, enums.Metric.Ehb, start_date, end_date, limit=50
+        wom_client, group_id, enums.Metric.Ehb, start_date, end_date
     )
     ehp_gains = await _get_group_gains(
-        wom_client, group_id, enums.Metric.Ehp, start_date, end_date, limit=50
+        wom_client, group_id, enums.Metric.Ehp, start_date, end_date
     )
     sailing_gains = await _get_group_gains(
-        wom_client, group_id, enums.Metric.Sailing, start_date, end_date, limit=50 # type: ignore
+        wom_client, group_id, enums.Metric.Sailing, start_date, end_date  # type: ignore
     )
 
     name_changes = await _get_group_name_changes(

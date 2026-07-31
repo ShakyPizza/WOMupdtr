@@ -34,6 +34,7 @@ class BotState:
     post_to_discord: bool = True
     silent: bool = False
     debug: bool = False
+    reports_enabled: bool = False
 
     # Runtime telemetry
     log_buffer: deque = field(default_factory=lambda: deque(maxlen=500))

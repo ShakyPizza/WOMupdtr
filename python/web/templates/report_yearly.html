@@ -29,6 +29,8 @@
     {% if report_lines %}
     <pre class="report-output">{% for line in report_lines %}{{ line }}
 {% endfor %}</pre>
+    {% elif disabled %}
+    <p class="empty-state">{{ data_error }}</p>
     {% else %}
     <p class="empty-state">No yearly report data is available for this selection.</p>
     {% endif %}

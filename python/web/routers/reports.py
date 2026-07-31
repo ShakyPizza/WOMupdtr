@@ -12,9 +12,22 @@ from ..ui import render_template
 
 router = APIRouter()
 
+_DISABLED_MESSAGE = (
+    "Reports are temporarily disabled (see REPORTS_ENABLED in WOM.py)."
+)
+
 
 @router.get("/weekly", response_class=HTMLResponse)
 async def weekly_report(request: Request, state: BotState = Depends(get_bot_state)):
+    if not state.reports_enabled:
+        return render_template(
+            request,
+            "report_weekly.html",
+            report_lines=[],
+            disabled=True,
+            data_error=_DISABLED_MESSAGE,
+        )
+
     try:
         messages = await get_weekly_report(state)
         report_lines = []
@@ -39,6 +52,16 @@ async def yearly_report(
     year: int = Query(None),
     state: BotState = Depends(get_bot_state),
 ):
+    if not state.reports_enabled:
+        return render_template(
+            request,
+            "report_yearly.html",
+            report_lines=[],
+            year=year,
+            disabled=True,
+            data_error=_DISABLED_MESSAGE,
+        )
+
     try:
         messages = await get_yearly_report(state, year=year)
         report_lines = []
@@ -60,6 +83,15 @@ async def yearly_report(
 
 @router.get("/monthly", response_class=HTMLResponse)
 async def monthly_report(request: Request, state: BotState = Depends(get_bot_state)):
+    if not state.reports_enabled:
+        return render_template(
+            request,
+            "report_monthly.html",
+            report_lines=[],
+            disabled=True,
+            data_error=_DISABLED_MESSAGE,
+        )
+
     try:
         messages = await get_monthly_report(state)
         report_lines = [line for message in messages for line in message.split("\n")]

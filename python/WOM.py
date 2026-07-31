@@ -117,6 +117,15 @@ async def diagnose_group_details_fetch() -> str:
         return f"WOM group details diagnostic request failed: {diagnostic_error}"
 
 
+# Weekly/monthly/yearly reports (scheduled tasks, slash commands, and the web
+# dashboard tab) are disabled pending a fix for the request-storm incidents of
+# 2026-07-23 and 2026-07-25, caused by an infinite pagination loop in
+# weeklyupdater/weekly_reporter.py's _get_group_gains against an endpoint that
+# ignores the `offset` parameter. The loop itself is fixed, but reports stay
+# off until that fix has soaked. Flip back to True to re-enable.
+REPORTS_ENABLED = False
+
+
 # Configuration Loading
 
 
@@ -234,7 +243,9 @@ async def on_ready():
         else:
             log("gains snapshot disabled (no metrics/channel configured).")
 
-    if weekly_report_task is None:
+    if not REPORTS_ENABLED:
+        log("Weekly/monthly/yearly reports disabled (REPORTS_ENABLED = False).")
+    elif weekly_report_task is None:
         if weekly_channel_id:
             weekly_report_task = start_weekly_reporter(
                 wom_client=wom_client,
@@ -248,7 +259,7 @@ async def on_ready():
         else:
             log("weekly_channel_id not configured; weekly report disabled.")
 
-    if monthly_report_task is None:
+    if REPORTS_ENABLED and monthly_report_task is None:
         if monthly_channel_id:
             monthly_report_task = start_monthly_reporter(
                 wom_client=wom_client,
@@ -262,7 +273,7 @@ async def on_ready():
         else:
             log("monthly_channel_id not configured; monthly report disabled.")
 
-    if yearly_report_task is None:
+    if REPORTS_ENABLED and yearly_report_task is None:
         if yearly_channel_id:
             yearly_report_task = start_yearly_reporter(
                 wom_client=wom_client,
@@ -526,6 +537,7 @@ bot_state = BotState(
     post_to_discord=post_to_discord,
     silent=silent,
     debug=debug,
+    reports_enabled=REPORTS_ENABLED,
 )
 
 
@@ -545,7 +557,8 @@ setup_commands(
     check_for_rank_changes,
     refresh_group_data,
     log,
-    debug
+    debug,
+    reports_enabled=REPORTS_ENABLED,
 )
 
 

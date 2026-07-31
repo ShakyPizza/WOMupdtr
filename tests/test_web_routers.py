@@ -458,7 +458,7 @@ def test_full_app_serves_all_pages_and_static_assets(monkeypatch, sample_players
     monkeypatch.setattr(reports, "get_monthly_report", fake_report)
     monkeypatch.setattr(reports, "get_yearly_report", fake_report)
 
-    app = create_app(_make_bot_state(), log_func=lambda message: None)
+    app = create_app(_make_bot_state(reports_enabled=True), log_func=lambda message: None)
     with TestClient(app) as client:
         responses = {
             path: client.get(path)
@@ -489,7 +489,7 @@ def test_weekly_report_has_no_ignored_fresh_action(monkeypatch):
         return ["Report ready"]
 
     monkeypatch.setattr(reports, "get_weekly_report", fake_report)
-    app = create_app(_make_bot_state(), log_func=lambda message: None)
+    app = create_app(_make_bot_state(reports_enabled=True), log_func=lambda message: None)
 
     with TestClient(app) as client:
         response = client.get("/reports/weekly")
@@ -497,6 +497,27 @@ def test_weekly_report_has_no_ignored_fresh_action(monkeypatch):
     assert response.status_code == 200
     assert "generated when this page loads" in response.text
     assert "fresh=true" not in response.text
+
+
+def test_reports_disabled_by_default_does_not_call_report_service(monkeypatch):
+    """When reports_enabled is False, the router must not touch the WOM API at all."""
+    async def unexpected_call(*args, **kwargs):
+        raise AssertionError("report service should not be called while reports are disabled")
+
+    monkeypatch.setattr(reports, "get_weekly_report", unexpected_call)
+    monkeypatch.setattr(reports, "get_monthly_report", unexpected_call)
+    monkeypatch.setattr(reports, "get_yearly_report", unexpected_call)
+
+    app = create_app(_make_bot_state(reports_enabled=False), log_func=lambda message: None)
+
+    with TestClient(app) as client:
+        weekly = client.get("/reports/weekly")
+        monthly = client.get("/reports/monthly")
+        yearly = client.get("/reports/yearly")
+
+    for response in (weekly, monthly, yearly):
+        assert response.status_code == 200
+        assert "temporarily disabled" in response.text
     assert "Generate fresh report" not in response.text
 
 

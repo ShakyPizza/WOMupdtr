@@ -181,16 +181,16 @@ async def _generate_monthly_report(*, wom_client, group_id: int, end_date: datet
     player_name_map = await _get_group_member_map(wom_client, group_id, log)
 
     overall_gains = await _get_group_gains(
-        wom_client, group_id, enums.Metric.Overall, start_date, end_date, limit=50
+        wom_client, group_id, enums.Metric.Overall, start_date, end_date
     )
     ehb_gains = await _get_group_gains(
-        wom_client, group_id, enums.Metric.Ehb, start_date, end_date, limit=50
+        wom_client, group_id, enums.Metric.Ehb, start_date, end_date
     )
     ehp_gains = await _get_group_gains(
-        wom_client, group_id, enums.Metric.Ehp, start_date, end_date, limit=50
+        wom_client, group_id, enums.Metric.Ehp, start_date, end_date
     )
     sailing_gains = await _get_group_gains(
-        wom_client, group_id, enums.Metric.Sailing, start_date, end_date, limit=50
+        wom_client, group_id, enums.Metric.Sailing, start_date, end_date
     )
 
     groups = wom_client.groups
