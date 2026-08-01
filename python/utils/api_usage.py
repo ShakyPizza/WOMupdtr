@@ -46,15 +46,15 @@ from .database import log_api_call
 # classification is now a generic path normalizer rather than a hand-written
 # per-endpoint whitelist: any WOM endpoint, including ones added later, gets
 # a stable, readable label automatically instead of disappearing into "other".
-_ID_SEGMENT = re.compile(r"^\d+$")
 
 
 def classify_endpoint(url: str) -> str:
-    """Collapse a WOM API URL into a stable, low-cardinality label.
+    """Collapse a WOM API URL into a readable label for the audit log.
 
-    Strips the scheme/host and API version prefix, then replaces any purely
-    numeric path segment (group/player/competition IDs) with ``{id}``. Falls
-    back to ``"other"`` only for a URL with no path segments at all.
+    Strips the scheme/host and API version prefix, keeping the real path
+    (including the actual group/player/competition ID) so the admin view
+    shows exactly what was requested. Falls back to ``"other"`` only for a
+    URL with no path segments at all.
     """
     path = url.split("?", 1)[0]
     path = re.sub(r"^https?://[^/]+", "", path)
@@ -62,8 +62,7 @@ def classify_endpoint(url: str) -> str:
     segments = [seg for seg in path.split("/") if seg]
     if not segments:
         return "other"
-    normalized = ["{id}" if _ID_SEGMENT.match(seg) else seg for seg in segments]
-    return "/".join(normalized)
+    return "/".join(segments)
 
 
 class ApiCircuitOpenError(RuntimeError):
