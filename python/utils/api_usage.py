@@ -29,27 +29,41 @@ import aiohttp
 
 from .database import log_api_call
 
-# Collapse WOM API URLs into a small set of stable labels for aggregation.
-# Order matters: more specific patterns must come before their prefixes.
-_ENDPOINT_PATTERNS = [
-    (re.compile(r"/groups/\d+/update-all"), "groups/{id}/update-all"),
-    (re.compile(r"/groups/\d+/gains"), "groups/{id}/gains"),
-    (re.compile(r"/groups/\d+/achievements"), "groups/{id}/achievements"),
-    (re.compile(r"/groups/\d+/name-changes"), "groups/{id}/name-changes"),
-    (re.compile(r"/groups/\d+/statistics"), "groups/{id}/statistics"),
-    (re.compile(r"/groups/\d+/hiscores"), "groups/{id}/hiscores"),
-    (re.compile(r"/groups/\d+$"), "groups/{id}"),
-    (re.compile(r"/players/[^/]+"), "players/{username}"),
-]
+# Every WOM route this bot's code actually calls today, for reference (see
+# wom.py's own routes.py for the full, authoritative catalog — that library
+# module is what classify_endpoint below is deliberately kept in sync with,
+# without hard-depending on its internals):
+#   GET  /groups/{id}                  groups.get_details
+#   GET  /groups/{id}/gained           groups.get_gains        (note: "gained", not "gains")
+#   POST /groups/{id}/update-all       groups.update_outdated_members / raw refresh_group_data
+#   GET  /groups/{id}/achievements     groups.get_achievements
+#   GET  /groups/{id}/name-changes     groups.get_name_changes
+#   GET  /groups/{id}/statistics       groups.get_statistics
+#
+# A previous version of this function matched "/gains" instead of the real
+# "/gained" path segment above, so every gains call silently fell into the
+# generic "other" bucket. To make that class of bug impossible to repeat,
+# classification is now a generic path normalizer rather than a hand-written
+# per-endpoint whitelist: any WOM endpoint, including ones added later, gets
+# a stable, readable label automatically instead of disappearing into "other".
+_ID_SEGMENT = re.compile(r"^\d+$")
 
 
 def classify_endpoint(url: str) -> str:
-    """Collapse a WOM API URL into a low-cardinality label for aggregation."""
+    """Collapse a WOM API URL into a stable, low-cardinality label.
+
+    Strips the scheme/host and API version prefix, then replaces any purely
+    numeric path segment (group/player/competition IDs) with ``{id}``. Falls
+    back to ``"other"`` only for a URL with no path segments at all.
+    """
     path = url.split("?", 1)[0]
-    for pattern, label in _ENDPOINT_PATTERNS:
-        if pattern.search(path):
-            return label
-    return "other"
+    path = re.sub(r"^https?://[^/]+", "", path)
+    path = re.sub(r"^/v\d+", "", path)
+    segments = [seg for seg in path.split("/") if seg]
+    if not segments:
+        return "other"
+    normalized = ["{id}" if _ID_SEGMENT.match(seg) else seg for seg in segments]
+    return "/".join(normalized)
 
 
 class ApiCircuitOpenError(RuntimeError):
@@ -147,6 +161,7 @@ class ApiUsageTracker:
         status_code: Optional[int],
         duration_ms: int,
         outcome: str,
+        user_agent: Optional[str] = None,
     ) -> None:
         if outcome == "ok":
             self._log(f"WOM API {method} {endpoint} -> {status_code} ({duration_ms}ms)")
@@ -155,6 +170,7 @@ class ApiUsageTracker:
         log_api_call(
             method=method, endpoint=endpoint,
             status_code=status_code, duration_ms=duration_ms, outcome=outcome,
+            user_agent=user_agent,
         )
 
     def calls_in_last(self, seconds: int) -> int:
@@ -181,6 +197,7 @@ async def _tracking_middleware(request, handler):
     """aiohttp client middleware: gate + time + log every request through ``tracker``."""
     endpoint = classify_endpoint(str(request.url))
     method = request.method
+    user_agent = request.headers.get("User-Agent")
     tracker.before_request(method, endpoint)
 
     start = time.monotonic()
@@ -189,14 +206,14 @@ async def _tracking_middleware(request, handler):
     except Exception:
         duration_ms = int((time.monotonic() - start) * 1000)
         tracker.record_completed(
-            method=method, endpoint=endpoint,
+            method=method, endpoint=endpoint, user_agent=user_agent,
             status_code=None, duration_ms=duration_ms, outcome="error",
         )
         raise
 
     duration_ms = int((time.monotonic() - start) * 1000)
     tracker.record_completed(
-        method=method, endpoint=endpoint,
+        method=method, endpoint=endpoint, user_agent=user_agent,
         status_code=response.status, duration_ms=duration_ms, outcome="ok",
     )
     return response

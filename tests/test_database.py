@@ -337,11 +337,11 @@ def test_log_api_call_and_read_recent(tmp_path):
 
     database.log_api_call(
         method="GET", endpoint="groups/{id}", status_code=200,
-        duration_ms=42, outcome="ok", timestamp="2026-07-25 10:00:00",
-        db_path=str(db_path),
+        duration_ms=42, outcome="ok", user_agent="wom.py v2.0.6 - orri0995",
+        timestamp="2026-07-25 10:00:00", db_path=str(db_path),
     )
     database.log_api_call(
-        method="GET", endpoint="groups/{id}/gains", status_code=None,
+        method="GET", endpoint="groups/{id}/gained", status_code=None,
         duration_ms=None, outcome="error", timestamp="2026-07-25 10:00:01",
         db_path=str(db_path),
     )
@@ -349,11 +349,13 @@ def test_log_api_call_and_read_recent(tmp_path):
     recent = database.read_recent_api_calls(limit=10, db_path=str(db_path))
     assert len(recent) == 2
     # Newest first.
-    assert recent[0]["endpoint"] == "groups/{id}/gains"
+    assert recent[0]["endpoint"] == "groups/{id}/gained"
     assert recent[0]["outcome"] == "error"
     assert recent[0]["status_code"] is None
+    assert recent[0]["user_agent"] is None
     assert recent[1]["endpoint"] == "groups/{id}"
     assert recent[1]["status_code"] == 200
+    assert recent[1]["user_agent"] == "wom.py v2.0.6 - orri0995"
 
 
 def test_count_api_calls_since(tmp_path):

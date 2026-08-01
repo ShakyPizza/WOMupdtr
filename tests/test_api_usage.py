@@ -19,14 +19,21 @@ def run(coro):
 
 @pytest.mark.parametrize("url,expected", [
     ("https://api.wiseoldman.net/v2/groups/2300", "groups/{id}"),
-    ("https://api.wiseoldman.net/v2/groups/2300/gains?metric=overall", "groups/{id}/gains"),
+    # The real WOM route for get_gains is "/gained", not "/gains" — this is
+    # the exact bug that used to silently misclassify every gains call as
+    # "other". Locking in the correct path here so it can't regress.
+    ("https://api.wiseoldman.net/v2/groups/2300/gained?metric=overall", "groups/{id}/gained"),
     ("https://api.wiseoldman.net/v2/groups/2300/update-all", "groups/{id}/update-all"),
     ("https://api.wiseoldman.net/v2/groups/2300/achievements", "groups/{id}/achievements"),
     ("https://api.wiseoldman.net/v2/groups/2300/name-changes", "groups/{id}/name-changes"),
     ("https://api.wiseoldman.net/v2/groups/2300/statistics", "groups/{id}/statistics"),
     ("https://api.wiseoldman.net/v2/groups/2300/hiscores", "groups/{id}/hiscores"),
-    ("https://api.wiseoldman.net/v2/players/some_user", "players/{username}"),
-    ("https://api.wiseoldman.net/v2/efficiency/rates", "other"),
+    ("https://api.wiseoldman.net/v2/players/some_user", "players/some_user"),
+    ("https://api.wiseoldman.net/v2/players/id/12345", "players/id/{id}"),
+    # An endpoint this bot has never called still gets a readable label
+    # instead of vanishing into "other".
+    ("https://api.wiseoldman.net/v2/efficiency/leaderboard", "efficiency/leaderboard"),
+    ("https://api.wiseoldman.net/v2", "other"),
 ])
 def test_classify_endpoint(url, expected):
     assert api_usage.classify_endpoint(url) == expected
@@ -108,9 +115,10 @@ def test_tracker_rolling_window_drops_old_calls(monkeypatch):
 
 
 class _FakeRequest:
-    def __init__(self, method, url):
+    def __init__(self, method, url, user_agent="wom.py v2.0.6 - orri0995"):
         self.method = method
         self.url = url
+        self.headers = {"User-Agent": user_agent} if user_agent else {}
 
 
 class _FakeResponse:
@@ -136,6 +144,7 @@ def test_middleware_records_successful_call(monkeypatch):
     assert recent[0]["endpoint"] == "groups/{id}"
     assert recent[0]["status_code"] == 200
     assert recent[0]["outcome"] == "ok"
+    assert recent[0]["user_agent"] == "wom.py v2.0.6 - orri0995"
 
     # Every real call is also surfaced to the console/log callback, not just SQLite.
     assert len(logged) == 1
@@ -147,7 +156,7 @@ def test_middleware_records_error_and_reraises(monkeypatch):
         api_usage, "tracker",
         api_usage.ApiUsageTracker(rate_limit_per_minute=30, cooldown_seconds=60, log=lambda m: None),
     )
-    request = _FakeRequest("GET", "https://api.wiseoldman.net/v2/groups/2300/gains")
+    request = _FakeRequest("GET", "https://api.wiseoldman.net/v2/groups/2300/gained")
 
     async def handler(_req):
         raise ConnectionError("boom")
@@ -156,7 +165,7 @@ def test_middleware_records_error_and_reraises(monkeypatch):
         run(api_usage._tracking_middleware(request, handler))
 
     recent = database.read_recent_api_calls(limit=1)
-    assert recent[0]["endpoint"] == "groups/{id}/gains"
+    assert recent[0]["endpoint"] == "groups/{id}/gained"
     assert recent[0]["outcome"] == "error"
     assert recent[0]["status_code"] is None
 

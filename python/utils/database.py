@@ -267,7 +267,8 @@ def init_database(db_path: str | None = None) -> str:
                 endpoint TEXT NOT NULL,
                 status_code INTEGER,
                 duration_ms INTEGER,
-                outcome TEXT NOT NULL
+                outcome TEXT NOT NULL,
+                user_agent TEXT
             )
             """
         )
@@ -277,6 +278,10 @@ def init_database(db_path: str | None = None) -> str:
         conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_api_call_log_endpoint_ts ON api_call_log (endpoint, timestamp)"
         )
+        # ``user_agent`` was added after the table's initial rollout; back-fill
+        # it on any database created before that so INSERTs don't fail on a
+        # missing column.
+        _ensure_columns(conn, "api_call_log", {"user_agent": "TEXT"})
 
         conn.commit()
 
@@ -842,6 +847,7 @@ def log_api_call(
     status_code: int | None,
     duration_ms: int | None,
     outcome: str,
+    user_agent: str | None = None,
     timestamp: str | None = None,
     db_path: str | None = None,
 ) -> None:
@@ -851,10 +857,10 @@ def log_api_call(
     with closing(connect_db(resolved_path)) as conn:
         conn.execute(
             """
-            INSERT INTO api_call_log (timestamp, method, endpoint, status_code, duration_ms, outcome)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO api_call_log (timestamp, method, endpoint, status_code, duration_ms, outcome, user_agent)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (recorded_at, method, endpoint, status_code, duration_ms, outcome),
+            (recorded_at, method, endpoint, status_code, duration_ms, outcome, user_agent),
         )
         conn.commit()
 
@@ -865,7 +871,7 @@ def read_recent_api_calls(limit: int = 50, db_path: str | None = None) -> list[d
     with closing(connect_db(resolved_path)) as conn:
         rows = conn.execute(
             """
-            SELECT timestamp, method, endpoint, status_code, duration_ms, outcome
+            SELECT timestamp, method, endpoint, status_code, duration_ms, outcome, user_agent
             FROM api_call_log
             ORDER BY id DESC
             LIMIT ?
