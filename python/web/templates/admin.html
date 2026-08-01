@@ -77,6 +77,22 @@
 <article class="surface-card">
     <div class="section-heading">
         <div>
+            <p class="eyebrow">Outbound requests</p>
+            <h2>WOM API usage</h2>
+            <small>Every outbound call to the Wise Old Man API, tracked and rate-limited centrally since the 2026-07 IP-block incident.</small>
+        </div>
+    </div>
+    <div id="api-usage-feed"
+         hx-get="/admin/api-usage"
+         hx-trigger="load, every 5s"
+         hx-swap="innerHTML">
+        <p class="empty-state">Loading API usage...</p>
+    </div>
+</article>
+
+<article class="surface-card">
+    <div class="section-heading">
+        <div>
             <p class="eyebrow">Live logs</p>
             <h2>Log viewer</h2>
         </div>

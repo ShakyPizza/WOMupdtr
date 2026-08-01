@@ -21,6 +21,7 @@ from .rank_utils import (
     next_rank_ehp,
     save_ranks,
 )
+from .api_usage import create_tracked_session
 from gainstracker import build_gains_lines, collect_gains_leaderboard, resolve_metric
 from weeklyupdater import (
     generate_monthly_report_messages,
@@ -453,7 +454,7 @@ def setup_commands(
         url = f"https://api.wiseoldman.net/v2/groups/{GROUP_ID}"
         try:
             connector = aiohttp.TCPConnector(family=socket.AF_INET)
-            async with aiohttp.ClientSession(connector=connector) as session:
+            async with create_tracked_session(connector=connector) as session:
                 async with session.get(url) as response:
                     if response.status == 200:
                         group_data = await response.json()

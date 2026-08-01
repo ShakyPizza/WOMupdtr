@@ -8,9 +8,13 @@ import logging
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from datetime import datetime, timedelta, timezone
+
 from ..dependencies import get_bot_state
 from ..services.bot_state import BotState
 from ..ui import render_template
+from utils.api_usage import tracker as api_usage_tracker
+from utils.database import count_api_calls_since, read_recent_api_calls
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +59,25 @@ async def refresh_group(state: BotState = Depends(get_bot_state)):
 async def get_logs(request: Request, state: BotState = Depends(get_bot_state)):
     log_lines = list(state.log_buffer)[-100:]
     return render_template(request, "partials/log_feed.html", log_lines=log_lines)
+
+
+@router.get("/api-usage", response_class=HTMLResponse)
+async def get_api_usage(request: Request):
+    _TS_FMT = "%Y-%m-%d %H:%M:%S"
+    now = datetime.now(timezone.utc)
+    hour_ago = (now - timedelta(hours=1)).strftime(_TS_FMT)
+    day_ago = (now - timedelta(days=1)).strftime(_TS_FMT)
+
+    return render_template(
+        request,
+        "partials/api_usage_feed.html",
+        breaker=api_usage_tracker.breaker_status(),
+        calls_last_minute=api_usage_tracker.calls_in_last(60),
+        calls_last_hour=count_api_calls_since(hour_ago),
+        calls_last_day=count_api_calls_since(day_ago),
+        recent_calls=read_recent_api_calls(limit=25),
+        rate_limit_per_minute=api_usage_tracker.rate_limit_per_minute,
+    )
 
 
 @router.get("/status")

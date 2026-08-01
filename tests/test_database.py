@@ -325,3 +325,66 @@ def test_read_player_snapshots_ignores_status_only_rows(tmp_path):
     )
 
     assert database.read_player_snapshots(db_path=str(db_path)) == {}
+
+
+# ---------------------------------------------------------------------------
+# Outbound WOM API call audit log (see utils.api_usage)
+# ---------------------------------------------------------------------------
+
+
+def test_log_api_call_and_read_recent(tmp_path):
+    db_path = tmp_path / "database.db"
+
+    database.log_api_call(
+        method="GET", endpoint="groups/{id}", status_code=200,
+        duration_ms=42, outcome="ok", timestamp="2026-07-25 10:00:00",
+        db_path=str(db_path),
+    )
+    database.log_api_call(
+        method="GET", endpoint="groups/{id}/gains", status_code=None,
+        duration_ms=None, outcome="error", timestamp="2026-07-25 10:00:01",
+        db_path=str(db_path),
+    )
+
+    recent = database.read_recent_api_calls(limit=10, db_path=str(db_path))
+    assert len(recent) == 2
+    # Newest first.
+    assert recent[0]["endpoint"] == "groups/{id}/gains"
+    assert recent[0]["outcome"] == "error"
+    assert recent[0]["status_code"] is None
+    assert recent[1]["endpoint"] == "groups/{id}"
+    assert recent[1]["status_code"] == 200
+
+
+def test_count_api_calls_since(tmp_path):
+    db_path = tmp_path / "database.db"
+
+    database.log_api_call(
+        method="GET", endpoint="groups/{id}", status_code=200, duration_ms=10,
+        outcome="ok", timestamp="2026-07-25 09:00:00", db_path=str(db_path),
+    )
+    database.log_api_call(
+        method="GET", endpoint="groups/{id}", status_code=200, duration_ms=10,
+        outcome="ok", timestamp="2026-07-25 11:00:00", db_path=str(db_path),
+    )
+
+    assert database.count_api_calls_since("2026-07-25 10:00:00", db_path=str(db_path)) == 1
+    assert database.count_api_calls_since("2026-07-25 00:00:00", db_path=str(db_path)) == 2
+
+
+def test_read_api_call_counts_by_endpoint(tmp_path):
+    db_path = tmp_path / "database.db"
+
+    for _ in range(3):
+        database.log_api_call(
+            method="GET", endpoint="groups/{id}/gains", status_code=200, duration_ms=10,
+            outcome="ok", timestamp="2026-07-25 10:00:00", db_path=str(db_path),
+        )
+    database.log_api_call(
+        method="GET", endpoint="groups/{id}", status_code=200, duration_ms=10,
+        outcome="ok", timestamp="2026-07-25 10:00:00", db_path=str(db_path),
+    )
+
+    counts = database.read_api_call_counts_by_endpoint("2026-07-25 00:00:00", db_path=str(db_path))
+    assert counts[0] == {"endpoint": "groups/{id}/gains", "count": 3}
+    assert {"endpoint": "groups/{id}", "count": 1} in counts

@@ -1,0 +1,53 @@
+{% if breaker.open %}
+<p class="feedback error">
+    ⚠️ Circuit breaker OPEN — pausing all WOM API calls for {{ breaker.seconds_remaining }}s more
+    ({{ breaker.blocked_since_open }} call(s) blocked so far this trip).
+</p>
+{% else %}
+<p class="feedback success">Circuit breaker closed — WOM API calls flowing normally (limit: {{ rate_limit_per_minute }}/min).</p>
+{% endif %}
+
+<section class="stats-grid">
+    <article class="surface-card">
+        <p class="mini-label">Last minute</p>
+        <p>{{ calls_last_minute }}</p>
+    </article>
+    <article class="surface-card">
+        <p class="mini-label">Last hour</p>
+        <p>{{ calls_last_hour }}</p>
+    </article>
+    <article class="surface-card">
+        <p class="mini-label">Last 24h</p>
+        <p>{{ calls_last_day }}</p>
+    </article>
+</section>
+
+<div class="table-wrap">
+    <table class="data-table" role="grid">
+        <thead>
+            <tr>
+                <th>Time (UTC)</th>
+                <th>Method</th>
+                <th>Endpoint</th>
+                <th>Status</th>
+                <th>Duration</th>
+                <th>Outcome</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for call in recent_calls %}
+            <tr>
+                <td>{{ call.timestamp }}</td>
+                <td>{{ call.method }}</td>
+                <td>{{ call.endpoint }}</td>
+                <td>{{ call.status_code if call.status_code is not none else "—" }}</td>
+                <td>{{ (call.duration_ms|string ~ "ms") if call.duration_ms is not none else "—" }}</td>
+                <td>{{ call.outcome }}</td>
+            </tr>
+            {% endfor %}
+            {% if not recent_calls %}
+            <tr><td colspan="6" class="empty-state">No API calls logged yet.</td></tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>

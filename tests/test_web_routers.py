@@ -62,6 +62,30 @@ def test_admin_status_returns_200(monkeypatch):
     assert response.status_code == 200
 
 
+def test_admin_api_usage_reflects_breaker_and_recent_calls(monkeypatch):
+    """The API usage partial surfaces breaker state and logged calls."""
+    from python.utils import api_usage as api_usage_module
+    from python.utils import database
+
+    fresh_tracker = api_usage_module.ApiUsageTracker(
+        rate_limit_per_minute=5, cooldown_seconds=60, log=lambda m: None,
+    )
+    monkeypatch.setattr(admin, "api_usage_tracker", fresh_tracker)
+
+    database.log_api_call(
+        method="GET", endpoint="groups/{id}", status_code=200,
+        duration_ms=15, outcome="ok",
+    )
+
+    state = _make_bot_state()
+    with TestClient(_make_app(state)) as client:
+        response = client.get("/admin/api-usage")
+
+    assert response.status_code == 200
+    assert "Circuit breaker closed" in response.text
+    assert "groups/{id}" in response.text
+
+
 def test_admin_status_contains_expected_keys(monkeypatch):
     """Status JSON contains all expected top-level keys."""
     state = _make_bot_state()

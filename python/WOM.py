@@ -29,6 +29,7 @@ from utils.rank_utils import (
 )
 from utils.log_csv import log_ehb_to_csv
 from utils.commands import setup_commands
+from utils.api_usage import tracker as api_usage_tracker, create_tracked_session
 import uvicorn
 from web import create_app
 from web.services.bot_state import BotState
@@ -41,7 +42,7 @@ class Client(BaseClient):
             # Prefer IPv4 inside containers where IPv6 DNS answers exist but
             # outbound IPv6 connectivity is not actually configured.
             connector = aiohttp.TCPConnector(family=socket.AF_INET)
-            http._session = aiohttp.ClientSession(
+            http._session = create_tracked_session(
                 connector=connector,
                 json_serialize=lambda o: http._encoder.encode(o).decode(),
             )
@@ -104,7 +105,7 @@ async def diagnose_group_details_fetch() -> str:
 
     try:
         connector = aiohttp.TCPConnector(family=socket.AF_INET)
-        async with aiohttp.ClientSession(connector=connector) as session:
+        async with create_tracked_session(connector=connector) as session:
             async with session.get(url, headers=headers) as response:
                 body = await response.text(errors="replace")
                 content_type = response.headers.get("content-type", "unknown")
@@ -155,6 +156,8 @@ track_ehp           = config['settings'].getboolean('track_ehp', False)
 gains_snapshot_interval = int(config['settings'].get('gains_snapshot_interval', 86400) or 86400)
 gains_window_days   = int(config['settings'].get('gains_window_days', 7) or 7)
 gains_metrics       = [m.strip() for m in config['settings'].get('gains_metrics', 'overall,ehb').split(',') if m.strip()]
+api_rate_limit_per_minute      = int(config['settings'].get('api_rate_limit_per_minute', 30) or 30)
+api_circuit_breaker_cooldown   = int(config['settings'].get('api_circuit_breaker_cooldown_seconds', 300) or 300)
 
 # Web interface settings
 web_enabled = config['web'].getboolean('enabled', False) if config.has_section('web') else False
@@ -165,6 +168,18 @@ if api_key:
     log("Wise Old Man API key loaded.")
 else:
     log("Wise Old Man API key not configured; using default rate limits.")
+
+# Every outbound WOM API call (wom_client + raw diagnostic/admin sessions) is
+# tracked and rate-limited centrally; see utils/api_usage.py.
+api_usage_tracker.configure(
+    rate_limit_per_minute=api_rate_limit_per_minute,
+    cooldown_seconds=api_circuit_breaker_cooldown,
+    log=log,
+)
+log(
+    f"WOM API circuit breaker configured: "
+    f"{api_rate_limit_per_minute} requests/min, {api_circuit_breaker_cooldown}s cooldown."
+)
 
 
 # Discord Client and Wise Old Man Client Initialization
@@ -467,7 +482,7 @@ async def refresh_group_data():
 
     try:
         connector = aiohttp.TCPConnector(family=socket.AF_INET)
-        async with aiohttp.ClientSession(connector=connector) as session:
+        async with create_tracked_session(connector=connector) as session:
             async with session.post(url, headers=headers, json=payload) as response:
                 if response.status == 200:
                     data = await response.json()

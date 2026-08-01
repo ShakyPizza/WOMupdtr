@@ -255,6 +255,29 @@ def init_database(db_path: str | None = None) -> str:
             "CREATE INDEX IF NOT EXISTS idx_achievements_metric_ts ON achievements (metric, measure, achieved_at)"
         )
 
+        # Central audit log for every outbound Wise Old Man API call (see
+        # utils.api_usage). Added after the 2026-07 IP-block incident so
+        # request volume is visible in real time instead of only after a ban.
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS api_call_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                method TEXT NOT NULL,
+                endpoint TEXT NOT NULL,
+                status_code INTEGER,
+                duration_ms INTEGER,
+                outcome TEXT NOT NULL
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_api_call_log_ts ON api_call_log (timestamp)"
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_api_call_log_endpoint_ts ON api_call_log (endpoint, timestamp)"
+        )
+
         conn.commit()
 
     return resolved_path
@@ -805,3 +828,76 @@ def count_players(db_path: str | None = None) -> int:
     with closing(connect_db(resolved_path)) as conn:
         row = conn.execute("SELECT COUNT(*) AS count FROM players").fetchone()
     return int(row["count"]) if row else 0
+
+
+# ---------------------------------------------------------------------------
+# Outbound WOM API call audit log (see utils.api_usage)
+# ---------------------------------------------------------------------------
+
+
+def log_api_call(
+    *,
+    method: str,
+    endpoint: str,
+    status_code: int | None,
+    duration_ms: int | None,
+    outcome: str,
+    timestamp: str | None = None,
+    db_path: str | None = None,
+) -> None:
+    """Insert one row into the outbound API call audit log."""
+    resolved_path = init_database(db_path)
+    recorded_at = timestamp or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    with closing(connect_db(resolved_path)) as conn:
+        conn.execute(
+            """
+            INSERT INTO api_call_log (timestamp, method, endpoint, status_code, duration_ms, outcome)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (recorded_at, method, endpoint, status_code, duration_ms, outcome),
+        )
+        conn.commit()
+
+
+def read_recent_api_calls(limit: int = 50, db_path: str | None = None) -> list[dict]:
+    """Return the most recent API call log rows, newest first."""
+    resolved_path = init_database(db_path)
+    with closing(connect_db(resolved_path)) as conn:
+        rows = conn.execute(
+            """
+            SELECT timestamp, method, endpoint, status_code, duration_ms, outcome
+            FROM api_call_log
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def count_api_calls_since(since_timestamp: str, db_path: str | None = None) -> int:
+    """Return the number of API calls logged at or after ``since_timestamp``."""
+    resolved_path = init_database(db_path)
+    with closing(connect_db(resolved_path)) as conn:
+        row = conn.execute(
+            "SELECT COUNT(*) AS count FROM api_call_log WHERE timestamp >= ?",
+            (since_timestamp,),
+        ).fetchone()
+    return int(row["count"]) if row else 0
+
+
+def read_api_call_counts_by_endpoint(since_timestamp: str, db_path: str | None = None) -> list[dict]:
+    """Return ``[{endpoint, count}]`` for calls at/after ``since_timestamp``, busiest first."""
+    resolved_path = init_database(db_path)
+    with closing(connect_db(resolved_path)) as conn:
+        rows = conn.execute(
+            """
+            SELECT endpoint, COUNT(*) AS count
+            FROM api_call_log
+            WHERE timestamp >= ?
+            GROUP BY endpoint
+            ORDER BY count DESC
+            """,
+            (since_timestamp,),
+        ).fetchall()
+    return [dict(row) for row in rows]
