@@ -382,7 +382,7 @@ async def check_for_rank_changes():
                         log(f"Correcting stale rank for {username}: '{result['ehb_old_rank']}' -> '{rank}'")
 
                     # --- EHP side effects ---
-                    if track_ehp and result["ehp_increase"]:
+                    if track_ehp and result["ehp_increase"] and ehp is not None:
                         log(f"Player {username} EHP increased to {ehp:.2f}")
                         await send_rank_up_message(
                             username, ehp_rank, result["ehp_old_rank"], ehp, metric_label="EHP"
