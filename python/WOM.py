@@ -161,7 +161,7 @@ api_circuit_breaker_cooldown   = int(config['settings'].get('api_circuit_breaker
 
 # Web interface settings
 web_enabled = config['web'].getboolean('enabled', False) if config.has_section('web') else False
-web_host = config['web'].get('host', '0.0.0.0') if config.has_section('web') else '0.0.0.0'
+web_host = config['web'].get('host', '127.0.0.1') if config.has_section('web') else '127.0.0.1'
 web_port = int(config['web'].get('port', '8080')) if config.has_section('web') else 8080
 
 if api_key:
